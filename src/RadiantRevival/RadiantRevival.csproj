@@ -3,6 +3,8 @@
     <PropertyGroup>
         <TmlBuildUseDefaultModImpl>true</TmlBuildUseDefaultModImpl>
         <TmlVersion>dev</TmlVersion>
+        
+        <TmlBuildBootstrapFeatures>tomat.environmentmodlist;tomat.enablemod;lolxd87.splashskip</TmlBuildBootstrapFeatures>
     </PropertyGroup>
 
     <ItemGroup>
