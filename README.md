@@ -25,3 +25,5 @@ Inspiration for lighting changes have been sourced from the most popular tModLoa
   - rather simple in how it works, but has issues because of it, mostly a feature parity goal;
 - [Dynamic Lights](https://steamcommunity.com/sharedfiles/filedetails/?id=2679594765):
   - main inspiration for well-defined directional lighting with tile geometry shadow casting.
+
+The rough branding for the project is obviously inspired by [Radiant Revival feat. Hatsune Miku](https://www.youtube.com/watch?v=qHU3hf1b8NY) by Jamie Paige.
