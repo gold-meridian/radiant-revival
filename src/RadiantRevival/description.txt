@@ -1,0 +1,3 @@
+A rendezvous, reprised; our Radiant Revival!
+
+Radiant Revival overhauls the lighting engine and sky rendering of the game to make it look Beautiful.

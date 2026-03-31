@@ -1,0 +1,6 @@
+displayName = RADIANT REVIVAL
+author = Gold Meridian
+version = 1.0.0
+homepage = https://discord.gg/6Fm4ZTHVub
+side = Client
+modReferences = Daybreak
