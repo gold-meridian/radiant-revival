@@ -1,7 +1,10 @@
 ﻿using Daybreak.Common.Features.Authorship;
 using Daybreak.Common.Features.ModPanel;
+using RadiantRevival.Core;
 
 namespace RadiantRevival;
+
+#pragma warning disable CS8603 // Possible null reference return.
 
 partial class ModImpl : IHasCustomAuthorMessage
 {
@@ -14,5 +17,10 @@ partial class ModImpl : IHasCustomAuthorMessage
     string IHasCustomAuthorMessage.GetAuthorText()
     {
         return AuthorText.GetAuthorTooltip(this, headerText: null);
+    }
+
+    public override object Call(params object[] args)
+    {
+        return ModCallLoader.HandleCall(args);
     }
 }
