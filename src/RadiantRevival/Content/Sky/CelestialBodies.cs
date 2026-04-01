@@ -1,0 +1,137 @@
+﻿using Daybreak.Common.Features.Hooks;
+using Microsoft.Xna.Framework;
+using MonoMod.Cil;
+using Terraria;
+using Terraria.GameContent;
+using Terraria.ID;
+
+namespace RadiantRevival.Content;
+
+public static class CelestialBodies
+{
+    private static readonly Vector2 velocity_multiplier = new(0.92f, 0.85f);
+    private const float mod_multiplier = 0.976f;
+
+    private static Vector2 celestialBodyVelocity;
+
+    [OnLoad]
+    private static void Load()
+    {
+        IL_Main.UpdateMenu += UpdateMenu_ReverseTime;
+
+        On_Main.DrawSunAndMoon += DrawSunAndMoon_Velocity;
+    }
+
+    private static void UpdateMenu_ReverseTime(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchBrfalse(out _),
+            i => i.MatchRet()
+        );
+
+        c.MoveAfterLabels();
+
+        c.EmitDelegate(() =>
+        {
+            if (Main.time >= 0)
+            {
+                return;
+            }
+
+            double timeRatio = Main.dayTime
+              ? Main.nightLength / Main.dayLength
+              : Main.dayLength / Main.nightLength;
+
+            if (Main.dayTime)
+            {
+                Main.moonPhase = (Main.moonPhase - 1) % 8;
+            }
+
+            Main.time = (Main.dayTime ? Main.nightLength : Main.dayLength) + Main.time * timeRatio;
+            Main.dayTime = !Main.dayTime;
+
+            if (!Main.lockMenuBGChange)
+            {
+                Main.moonType = Main.rand.Next(TextureAssets.Moon.Length);
+            }
+        });
+
+        c.GotoNext(
+            MoveType.Before,
+            i => i.MatchLdsfld<Main>(nameof(Main.moonPhase)),
+            i => i.MatchLdcI4(1)
+        );
+
+        c.MoveAfterLabels();
+
+        c.EmitDelegate(
+            static () =>
+            {
+                if (!Main.lockMenuBGChange)
+                {
+                    Main.moonType = Main.rand.Next(TextureAssets.Moon.Length);
+                }
+            }
+        );
+    }
+
+    private static void DrawSunAndMoon_Velocity(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
+    {
+        Vector2 screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
+
+        Vector2 oldPosition = Main.LastCelestialBodyPosition * screenSize;
+
+        orig(self, sceneArea, moonColor, sunColor,  tempMushroomInfluence);
+
+        Vector2 position = Main.LastCelestialBodyPosition * screenSize;
+
+        // TODO: Allow celestial body movement when connecting to a server
+        if (!Main.gameMenu ||
+            Main.netMode == NetmodeID.MultiplayerClient)
+        {
+            return;
+        }
+
+        float sunMoonWidth =
+            Main.dayTime ?
+                TextureAssets.Sun.Value.Width :
+                TextureAssets.Moon[Main.moonType].Value.Width;
+
+        double timeLength =
+            Main.dayTime ?
+                Main.dayLength :
+                Main.nightLength;
+
+        if (Main.alreadyGrabbingSunOrMoon)
+        {
+            celestialBodyVelocity = position - oldPosition;
+
+            return;
+        }
+
+        celestialBodyVelocity *= velocity_multiplier;
+
+        if (Main.dayTime)
+        {
+            Main.sunModY += (short)celestialBodyVelocity.Y;
+        }
+        else
+        {
+            Main.moonModY += (short)celestialBodyVelocity.Y;
+        }
+
+        Main.sunModY = (short)(Main.sunModY * mod_multiplier);
+        Main.moonModY = (short)(Main.moonModY * mod_multiplier);
+
+        double newTime = position.X + celestialBodyVelocity.X + sunMoonWidth;
+
+        newTime /= Main.screenWidth + sunMoonWidth * 2f;
+
+        newTime *= timeLength;
+
+        Main.time = newTime;
+    }
+}
