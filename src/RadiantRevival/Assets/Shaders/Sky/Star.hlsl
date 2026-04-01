@@ -4,15 +4,15 @@ float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
 {
     float4 col = tex2D(uImage0, saturate(uv)) * baseColor;
     
-    clip(col.a);
-
-    float dist = 1 - (length(uv - .5) * 10);
+    float dist = 1 - (length(uv - .5) * 8.6);
     
-    col += saturate(pow(dist, 4));
+    col += pow(saturate(dist), 4);
     
     col = saturate(col);
     
-    return col * col.a;
+    col.rgb * col.a;
+    
+    return col;
 }
 
 #ifdef FX
