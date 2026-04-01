@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Publicize Include="FNA;ReLogic;Terraria" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false"/>
+        <Publicize Include="FNA;ReLogic" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false"/>
     </ItemGroup>
 
     <ItemGroup>
