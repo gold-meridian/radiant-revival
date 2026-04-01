@@ -13,6 +13,7 @@ internal static class CommonEntitySmoothLighting
         NpcRendering();
         ProjectileRendering();
         ItemRendering();
+        GoreRendering();
     }
 
     private static void NpcRendering()
@@ -55,6 +56,19 @@ internal static class CommonEntitySmoothLighting
     private static void ItemRendering()
     {
         On_Main.DrawItems += (orig, self) =>
+        {
+            Scope(() => orig(self));
+        };
+    }
+
+    private static void GoreRendering()
+    {
+        On_Main.DrawGore += (orig, self) =>
+        {
+            Scope(() => orig(self));
+        };
+        
+        On_Main.DrawGoreBehind += (orig, self) =>
         {
             Scope(() => orig(self));
         };
