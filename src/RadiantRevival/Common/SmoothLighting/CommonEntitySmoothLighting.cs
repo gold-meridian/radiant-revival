@@ -12,6 +12,7 @@ internal static class CommonEntitySmoothLighting
     {
         NpcRendering();
         ProjectileRendering();
+        ItemRendering();
     }
 
     private static void NpcRendering()
@@ -48,6 +49,14 @@ internal static class CommonEntitySmoothLighting
         On_Main.DrawWallOfStars += orig =>
         {
             Scope(() => orig(), endSpriteBatch: false);
+        };
+    }
+
+    private static void ItemRendering()
+    {
+        On_Main.DrawItems += (orig, self) =>
+        {
+            Scope(() => orig(self));
         };
     }
 
