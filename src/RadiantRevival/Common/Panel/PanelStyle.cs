@@ -169,32 +169,6 @@ internal sealed class PanelStyle : ModPanelStyleExt
                 hoverIntensity = MathHelper.Lerp(hoverIntensity, element.IsMouseHovering ? 1f : 0f, 0.15f);
                 hoverIntensity = Math.Clamp(MathF.Round(hoverIntensity, 2), 0f, 1f);
 
-                shaderData.Parameters.u_source = Transform(new Vector4(dims.Width, dims.Height, dims.X, dims.Y));
-                shaderData.Parameters.u_hover_intensity = hoverIntensity;
-                shaderData.Parameters.evil_fucked_up_variable = 1f;
-                /*
-                shaderData.Parameters.uBackColor = new Vector4(0f, 0f, 0.2f, 1f);
-                shaderData.Parameters.uColor = new Vector4(0.3f, 0.02f, 0.4f, 1f);
-                shaderData.Parameters.uSpeed = 0.3f;
-                shaderData.Parameters.uSource = Transform(new Vector4(dims.Width, dims.Height - 2f, dims.X, dims.Y));
-                shaderData.Parameters.uHoverIntensity = hoverIntensity;
-                shaderData.Parameters.uPixel = 2f;
-                shaderData.Parameters.uColorResolution = 16f;
-                shaderData.Parameters.uBorderStrength = 0.66f;
-                */
-                /*
-                shaderData.Parameters.uGrayness = 1f;
-                shaderData.Parameters.uColor = new Vector4(1.3f, 0.7f, 0f, 1f);
-                shaderData.Parameters.uSecondaryColor = new Vector4(0.7f, 0f, 0f, 1f);
-                shaderData.Parameters.uSpeed = 0.3f;
-                shaderData.Parameters.uSource = Transform(new Vector4(dims.Width, dims.Height, dims.X, dims.Y));
-                shaderData.Parameters.uHoverIntensity = hoverIntensity;
-                shaderData.Parameters.uPixel = 2f;
-                shaderData.Parameters.uColorResolution = 10f;
-                shaderData.Parameters.uSmallPanel = ModLoader.HasMod("ConciseModList");
-                */
-                shaderData.Apply();
-
                 element.DrawPanel(sb, Assets.UI.ModPanel.BevelPanel.Asset.Value, element.BackgroundColor);
             }
             sb.Restart(in ss);
