@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using System;
+using System.Diagnostics;
+using RadiantRevival.Core;
 using Terraria;
 using Terraria.Utilities;
 
@@ -23,18 +25,27 @@ public static class Stars
     private const float star_min_scale = 0.15f;
     private const float star_max_scale = 1.1f;
 
+    private static readonly Color star_color_low = new(148, 182, 255);
+    private static readonly Color star_color_high = new(255, 204, 152);
+
+    private static WrapperShaderData<Assets.Shaders.Sky.Star.Parameters>? starShaderData;
+
     [OnLoad]
     private static void Load()
     {
+        starShaderData = Assets.Shaders.Sky.Star.CreatePanelShader();
+
         for (int i = 0; i < stars.Length; i++)
         {
             var position = Main.rand.NextPointSphereSurface();
+
+            var color = Color.OklabLerp(star_color_low, star_color_high, Main.rand.NextFloat());
 
             float scale = Main.rand.NextFloat(star_min_scale, star_max_scale);
 
             float phase = Main.rand.NextFloat(MathF.Tau);
 
-            stars[i] = new Star(position, Color.White, scale, phase);
+            stars[i] = new Star(position, color, scale, phase);
         }
 
         IL_Main.DrawStarsInBackground += DrawStarsInBackground_DrawStars;
@@ -49,12 +60,7 @@ public static class Stars
         c.EmitDelegate(
             static () =>
             {
-                Main.spriteBatch.End(out var snapshot);
-                Main.spriteBatch.Begin(snapshot with { SamplerState = SamplerState.LinearClamp });
-
                 Draw(Main.spriteBatch, Main.graphics.graphicsDevice);
-
-                Main.spriteBatch.Restart(in snapshot);
                 
                 return true;
             }
@@ -69,6 +75,14 @@ public static class Stars
 
     private static void Draw(SpriteBatch sb, GraphicsDevice device)
     {
+        Debug.Assert(starShaderData is not null);
+
+        Main.spriteBatch.End(out var snapshot);
+
+        starShaderData.Apply();
+
+        Main.spriteBatch.Begin(snapshot with { SamplerState = SamplerState.LinearClamp, CustomEffect = starShaderData._effect });
+
         const float offscreen_margin = 70f;
 
         const float screen_length_denom = 1101f;
@@ -77,7 +91,7 @@ public static class Stars
 
         // Angle upwards to make the curve more pronounced
         const float rotation_x = 0.4f;
-        const float rotation_speed = 0.003f;
+        const float rotation_speed = 0.0055f;
 
         var screenSize = device.Viewport.Bounds.Size();
 
@@ -116,10 +130,9 @@ public static class Stars
 
             float scale = star.Scale * star_scale * fade * twinkle;
 
-            scale = Math.Max(scale, 0.13f);
+            scale = Math.Max(scale, 0.13f) * alpha;
 
             var color = star.Color * alpha;
-            color.A = 0;
 
             sb.Draw(
                 new DrawParameters(texture)
@@ -131,6 +144,8 @@ public static class Stars
                 }
             );
         }
+
+        Main.spriteBatch.Restart(in snapshot);
     }
 
     private static float GetStarAlpha()

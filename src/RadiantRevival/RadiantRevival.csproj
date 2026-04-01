@@ -17,4 +17,28 @@
         <ProjectReference Include="..\daybreak-mod\src\Daybreak.SourceGen\Daybreak.SourceGen.csproj" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="Assets\Shaders\Sky\NewFolder\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Assets\Shaders\Sky\NewFolder\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Assets\Shaders\Sky\NewFolder\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <LocalizationCompile Remove="Assets\Shaders\Sky\NewFolder\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Remove="Assets\Shaders\Sky\NewFolder\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ShaderCompile Remove="Assets\Shaders\Sky\NewFolder\**" />
+    </ItemGroup>
+
 </Project>
