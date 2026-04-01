@@ -12,7 +12,7 @@ internal abstract class CommonAuthorTag : AuthorTag
 
     public override string Name => base.Name.EndsWith(suffix) ? base.Name[..^suffix.Length] : base.Name;
 
-    public override string Texture => string.Join('/', Assets.Authorship.Zoey.KEY.Split('/')[..^1]) + '/' + Name;
+    public override string Texture => string.Join('/', Assets.Images.Authorship.Zoey.KEY.Split('/')[..^1]) + '/' + Name;
 }
 
 internal sealed class TomatTag : Daybreak.Content.Authorship.TomatTag;
@@ -26,7 +26,7 @@ internal sealed class ZoeyTag : CommonAuthorTag
         var glowPosition = new Vector2(position.X, position.Y - 2);
         var glowColor = glow_color * MathF.Sin(Main.GlobalTimeWrappedHourly);
         {
-            spriteBatch.Draw(Assets.Authorship.Zoey_Glow.Asset.Value, glowPosition, glowColor);
+            spriteBatch.Draw(Assets.Images.Authorship.Zoey_Glow.Asset.Value, glowPosition, glowColor);
         }
 
         base.DrawIcon(spriteBatch, position);
