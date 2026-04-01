@@ -9,7 +9,7 @@ namespace RadiantRevival.Content;
 
 public static class CelestialBodies
 {
-    private static readonly Vector2 velocity_multiplier = new(0.92f, 0.85f);
+    private static readonly Vector2 velocity_multiplier = new(0.92f, 0.76f);
     private const float mod_multiplier = 0.976f;
 
     private static Vector2 celestialBodyVelocity;
