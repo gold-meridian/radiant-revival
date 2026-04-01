@@ -20,7 +20,7 @@ technique Technique1
 {
     pass PanelShader
     {
-        PixelShader = compile ps_2_0 main();
+        PixelShader = compile ps_3_0 main();
     }
 }
 #endif // FX
