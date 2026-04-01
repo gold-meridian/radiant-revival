@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Daybreak.Common.Features.Hooks;
 using GoldMeridian.CodeAnalysis;
@@ -71,16 +72,20 @@ internal static class LightMapRewrite
     [OnLoad]
     private static void OutlineImplementations(Mod mod)
     {
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetConstructor([])!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.GetLight))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.GetMask))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.Clear))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.SetMaskAt))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.Blur))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.BlurPass))!, mod.Logger);
-        // MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.BlurLine))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.IndexOf))!, mod.Logger);
-        MethodOutliner.OutlineIfPlausiblyInlinable(typeof(LightMap).GetMethod(nameof(LightMap.SetSize))!, mod.Logger);
+        // LightMap::.ctor
+        //           GetLight
+        //           GetMask
+        //           Clear
+        //           SetMaskAt
+        //           Blur
+        //           BlurPass
+        //           IndexOf
+        //           SetSize
+        
+        // LightMap::.ctor
+        //   Called in LegacyLighting/LightingEngine constructors, but that's
+        //   fine to leave alone.
+        MethodJit.ForceJit(typeof(LightingEngine).GetMethod(nameof(LightingEngine.Rebuild), BindingFlags.Public | BindingFlags.Instance)!);
     }
 
     /*
