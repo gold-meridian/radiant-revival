@@ -28,12 +28,12 @@ public static class Stars
     private static readonly Color star_color_low = new(148, 182, 255);
     private static readonly Color star_color_high = new(255, 204, 152);
 
-    private static WrapperShaderData<Assets.Shaders.Sky.Star.Parameters>? starShaderData;
+    private static WrapperShaderData<Assets.Sky.StarShader.Parameters>? starShaderData;
 
     [OnLoad]
     private static void Load()
     {
-        starShaderData = Assets.Shaders.Sky.Star.CreatePanelShader();
+        starShaderData = Assets.Sky.StarShader.CreatePanelShader();
 
         for (int i = 0; i < stars.Length; i++)
         {
@@ -106,7 +106,7 @@ public static class Stars
           * Matrix.CreateScale(screenScale)
           * Matrix.CreateTranslation(new(center, 0));
 
-        var texture = Assets.Images.Sky.Stars.Circle.Asset.Value;
+        var texture = Assets.Sky.Stars.Circle.Asset.Value;
 
         var origin = texture.Size() * 0.5f;
 
