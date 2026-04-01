@@ -38,18 +38,18 @@ internal static class CommonEntitySmoothLighting
     {
         On_Main.DrawProjectiles += (orig, self) =>
         {
-            Scope(() => orig(self));
+            Scope(() => orig(self), begin: false);
         };
 
         On_Main.DrawCachedProjs += (orig, self, projCache, startSpriteBatch) =>
         {
-            Scope(() => orig(self, projCache, startSpriteBatch), endSpriteBatch: !startSpriteBatch);
+            Scope(() => orig(self, projCache, startSpriteBatch), begin: !startSpriteBatch);
         };
 
         // Niche, but funny
         On_Main.DrawWallOfStars += orig =>
         {
-            Scope(() => orig(), endSpriteBatch: false);
+            Scope(() => orig(), begin: false);
         };
     }
 
@@ -67,34 +67,37 @@ internal static class CommonEntitySmoothLighting
         {
             Scope(() => orig(self));
         };
-        
+
         On_Main.DrawGoreBehind += (orig, self) =>
         {
             Scope(() => orig(self));
         };
     }
 
-    private static void Scope(Action callback, bool endSpriteBatch = true)
+    private static void Scope(Action callback, bool begin = true)
     {
         using var _ = new ScopeStateCapture<bool>(ref Main.gameMenu);
         Main.gameMenu = true;
 
-        var ss = default(SpriteBatchSnapshot);
-        if (endSpriteBatch)
+        if (begin)
         {
-            Main.spriteBatch.End(out ss);
-        }
-
-        using (SmoothLightingRenderer.BeginScope())
-        {
+            Main.spriteBatch.End(out var ss);
+            {
+                using (SmoothLightingRenderer.BeginScope())
+                {
+                    Main.spriteBatch.Begin(ss);
+                    callback();
+                    Main.spriteBatch.End();
+                }
+            }
             Main.spriteBatch.Begin(ss);
-            callback();
-            Main.spriteBatch.End();
         }
-
-        if (endSpriteBatch)
+        else
         {
-            Main.spriteBatch.Begin(ss);
+            using (SmoothLightingRenderer.BeginScope())
+            {
+                callback();
+            }
         }
     }
 }
