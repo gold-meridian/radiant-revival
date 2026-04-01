@@ -2,10 +2,8 @@
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Microsoft.Xna.Framework.Graphics;
-using MonoMod.Cil;
 using RadiantRevival.Core;
 using Terraria;
 using Terraria.ModLoader;
@@ -13,7 +11,8 @@ using Terraria.ModLoader;
 namespace RadiantRevival.Common.SmoothLighting;
 
 /// <summary>
-///     Capable of applying smooth lighting through a shader.
+///     Scoped override to apply a smooth lighting shader to some known
+///     rendering paths.
 /// </summary>
 public static class SmoothLightingRenderer
 {
