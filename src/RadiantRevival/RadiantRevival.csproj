@@ -8,14 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Publicize Include="FNA" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false"/>
-        <Publicize Include="ReLogic" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false"/>
+        <Publicize Include="FNA;ReLogic;Terraria" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\daybreak-mod\src\Daybreak\Daybreak.csproj"/>
-        <ProjectReference Include="..\daybreak-mod\src\Daybreak.CodeAnalysis\Daybreak.CodeAnalysis.csproj" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
-        <ProjectReference Include="..\daybreak-mod\src\Daybreak.SourceGen\Daybreak.SourceGen.csproj" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+        <ProjectReference Include="..\daybreak-mod\src\Daybreak\Daybreak.csproj" />
+        <ProjectReference Include="..\daybreak-mod\src\Daybreak.CodeAnalysis\Daybreak.CodeAnalysis.csproj" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+        <ProjectReference Include="..\daybreak-mod\src\Daybreak.SourceGen\Daybreak.SourceGen.csproj" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
     </ItemGroup>
 
 </Project>
