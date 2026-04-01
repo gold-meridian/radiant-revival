@@ -47,7 +47,7 @@ internal class ShaderSourceHotReloader : HotAssetReloader
 
         ProcessStartInfo info = new ProcessStartInfo
         {
-            FileName = $"{PathToCompiler}\\fxc.exe",
+            FileName = PathToCompiler,
             WorkingDirectory = directory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

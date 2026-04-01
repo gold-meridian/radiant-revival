@@ -526,7 +526,7 @@ internal static class EntityRenderCapture
         effect.Parameters.light_map = new HlslSampler2D
         {
             Sampler = SamplerState.LinearClamp,
-            Texture = LightingBuffers.Instance.ScreenSizeLightingBuffer.Target,
+            Texture = LightingBuffers.Instance.TotalLightingBuffer.Target,
         };
         effect.Apply();
         // effect.Parameters.Apply(effect.Shader.Parameters, effect._passName);

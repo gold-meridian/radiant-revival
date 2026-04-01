@@ -79,16 +79,18 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
             Array.Resize(ref colorBuffer, bufferSize);
         }
 
+        var startX = (int)(Main.screenPosition.X / 16) - lighting_buffer_offscreen_range_tiles;
+        var startY = (int)(Main.screenPosition.Y / 16) - lighting_buffer_offscreen_range_tiles;
         Parallel.For(
             0,
             lightingBuffer.Width,
             x =>
             {
-                var tileX = (int)(Main.screenPosition.X / 16) + x - lighting_buffer_offscreen_range_tiles;
+                var tileX = startX + x;
 
                 for (var y = 0; y < lightingBuffer.Height; y++)
                 {
-                    var tileY = (int)(Main.screenPosition.Y / 16) + y - lighting_buffer_offscreen_range_tiles;
+                    var tileY = startY + y;
 
                     colorBuffer[y * lightingBuffer.Width + x] = Lighting.GetColor(tileX, tileY);
                 }
