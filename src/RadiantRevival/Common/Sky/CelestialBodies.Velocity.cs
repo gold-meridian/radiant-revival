@@ -14,6 +14,7 @@ public static class CelestialBodyVelocity
     private const float mod_multiplier = 0.976f;
 
     private static Vector2 celestialBodyVelocity;
+    private static float previousPositionY;
 
     [OnLoad]
     private static void Load()
@@ -109,7 +110,6 @@ public static class CelestialBodyVelocity
         if (Main.alreadyGrabbingSunOrMoon)
         {
             celestialBodyVelocity = position - oldPosition;
-
             return;
         }
 
@@ -135,11 +135,18 @@ public static class CelestialBodyVelocity
         var displacement = (float)-positionY;
 
         const float spring_strength = 0.07f;
-        const float damping = 0.94f;
+        const float min_dampening = 0.94f;
+        const float max_dampening = 0.78f;
+        var dist = Math.Abs(positionY);
+        var t = MathHelper.Clamp(dist / 200f, 0f, 1f);
+        var dampening = MathHelper.Lerp(min_dampening, max_dampening, MathF.Pow(t, 2));
 
         celestialBodyVelocity.Y += displacement * spring_strength;
-        celestialBodyVelocity.Y *= damping;
+        celestialBodyVelocity.Y *= dampening;
+        celestialBodyVelocity.Y += 0.03f;
         positionY += celestialBodyVelocity.Y;
+
+        previousPositionY = positionY;
         modY = (short)positionY;
 
         /*
