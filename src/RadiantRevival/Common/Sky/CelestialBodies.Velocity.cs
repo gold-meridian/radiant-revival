@@ -10,11 +10,7 @@ namespace RadiantRevival.Common;
 
 public static class CelestialBodyVelocity
 {
-    private static readonly Vector2 velocity_multiplier = new(0.92f, 0.76f);
-    private const float mod_multiplier = 0.976f;
-
     private static Vector2 celestialBodyVelocity;
-    private static float previousPositionY;
 
     [OnLoad]
     private static void Load()
@@ -36,30 +32,32 @@ public static class CelestialBodyVelocity
 
         c.MoveAfterLabels();
 
-        c.EmitDelegate(() =>
-        {
-            if (Main.time >= 0)
+        c.EmitDelegate(
+            () =>
             {
-                return;
+                if (Main.time >= 0)
+                {
+                    return;
+                }
+
+                double timeRatio = Main.dayTime
+                    ? Main.nightLength / Main.dayLength
+                    : Main.dayLength / Main.nightLength;
+
+                if (Main.dayTime)
+                {
+                    Main.moonPhase = (Main.moonPhase - 1) % 8;
+                }
+
+                Main.time = (Main.dayTime ? Main.nightLength : Main.dayLength) + Main.time * timeRatio;
+                Main.dayTime = !Main.dayTime;
+
+                if (!Main.lockMenuBGChange)
+                {
+                    Main.moonType = Main.rand.Next(TextureAssets.Moon.Length);
+                }
             }
-
-            double timeRatio = Main.dayTime
-              ? Main.nightLength / Main.dayLength
-              : Main.dayLength / Main.nightLength;
-
-            if (Main.dayTime)
-            {
-                Main.moonPhase = (Main.moonPhase - 1) % 8;
-            }
-
-            Main.time = (Main.dayTime ? Main.nightLength : Main.dayLength) + Main.time * timeRatio;
-            Main.dayTime = !Main.dayTime;
-
-            if (!Main.lockMenuBGChange)
-            {
-                Main.moonType = Main.rand.Next(TextureAssets.Moon.Length);
-            }
-        });
+        );
 
         c.GotoNext(
             MoveType.Before,
@@ -82,30 +80,26 @@ public static class CelestialBodyVelocity
 
     private static void DrawSunAndMoon_Velocity(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
     {
-        Vector2 screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
+        var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
+        var oldPosition = Main.LastCelestialBodyPosition * screenSize;
 
-        Vector2 oldPosition = Main.LastCelestialBodyPosition * screenSize;
+        orig(self, sceneArea, moonColor, sunColor, tempMushroomInfluence);
 
-        orig(self, sceneArea, moonColor, sunColor,  tempMushroomInfluence);
-
-        Vector2 position = Main.LastCelestialBodyPosition * screenSize;
+        var position = Main.LastCelestialBodyPosition * screenSize;
 
         // TODO: Allow celestial body movement when connecting to a server
-        if (!Main.gameMenu ||
-            Main.netMode == NetmodeID.MultiplayerClient)
+        if (!Main.gameMenu || Main.netMode == NetmodeID.MultiplayerClient)
         {
             return;
         }
 
-        float sunMoonWidth =
-            Main.dayTime ?
-                TextureAssets.Sun.Value.Width :
-                TextureAssets.Moon[Main.moonType].Value.Width;
+        var sunMoonWidth = Main.dayTime
+            ? TextureAssets.Sun.Value.Width
+            : TextureAssets.Moon[Main.moonType].Value.Width;
 
-        double timeLength =
-            Main.dayTime ?
-                Main.dayLength :
-                Main.nightLength;
+        var timeLength = Main.dayTime
+            ? Main.dayLength
+            : Main.nightLength;
 
         if (Main.alreadyGrabbingSunOrMoon)
         {
@@ -113,24 +107,7 @@ public static class CelestialBodyVelocity
             return;
         }
 
-        /*
-        celestialBodyVelocity *= velocity_multiplier;
-
-        if (Main.dayTime)
-        {
-            Main.sunModY += (short)celestialBodyVelocity.Y;
-        }
-        else
-        {
-            Main.moonModY += (short)celestialBodyVelocity.Y;
-        }
-
-        Main.sunModY = (short)(Main.sunModY * mod_multiplier);
-        Main.moonModY = (short)(Main.moonModY * mod_multiplier);
-        */
-
         ref short modY = ref (Main.dayTime ? ref Main.sunModY : ref Main.moonModY);
-
         var positionY = (float)modY;
         var displacement = (float)-positionY;
 
@@ -148,14 +125,6 @@ public static class CelestialBodyVelocity
 
         previousPositionY = positionY;
         modY = (short)positionY;
-
-        /*
-        if (Math.Abs(celestialBodyVelocity.Y) < 0.01f && Math.Abs(positionY) < 0.5f)
-        {
-            celestialBodyVelocity.Y = 0f;
-            modY = 0;
-        }
-        */
 
         const float x_dampening = 0.045f;
         celestialBodyVelocity.X = MathHelper.Lerp(celestialBodyVelocity.X, 0f, x_dampening);
