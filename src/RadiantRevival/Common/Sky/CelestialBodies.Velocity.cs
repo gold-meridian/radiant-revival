@@ -123,7 +123,6 @@ public static class CelestialBodyVelocity
         celestialBodyVelocity.Y += 0.03f;
         positionY += celestialBodyVelocity.Y;
 
-        previousPositionY = positionY;
         modY = (short)positionY;
 
         const float x_dampening = 0.045f;
