@@ -46,7 +46,7 @@ public static class CelestialBodyVelocity
 
                 if (Main.dayTime)
                 {
-                    Main.moonPhase = (Main.moonPhase - 1) % 8;
+                    Main.moonPhase = Math.Abs((Main.moonPhase - 1) % 8);
                 }
 
                 Main.time = (Main.dayTime ? Main.nightLength : Main.dayLength) + Main.time * timeRatio;
