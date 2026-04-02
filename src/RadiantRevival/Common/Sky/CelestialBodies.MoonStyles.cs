@@ -5,11 +5,11 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
 using ReLogic.Content;
-using SteelSeries.GameSense;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
@@ -18,6 +18,7 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
+// TODO: Config
 public static class MoonStyles
 {
     private static readonly Color moon_sky_color = new(128, 168, 248);
@@ -44,13 +45,11 @@ public static class MoonStyles
 
     private static WrapperShaderData<Assets.Sky.MoonShader.Parameters>? moonShaderData;
 
-    [OnLoad]
-    private static void Load()
+#pragma warning disable CA2255
+    [ModuleInitializer]
+    public static void Init()
     {
-        moonShaderData = Assets.Sky.MoonShader.CreateMoonShader();
-
-        IL_Main.DrawSunAndMoon += DrawSunAndMoon_MoonStyles;
-
+        // May inline if a ModMenu declares MoonTexture and calls base.MoonTexture
         MonoModHooks.Modify(
             typeof(ModMenu).GetProperty(
                 nameof(ModMenu.MoonTexture),
@@ -59,7 +58,17 @@ public static class MoonStyles
             get_MoonTexture_MoonStyles
         );
     }
+#pragma warning restore CA2255
 
+    [OnLoad]
+    private static void Load()
+    {
+        moonShaderData = Assets.Sky.MoonShader.CreateMoonShader();
+
+        IL_Main.DrawSunAndMoon += DrawSunAndMoon_MoonStyles;
+    }
+
+    [ModCall]
     public static int AddMoonStyle(Color color, Asset<Texture2D> texture, Asset<Texture2D>? hdTexture, DrawAction? specialAction = null)
     {
         int index = TextureAssets.Moon.Length;
