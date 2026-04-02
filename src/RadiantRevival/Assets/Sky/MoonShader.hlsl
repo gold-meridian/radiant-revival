@@ -1,4 +1,5 @@
 #include "../spheres.h"
+#include "../colors.h"
 
 sampler uImage0 : register(s0);
 
@@ -32,13 +33,13 @@ float4 planet(float dist, float3 sp)
 
 float4 atmo(float dist, float3 sp)
 {
-    float atmo = map(dist, radius, 1, 1, 0) * step(radius, dist);
+    float atmo = pow(map(dist, radius, 1, 1, 0), 2.5) * step(radius, dist);
 	
     float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + shadowRotation)));
     
-    light = 1 - pow(1 - map(light, -0.08, 0.34, 0, 1), 2);
+    light = 1 - pow(1 - map(light, -0.09, 0.34, 0, 1), 2);
     
-    float4 col = lerp(atmoShadowColor, atmoColor * tex2D(uImage0, 0.5), light);
+    float4 col = oklabLerp(atmoShadowColor, atmoColor * tex2D(uImage0, 0.5), light);
 	
     return col * atmo;
 }
@@ -54,7 +55,7 @@ float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
     
     if (dist > radius)
     {
-        float3 sp = sphere(uv, dist, 1);
+        float3 sp = sphere(uv, dist, radius);
 		
         float4 color = atmo(dist, sp);
         

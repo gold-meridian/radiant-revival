@@ -230,7 +230,7 @@ public static class MoonStyles
             sb.End(out var snapshot);
             sb.Begin(snapshot with { SortMode = SpriteSortMode.Immediate });
 
-            const float atmo_ratio = 0.78f;
+            const float atmo_ratio = 0.65f;
 
             Color skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
 
