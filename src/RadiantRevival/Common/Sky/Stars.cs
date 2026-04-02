@@ -9,7 +9,7 @@ using RadiantRevival.Core;
 using Terraria;
 using Terraria.Utilities;
 
-namespace RadiantRevival.Content;
+namespace RadiantRevival.Common;
 
 // TODO: Config for:
 // - star count

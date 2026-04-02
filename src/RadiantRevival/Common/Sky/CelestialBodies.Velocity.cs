@@ -5,9 +5,9 @@ using Terraria;
 using Terraria.GameContent;
 using Terraria.ID;
 
-namespace RadiantRevival.Content;
+namespace RadiantRevival.Common;
 
-public static class CelestialBodies
+public static class CelestialBodyVelocity
 {
     private static readonly Vector2 velocity_multiplier = new(0.92f, 0.76f);
     private const float mod_multiplier = 0.976f;
