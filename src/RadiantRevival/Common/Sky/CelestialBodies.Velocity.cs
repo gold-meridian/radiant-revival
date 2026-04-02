@@ -1,6 +1,7 @@
 ﻿using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;
+using System;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.ID;
@@ -112,6 +113,7 @@ public static class CelestialBodyVelocity
             return;
         }
 
+        /*
         celestialBodyVelocity *= velocity_multiplier;
 
         if (Main.dayTime)
@@ -125,13 +127,35 @@ public static class CelestialBodyVelocity
 
         Main.sunModY = (short)(Main.sunModY * mod_multiplier);
         Main.moonModY = (short)(Main.moonModY * mod_multiplier);
+        */
+
+        ref short modY = ref (Main.dayTime ? ref Main.sunModY : ref Main.moonModY);
+
+        var positionY = (float)modY;
+        var displacement = (float)-positionY;
+
+        const float spring_strength = 0.07f;
+        const float damping = 0.94f;
+
+        celestialBodyVelocity.Y += displacement * spring_strength;
+        celestialBodyVelocity.Y *= damping;
+        positionY += celestialBodyVelocity.Y;
+        modY = (short)positionY;
+
+        /*
+        if (Math.Abs(celestialBodyVelocity.Y) < 0.01f && Math.Abs(positionY) < 0.5f)
+        {
+            celestialBodyVelocity.Y = 0f;
+            modY = 0;
+        }
+        */
+
+        const float x_dampening = 0.045f;
+        celestialBodyVelocity.X = MathHelper.Lerp(celestialBodyVelocity.X, 0f, x_dampening);
 
         double newTime = position.X + celestialBodyVelocity.X + sunMoonWidth;
-
         newTime /= Main.screenWidth + sunMoonWidth * 2f;
-
         newTime *= timeLength;
-
         Main.time = newTime;
     }
 }
