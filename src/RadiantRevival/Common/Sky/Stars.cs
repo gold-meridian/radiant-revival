@@ -150,8 +150,8 @@ public static class Stars
 
     private static float GetStarAlpha()
     {
-        const float dawn_time = 6700f;
-        const float dusk_start_time = 48000f;
+        const float dawn_time = 7700f;
+        const float dusk_start_time = 41000f;
         const float day_length = 54000f;
 
         const float graveyard_alpha = 1.4f;
@@ -181,7 +181,7 @@ public static class Stars
 
         float atmosphericBoost = MathF.Pow(1f - Main.atmo, 3) * atmo_multiplier;
 
-        alpha = Math.Clamp(MathF.Pow(alpha + atmosphericBoost, 3), 0f, 1f);
+        alpha = Math.Clamp(MathF.Pow(alpha + atmosphericBoost, 1.7f), 0f, 1f);
 
         return alpha;
     }
