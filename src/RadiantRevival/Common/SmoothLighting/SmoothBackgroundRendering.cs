@@ -24,7 +24,7 @@ internal static class SmoothBackgroundRendering
         {
             var offRange = new Vector2(Main.drawToScreen ? 0 : Main.offScreenRange);
             var drawOffset = Vector2.Zero;
-            drawOffset.X += Main.backgroundTargetSwap.Position.X - Main.screenPosition.X + offRange.X;
+            drawOffset += offRange;
 
             using var _ = SmoothLightingRenderer.BeginScope(drawOffset);
 
