@@ -1,6 +1,8 @@
 ﻿using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.Mathematics;
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
 using Terraria;
@@ -8,6 +10,7 @@ using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.ModLoader.Config.UI;
 using Terraria.UI;
+using Terraria.UI.Chat;
 
 namespace RadiantRevival.Common;
 
@@ -177,6 +180,12 @@ public static class CelestialBodyVelocity
             return;
         }
 
+        if (Main.alreadyGrabbingSunOrMoon)
+        {
+            celestialBodyVelocity = position - oldPosition;
+            return;
+        }
+
         var sunMoonWidth = Main.dayTime
             ? TextureAssets.Sun.Value.Width
             : TextureAssets.Moon[Main.moonType].Value.Width;
@@ -185,36 +194,53 @@ public static class CelestialBodyVelocity
             ? Main.dayLength
             : Main.nightLength;
 
-        if (Main.alreadyGrabbingSunOrMoon)
+        ref short modY = ref (Main.dayTime ? ref Main.sunModY : ref Main.moonModY);
+
+        if (Main.mouseRight && CanGrabCelestialBody)
         {
-            celestialBodyVelocity = position - oldPosition;
-            return;
+            const float pull_speed = 0.13f;
+            const float screen_margin = 0.65f;
+            const float max_velocity = 350f;
+            const float drag = 0.12f;
+
+            var diff = Main.MouseScreen - position;
+
+            if (Math.Abs(diff.X) >= screenSize.X * screen_margin)
+            {
+                diff.X = -diff.X;
+            }
+
+            diff = Vector2.Normalize(diff) * MathF.Min(diff.Length(), max_velocity);
+
+            celestialBodyVelocity = Vector2.Lerp(celestialBodyVelocity, diff * pull_speed, drag);
+        }
+        else
+        {
+            var displacement = -modY;
+
+            const float spring_strength = 0.07f;
+            const float min_dampening = 0.94f;
+            const float max_dampening = 0.78f;
+
+            var dist = Math.Abs(modY);
+            var t = MathHelper.Clamp(dist / 200f, 0f, 1f);
+            var dampening = MathHelper.Lerp(min_dampening, max_dampening, MathF.Pow(t, 2));
+
+            celestialBodyVelocity.Y += displacement * spring_strength;
+            celestialBodyVelocity.Y *= dampening;
+            celestialBodyVelocity.Y += 0.03f;
+
+            const float x_dampening = 0.035f;
+            celestialBodyVelocity.X = MathHelper.Lerp(celestialBodyVelocity.X, 0f, x_dampening);
         }
 
-        ref short modY = ref (Main.dayTime ? ref Main.sunModY : ref Main.moonModY);
-        var positionY = (float)modY;
-        var displacement = -positionY;
-
-        const float spring_strength = 0.07f;
-        const float min_dampening = 0.94f;
-        const float max_dampening = 0.78f;
-        var dist = Math.Abs(positionY);
-        var t = MathHelper.Clamp(dist / 200f, 0f, 1f);
-        var dampening = MathHelper.Lerp(min_dampening, max_dampening, MathF.Pow(t, 2));
-
-        celestialBodyVelocity.Y += displacement * spring_strength;
-        celestialBodyVelocity.Y *= dampening;
-        celestialBodyVelocity.Y += 0.03f;
-        positionY += celestialBodyVelocity.Y;
-
-        modY = (short)positionY;
-
-        const float x_dampening = 0.045f;
-        celestialBodyVelocity.X = MathHelper.Lerp(celestialBodyVelocity.X, 0f, x_dampening);
+        modY += (short)celestialBodyVelocity.Y;
 
         double newTime = position.X + celestialBodyVelocity.X + sunMoonWidth;
+
         newTime /= Main.screenWidth + sunMoonWidth * 2f;
         newTime *= timeLength;
+
         Main.time = newTime;
     }
 }
