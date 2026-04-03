@@ -1,8 +1,6 @@
 ﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Mathematics;
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
 using Terraria;
@@ -10,7 +8,6 @@ using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.ModLoader.Config.UI;
 using Terraria.UI;
-using Terraria.UI.Chat;
 
 namespace RadiantRevival.Common;
 
@@ -210,7 +207,7 @@ public static class CelestialBodyVelocity
                 diff.X = -diff.X;
             }
 
-            diff = Vector2.Normalize(diff) * MathF.Min(diff.Length(), max_velocity);
+            diff = diff.SafeNormalize(Vector2.UnitY) * MathF.Min(diff.Length(), max_velocity);
 
             celestialBodyVelocity = Vector2.Lerp(celestialBodyVelocity, diff * pull_speed, drag);
         }
