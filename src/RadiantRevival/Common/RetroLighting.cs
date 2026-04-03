@@ -1,4 +1,5 @@
-﻿using Daybreak.Common.Features.Hooks;
+﻿using System.Diagnostics;
+using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
@@ -67,6 +68,8 @@ public static class RetroLighting
     [OnLoad]
     private static void Load()
     {
+        IL_Main.DoDraw += DoDraw_DontCaptureMenu;
+
         IL_Main.DoDraw += DoDraw_CaptureRetroLighting;
         IL_FilterManager.EndCapture_RenderTarget2D_RenderTarget2D_RenderTarget2D_Vector2_Vector2_Vector2 += EndCapture_RetroColoration;
 
@@ -88,6 +91,46 @@ public static class RetroLighting
         c.EmitPop();
 
         c.EmitLdcI4(0);
+    }
+
+    private static void DoDraw_DontCaptureMenu(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        ILLabel jumpDrawMenuTarget = c.DefineLabel();
+        ILLabel drawMenuTarget = c.DefineLabel();
+
+        c.GotoNext(
+            MoveType.Before,
+            i => i.MatchCall<Main>(nameof(Main.DrawMenu))
+        );
+
+        var c2 = c.Clone();
+
+        c2.GotoNext(
+            MoveType.Before,
+            i => i.MatchLdsfld<Main>(nameof(Main.HorizonHelper)),
+            i => i.MatchLdloc(out _)
+        );
+
+        c2.EmitRet();
+        c2.MarkLabel(jumpDrawMenuTarget);
+
+        c2.GotoNext(
+            MoveType.Before,
+            i => i.MatchRet()
+        );
+
+        c2.MoveAfterLabels();
+        c2.EmitBr(drawMenuTarget);
+
+        c.GotoPrev(
+            MoveType.After,
+            i => i.MatchCall<Main>(nameof(Main.DrawLensFlare))
+        );
+
+        c.EmitBr(jumpDrawMenuTarget);
+        c.MarkLabel(drawMenuTarget);
     }
 
     private static void DoDraw_CaptureRetroLighting(ILContext il)
