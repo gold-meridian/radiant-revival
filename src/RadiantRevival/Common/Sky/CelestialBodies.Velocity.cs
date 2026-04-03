@@ -2,9 +2,12 @@
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;
 using System;
+using System.Diagnostics;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.ID;
+using Terraria.ModLoader.Config.UI;
+using Terraria.UI;
 
 namespace RadiantRevival.Common;
 
@@ -12,12 +15,93 @@ public static class CelestialBodyVelocity
 {
     private static Vector2 celestialBodyVelocity;
 
+    private static bool CanGrabCelestialBody
+    {
+        get
+        {
+            return Main.instance.focusMenu == -1
+                && Main.MenuUI._lastElementHover is null or UIState
+                   // Niche slider behavior
+                && IngameOptions.rightHover == -1
+                && IngameOptions.rightLock == -1
+                && !IngameOptions.inBar
+                && RangeElement.rightHover is null
+                && RangeElement.rightLock is null;
+        }
+    }
+
     [OnLoad]
     private static void Load()
     {
+        IL_Main.DrawSunAndMoon += DrawSunAndMoon_PreventDragging;
+
+        On_Main.DrawMenu += DrawMenu_DisableInteraction;
+
+        On_UserInterface.Update += Update_DisableInteraction;
+
         IL_Main.UpdateMenu += UpdateMenu_ReverseTime;
 
         On_Main.DrawSunAndMoon += DrawSunAndMoon_Velocity;
+    }
+
+    private static void DrawSunAndMoon_PreventDragging(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        ILLabel? jumpCelestialBodyGrabbingTarget = null;
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchCall(typeof(FocusHelper), $"get_{nameof(FocusHelper.AllowUIInputs)}"),
+            i => i.MatchBrfalse(out jumpCelestialBodyGrabbingTarget)
+        );
+
+        Debug.Assert(jumpCelestialBodyGrabbingTarget is not null);
+
+        c.EmitDelegate(static () => Main.alreadyGrabbingSunOrMoon || CanGrabCelestialBody);
+
+        c.EmitBrfalse(jumpCelestialBodyGrabbingTarget);
+    }
+
+    private static void DrawMenu_DisableInteraction(On_Main.orig_DrawMenu orig, Main self, GameTime gameTime)
+    {
+        int oldMouseX = Main.mouseX;
+        int oldMouseY = Main.mouseY;
+
+        if (Main.alreadyGrabbingSunOrMoon)
+        {
+            Main.mouseX = int.MaxValue;
+            Main.mouseY = int.MaxValue;
+        }
+
+        orig(self, gameTime);
+
+        Main.mouseX = oldMouseX;
+        Main.mouseY = oldMouseY;
+    }
+
+    private static void Update_DisableInteraction(On_UserInterface.orig_Update orig, UserInterface self, GameTime time)
+    {
+        if (self != Main.MenuUI)
+        {
+            orig(self, time);
+
+            return;
+        }
+
+        int oldMouseX = Main.mouseX;
+        int oldMouseY = Main.mouseY;
+
+        if (Main.alreadyGrabbingSunOrMoon)
+        {
+            Main.mouseX = int.MaxValue;
+            Main.mouseY = int.MaxValue;
+        }
+
+        orig(self, time);
+
+        Main.mouseX = oldMouseX;
+        Main.mouseY = oldMouseY;
     }
 
     private static void UpdateMenu_ReverseTime(ILContext il)
@@ -109,7 +193,7 @@ public static class CelestialBodyVelocity
 
         ref short modY = ref (Main.dayTime ? ref Main.sunModY : ref Main.moonModY);
         var positionY = (float)modY;
-        var displacement = (float)-positionY;
+        var displacement = -positionY;
 
         const float spring_strength = 0.07f;
         const float min_dampening = 0.94f;
