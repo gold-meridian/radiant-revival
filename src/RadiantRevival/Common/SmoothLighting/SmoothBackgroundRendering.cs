@@ -1,10 +1,11 @@
-﻿using System;
-using Daybreak.Common.Features.Hooks;
+﻿using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using System;
 using Terraria;
 using Terraria.GameContent;
+using Terraria.Graphics;
 
 namespace RadiantRevival.Common.SmoothLighting;
 
@@ -21,7 +22,11 @@ internal static class SmoothBackgroundRendering
     {
         On_Main.DrawBackground += (orig, self) =>
         {
-            using var _ = SmoothLightingRenderer.BeginScope();
+            var offRange = new Vector2(Main.drawToScreen ? 0 : Main.offScreenRange);
+            var drawOffset = Vector2.Zero;
+            drawOffset.X += Main.backgroundTargetSwap.Position.X - Main.screenPosition.X + offRange.X;
+
+            using var _ = SmoothLightingRenderer.BeginScope(drawOffset);
 
             Main.spriteBatch.End(out var ss);
             Main.spriteBatch.Begin(in ss);

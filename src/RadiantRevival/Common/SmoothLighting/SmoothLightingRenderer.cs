@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Daybreak.Common.Features.Models;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using Terraria;
@@ -34,14 +36,17 @@ public static class SmoothLightingRenderer
         public static void UnloadData(Data data) { }
     }
 
-    private sealed record ApplicationState(Texture[] Targets);
+    private sealed record ApplicationState(
+        Vector2 DrawOffset,
+        Texture[] Targets
+    );
 
     private sealed class ApplicationScope : IDisposable
     {
-        public ApplicationScope()
+        public ApplicationScope(Vector2 drawOffset)
         {
             var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
-            var state = new ApplicationState(targets);
+            var state = new ApplicationState(drawOffset, targets);
             currently_applied.Push(state);
         }
 
@@ -55,9 +60,9 @@ public static class SmoothLightingRenderer
 
     private static readonly Stack<ApplicationState> currently_applied = [];
 
-    public static IDisposable BeginScope()
+    public static IDisposable BeginScope(Vector2? drawOffset = null)
     {
-        return new ApplicationScope();
+        return new ApplicationScope(drawOffset ?? Vector2.Zero);
     }
 
 #pragma warning disable CA2255
@@ -82,10 +87,11 @@ public static class SmoothLightingRenderer
         // maybe due to inlining, and the constructors are used everywhere, so I
         // can't selectively re-JIT affected methods.
 
-        if (ShouldInterceptEffect(self))
+        if (ShouldInterceptEffect(self, out var state))
         {
             var effect = Data.Instance.EntityLightingShader;
             {
+                effect.Parameters.draw_offset = state.DrawOffset;
                 effect.Parameters.light_map = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,
@@ -100,8 +106,10 @@ public static class SmoothLightingRenderer
         orig(self);
     }
 
-    private static bool ShouldInterceptEffect(SpriteBatch sb)
+    private static bool ShouldInterceptEffect(SpriteBatch sb, [NotNullWhen(returnValue: true)] out ApplicationState? state)
     {
+        state = null;
+
         if (!IsCurrentlyApplied)
         {
             return false;
@@ -124,7 +132,7 @@ public static class SmoothLightingRenderer
         }
 
         // Shouldn't be possible.
-        if (!currently_applied.TryPeek(out var state))
+        if (!currently_applied.TryPeek(out state))
         {
             return false;
         }
