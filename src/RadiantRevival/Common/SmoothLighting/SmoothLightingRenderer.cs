@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -33,22 +34,26 @@ public static class SmoothLightingRenderer
         public static void UnloadData(Data data) { }
     }
 
+    private sealed record ApplicationState(Texture[] Targets);
+
     private sealed class ApplicationScope : IDisposable
     {
         public ApplicationScope()
         {
-            currentlyApplied++;
+            var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
+            var state = new ApplicationState(targets);
+            currently_applied.Push(state);
         }
 
         public void Dispose()
         {
-            currentlyApplied--;
+            currently_applied.Pop();
         }
     }
 
-    public static bool IsCurrentlyApplied => currentlyApplied > 0;
+    public static bool IsCurrentlyApplied => currently_applied.Count > 0;
 
-    private static int currentlyApplied;
+    private static readonly Stack<ApplicationState> currently_applied = [];
 
     public static IDisposable BeginScope()
     {
@@ -118,15 +123,24 @@ public static class SmoothLightingRenderer
             return false;
         }
 
-        var targets = Main.instance.GraphicsDevice.renderTargetBindings
-                          .Where(x => x.RenderTarget is not null)
-                          .Select(x => x.RenderTarget)
-                          .ToArray();
-        if (targets.Length != 0 && (targets.Length != 1 || targets[0] != Main.screenTarget))
+        // Shouldn't be possible.
+        if (!currently_applied.TryPeek(out var state))
+        {
+            return false;
+        }
+
+        var targets = GetNonNullTextures(Main.instance.GraphicsDevice.renderTargetBindings).ToArray();
+        if (!targets.SequenceEqual(state.Targets))
         {
             return false;
         }
 
         return true;
+    }
+
+    private static IEnumerable<Texture> GetNonNullTextures(RenderTargetBinding[] bindings)
+    {
+        return bindings.Where(x => x.RenderTarget is not null)
+                       .Select(x => x.RenderTarget);
     }
 }
