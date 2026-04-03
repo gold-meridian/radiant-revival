@@ -3,6 +3,8 @@ using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using Daybreak.Common.CIL;
+using MonoMod.Cil;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.Graphics;
@@ -20,13 +22,17 @@ internal static class SmoothBackgroundRendering
     [OnLoad]
     private static void ApplyHooks()
     {
+        IL_Main.DoDraw += DoDraw_LightBackground;
+
         On_Main.DrawBackground += (orig, self) =>
         {
-            var offRange = new Vector2(Main.drawToScreen ? 0 : Main.offScreenRange);
-            var drawOffset = Vector2.Zero;
-            drawOffset += offRange;
+            if (!Main.drawToScreen)
+            {
+                orig(self);
+                return;
+            }
 
-            using var _ = SmoothLightingRenderer.BeginScope(drawOffset);
+            using var _ = SmoothLightingRenderer.BeginScope();
 
             Main.spriteBatch.End(out var ss);
             Main.spriteBatch.Begin(in ss);
@@ -40,6 +46,73 @@ internal static class SmoothBackgroundRendering
         On_Main.DrawBackground_DrawRockLayer += DrawRockLayer;
         On_Main.DrawBackground_DrawMagmaTransition += DrawMagmaTransition;
         On_Main.DrawBackground_DrawMagmaLayer += DrawMagmaLayer;
+    }
+
+    private static void DoDraw_LightBackground(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        int drawOffsetIndex = -1;
+
+        var scopeDef = il.AddVariable<IDisposable>();
+        var snapshotDef = il.AddVariable<SpriteBatchSnapshot>();
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchCall<Main>(nameof(Main.DrawBackground))
+        );
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchBr(out _)
+        );
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchCall<Vector2>("op_Multiply"),
+            i => i.MatchStloc(out drawOffsetIndex)
+        );
+
+        c.MoveAfterLabels();
+
+        c.EmitLdloca(scopeDef);
+        c.EmitLdloca(snapshotDef);
+
+        c.EmitLdloc(drawOffsetIndex);
+
+        c.EmitDelegate(
+            static (ref IDisposable scope, ref SpriteBatchSnapshot ss, Vector2 drawOffset) =>
+            {
+                drawOffset += Main.backgroundTarget.Position - Main.screenPosition;
+
+                var size = Main.backgroundTarget.Texture.Size();
+
+                var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
+
+                drawOffset = (size - screenSize) * 0.5f;
+
+                scope = SmoothLightingRenderer.BeginScope(Vector2.zeroVector, 1 / Main.GameZoomTarget);
+
+                Main.spriteBatch.End(out ss);
+                Main.spriteBatch.Begin(in ss);
+            }
+        );
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchCallvirt<SpriteBatch>(nameof(SpriteBatch.Draw))
+        );
+
+        c.EmitLdloca(scopeDef);
+        c.EmitLdloca(snapshotDef);
+        c.EmitDelegate(
+            static (ref IDisposable scope, ref SpriteBatchSnapshot ss) =>
+            {
+                Main.spriteBatch.Restart(in ss);
+
+                scope.Dispose();
+            }
+        );
     }
 
     private static void SurfaceTransitionBackground(

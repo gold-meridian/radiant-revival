@@ -38,15 +38,16 @@ public static class SmoothLightingRenderer
 
     private sealed record ApplicationState(
         Vector2 DrawOffset,
+        float DrawZoom,
         Texture[] Targets
     );
 
     private sealed class ApplicationScope : IDisposable
     {
-        public ApplicationScope(Vector2 drawOffset)
+        public ApplicationScope(Vector2 drawOffset, float drawZoom)
         {
             var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
-            var state = new ApplicationState(drawOffset, targets);
+            var state = new ApplicationState(drawOffset, drawZoom, targets);
             currently_applied.Push(state);
         }
 
@@ -60,9 +61,9 @@ public static class SmoothLightingRenderer
 
     private static readonly Stack<ApplicationState> currently_applied = [];
 
-    public static IDisposable BeginScope(Vector2? drawOffset = null)
+    public static IDisposable BeginScope(Vector2? drawOffset = null, float drawZoom = 1f)
     {
-        return new ApplicationScope(drawOffset ?? Vector2.Zero);
+        return new ApplicationScope(drawOffset ?? Vector2.Zero, drawZoom);
     }
 
 #pragma warning disable CA2255
@@ -92,6 +93,7 @@ public static class SmoothLightingRenderer
             var effect = Data.Instance.EntityLightingShader;
             {
                 effect.Parameters.draw_offset = state.DrawOffset;
+                effect.Parameters.draw_zoom = state.DrawZoom;
                 effect.Parameters.light_map = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,

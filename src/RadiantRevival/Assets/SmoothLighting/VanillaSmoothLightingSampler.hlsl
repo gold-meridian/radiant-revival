@@ -15,8 +15,9 @@ float2 screen_position SCREEN_POSITION;
 float screen_size_x SCREEN_SIZE_X;
 float screen_size_y SCREEN_SIZE_Y;
 
-// For cases where a manual offset adjustment is needed.
+// For cases where manual adjustment is needed.
 float2 draw_offset;
+float draw_zoom;
 
 #if DOGSHIT_SLOP
 float luminance(float3 c)
@@ -60,6 +61,12 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     float2 screen_pos_tiles = (pos - draw_offset) / TILE_SIZE;
     screen_pos_tiles += OFFSCREEN_TILES;
     float2 light_uv = screen_pos_tiles / lighting_buffer_size;
+    
+    light_uv -= 0.5;
+    
+    light_uv *= draw_zoom;
+    
+    light_uv += 0.5;
     
     float3 light = tex2D(light_map, light_uv).rgb;
     
