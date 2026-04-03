@@ -14,7 +14,7 @@ using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI.Chat;
 
-namespace RadiantRevival.Common;
+namespace RadiantRevival.Content;
 
 internal sealed class PanelStyle : ModPanelStyleExt
 {
