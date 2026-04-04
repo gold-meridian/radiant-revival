@@ -6,6 +6,7 @@ using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoMod.Cil;
 using Terraria;
 using Terraria.ModLoader;
 
@@ -55,11 +56,19 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
     [OnLoad]
     private static void ApplyHooks()
     {
-        On_Main.DrawBG += (orig, self, parentSpriteBatchBeginner) =>
+        IL_Main.DoDraw += il =>
         {
-            PopulateBuffers();
-            TransferBuffers();
-            orig(self, parentSpriteBatchBeginner);
+            var c = new ILCursor(il);
+
+            c.GotoNext(x => x.MatchStsfld<Main>(nameof(Main.onlyDrawFancyUI)));
+            c.GotoNext(MoveType.After, x => x.MatchCall<Lighting>(nameof(Lighting.LightTiles)));
+            c.EmitDelegate(
+                () =>
+                {
+                    PopulateBuffers();
+                    TransferBuffers();
+                }
+            );
         };
 
         On_Main.DoDraw_Tiles_Solid += (orig, self) =>
