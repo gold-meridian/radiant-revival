@@ -33,7 +33,7 @@ public static class Stars
     [OnLoad]
     private static void Load()
     {
-        starShaderData = Assets.Sky.StarShader.CreatePanelShader();
+        starShaderData = Assets.Sky.StarShader.CreateStarShader();
 
         for (int i = 0; i < stars.Length; i++)
         {

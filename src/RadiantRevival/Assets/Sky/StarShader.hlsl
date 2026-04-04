@@ -18,7 +18,7 @@ float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
 #ifdef FX
 technique Technique1
 {
-    pass PanelShader
+    pass StarShader
     {
         PixelShader = compile ps_3_0 main();
     }
