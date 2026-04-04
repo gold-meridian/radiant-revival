@@ -84,15 +84,14 @@ internal static class SmoothBackgroundRendering
         c.EmitDelegate(
             static (ref IDisposable scope, ref SpriteBatchSnapshot ss, Vector2 drawOffset) =>
             {
-                drawOffset += Main.backgroundTarget.Position - Main.screenPosition;
+                Vector2 vector2 = (Main.backgroundTarget.Position + Main.backgroundTarget.Texture.Size() / 2f - Main.Camera.Center) * new Vector2(Main.caveParallax - 1f, 0f);
+                var realPos = Main.backgroundTarget.Position - Main.screenPosition + vector2 + new Vector2(Main.offScreenRange);
 
-                var size = Main.backgroundTarget.Texture.Size();
+                var floored = (realPos / 16f).Floor() * 16;
+                drawOffset = floored - realPos;
+                Main.NewText($"real: {realPos}; floored: {floored}; diff: {drawOffset}");
 
-                var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
-
-                drawOffset = (size - screenSize) * 0.5f;
-
-                scope = SmoothLightingRenderer.BeginScope(Vector2.zeroVector, 1 / Main.GameZoomTarget);
+                scope = SmoothLightingRenderer.BeginScope(-drawOffset, 1 / Main.GameZoomTarget);
 
                 Main.spriteBatch.End(out ss);
                 Main.spriteBatch.Begin(in ss);
