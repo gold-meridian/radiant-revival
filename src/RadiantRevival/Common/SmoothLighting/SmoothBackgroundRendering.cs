@@ -26,6 +26,9 @@ internal static class SmoothBackgroundRendering
 
         On_Main.DrawBackground += (orig, self) =>
         {
+            orig(self);
+
+            /*
             if (!Main.drawToScreen)
             {
                 orig(self);
@@ -38,6 +41,7 @@ internal static class SmoothBackgroundRendering
             Main.spriteBatch.Begin(in ss);
             orig(self);
             Main.spriteBatch.Restart(in ss);
+            */
         };
 
         On_Main.DrawBackground_SurfaceTransitionBackground += SurfaceTransitionBackground;
