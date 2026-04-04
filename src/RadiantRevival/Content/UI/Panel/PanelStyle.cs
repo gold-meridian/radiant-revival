@@ -6,6 +6,7 @@ using Daybreak.Common.Features.ModPanel;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using RadiantRevival.Common;
 using RadiantRevival.Core;
 using ReLogic.Content;
 using Terraria;
@@ -151,6 +152,28 @@ internal sealed class PanelStyle : ModPanelStyleExt
         // Render our cool custom panel with a shader.
         {
             sb.End(out var ss);
+
+            var dims = element.GetDimensions();
+
+            var scissor = sb.GraphicsDevice.ScissorRectangle;
+            using var target = RenderTargetPool.Shared.Rent(sb.GraphicsDevice, (int)dims.Width, (int)dims.Height);
+
+            using (target.Scope(clearColor: Color.Transparent))
+            using (new ScopeStateCapture<float>(ref element._dimensions.X))
+            using (new ScopeStateCapture<float>(ref element._dimensions.Y))
+            {
+                element._dimensions.X = 0;
+                element._dimensions.Y = 0;
+
+                sb.Begin();
+
+                element.DrawPanel(sb, Assets.UI.ModPanel.BevelPanel.Asset.Value, Color.White);
+
+                sb.End();
+            }
+
+            sb.GraphicsDevice.ScissorRectangle = scissor;
+
             sb.Begin(
                 SpriteSortMode.Immediate,
                 BlendState.NonPremultiplied,
@@ -164,12 +187,14 @@ internal sealed class PanelStyle : ModPanelStyleExt
                 var data = Data.Instance;
                 var shaderData = data.PanelShader;
 
-                var dims = element.GetDimensions();
-
                 hoverIntensity = MathHelper.Lerp(hoverIntensity, element.IsMouseHovering ? 1f : 0f, 0.15f);
                 hoverIntensity = Math.Clamp(MathF.Round(hoverIntensity, 2), 0f, 1f);
 
-                element.DrawPanel(sb, Assets.UI.ModPanel.BevelPanel.Asset.Value, element.BackgroundColor);
+                shaderData.Parameters.source = Transform(new Vector4(dims.Width, dims.Height, dims.X, dims.Y));
+                shaderData.Parameters.hover_intensity = hoverIntensity;
+                shaderData.Apply();
+
+                sb.Draw(target.Target, dims.Position(), new Color(83, 92, 170));
             }
             sb.Restart(in ss);
         }
