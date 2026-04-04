@@ -58,5 +58,20 @@ public static class ColorExtensions
 
             return color;
         }
+
+        public static Color Pow(Color color, float amount)
+        {
+            color.R = Pow(color.R);
+            color.G = Pow(color.G);
+            color.B = Pow(color.B);
+            color.A = Pow(color.A);
+
+            return color;
+
+            byte Pow(byte component)
+            {
+                return (byte)(Math.Pow((float)component / byte.MaxValue, amount) * byte.MaxValue);
+            }
+        }
     }
 }
