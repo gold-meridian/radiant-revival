@@ -590,20 +590,15 @@ internal static class SmoothBackgroundRendering
         int frameYOffset = 0
     )
     {
-        var tilesPerUnit = tileWidth / 16;
         for (var i = 0; i < bgLoops; i++)
         for (var j = 0; j < bgLoopsY; j++)
-        for (var k = 0; k < tilesPerUnit; k++)
-        for (var l = 0; l < 6; l++)
         {
-            var destX = bgStartX + tileWidth * i + 16 * k + diff;
-            var destY = bgStartY + backgroundHeight * j + 16 * l;
-            var srcX = 16 * k + diff + 16;
-            var srcY = 16 * l + frameYOffset;
+            var destX = bgStartX + tileWidth * i + diff;
+            var destY = bgStartY + backgroundHeight * j;
             Main.spriteBatch.Draw(
                 texture,
                 new Vector2(destX, destY) + drawOffset,
-                new Rectangle(srcX, srcY, 16, 16),
+                new Rectangle(diff + 16, frameYOffset, tileWidth, 16 * 6),
                 tint
             );
         }
