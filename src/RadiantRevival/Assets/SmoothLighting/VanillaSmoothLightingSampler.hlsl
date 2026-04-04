@@ -61,11 +61,10 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     float2 screen_pos_tiles = (pos - draw_offset) / TILE_SIZE;
     screen_pos_tiles += OFFSCREEN_TILES;
     float2 light_uv = screen_pos_tiles / lighting_buffer_size;
-    
+
+    // Center and apply zoom.
     light_uv -= 0.5;
-    
     light_uv *= draw_zoom;
-    
     light_uv += 0.5;
     
     float3 light = tex2D(light_map, light_uv).rgb;
