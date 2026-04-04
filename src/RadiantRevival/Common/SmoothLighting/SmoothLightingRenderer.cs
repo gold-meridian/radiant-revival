@@ -61,9 +61,13 @@ public static class SmoothLightingRenderer
 
     private static readonly Stack<ApplicationState> currently_applied = [];
 
-    public static IDisposable BeginScope(Vector2? drawOffset = null, float drawZoom = 1f)
+    public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null)
     {
-        return new ApplicationScope(drawOffset ?? Vector2.Zero, drawZoom);
+        var screenPosition = Main.screenPosition;
+
+        var off = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
+
+        return new ApplicationScope(drawOffset ?? -off, drawZoom ?? 1f / Main.GameZoomTarget);
     }
 
 #pragma warning disable CA2255

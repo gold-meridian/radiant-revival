@@ -53,8 +53,6 @@ internal static class SmoothBackgroundRendering
     {
         var c = new ILCursor(il);
 
-        int drawOffsetIndex = -1;
-
         var scopeDef = il.AddVariable<IDisposable>();
         var snapshotDef = il.AddVariable<SpriteBatchSnapshot>();
 
@@ -71,7 +69,7 @@ internal static class SmoothBackgroundRendering
         c.GotoNext(
             MoveType.After,
             i => i.MatchCall<Vector2>("op_Multiply"),
-            i => i.MatchStloc(out drawOffsetIndex)
+            i => i.MatchStloc(out _)
         );
 
         c.MoveAfterLabels();
@@ -79,19 +77,10 @@ internal static class SmoothBackgroundRendering
         c.EmitLdloca(scopeDef);
         c.EmitLdloca(snapshotDef);
 
-        c.EmitLdloc(drawOffsetIndex);
-
         c.EmitDelegate(
-            static (ref IDisposable scope, ref SpriteBatchSnapshot ss, Vector2 drawOffset) =>
+            static (ref IDisposable scope, ref SpriteBatchSnapshot ss) =>
             {
-                Vector2 vector2 = (Main.backgroundTarget.Position + Main.backgroundTarget.Texture.Size() / 2f - Main.Camera.Center) * new Vector2(Main.caveParallax - 1f, 0f);
-                var realPos = Main.backgroundTarget.Position - Main.screenPosition + vector2 + new Vector2(Main.offScreenRange);
-
-                var floored = (realPos / 16f).Floor() * 16;
-                drawOffset = floored - realPos;
-                Main.NewText($"real: {realPos}; floored: {floored}; diff: {drawOffset}");
-
-                scope = SmoothLightingRenderer.BeginScope(-drawOffset, 1 / Main.GameZoomTarget);
+                scope = SmoothLightingRenderer.BeginScope();
 
                 Main.spriteBatch.End(out ss);
                 Main.spriteBatch.Begin(in ss);

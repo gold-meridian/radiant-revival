@@ -55,11 +55,11 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
     [OnLoad]
     private static void ApplyHooks()
     {
-        On_Main.DoDraw_WallsTilesNPCs += (orig, self) =>
+        On_Main.DrawBG += (orig, self, parentSpriteBatchBeginner) =>
         {
             PopulateBuffers();
             TransferBuffers();
-            orig(self);
+            orig(self, parentSpriteBatchBeginner);
         };
 
         On_Main.DoDraw_Tiles_Solid += (orig, self) =>
