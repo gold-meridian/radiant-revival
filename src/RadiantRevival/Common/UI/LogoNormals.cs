@@ -106,7 +106,7 @@ public class LogoNormals
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var moonColor);
 
         sunColor = sunColor.MultiplyRGB(Color.PeachPuff);
-        moonColor *= 18f;
+        moonColor = Color.Pow(moonColor, 6f) * 100f;
 
         NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
 
