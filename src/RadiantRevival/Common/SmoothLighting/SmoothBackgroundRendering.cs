@@ -26,6 +26,7 @@ internal static class SmoothBackgroundRendering
 
         On_Main.DrawBackground += (orig, self) =>
         {
+            // Only render for Retro/Trippy lighting.
             if (!Main.drawToScreen)
             {
                 orig(self);
