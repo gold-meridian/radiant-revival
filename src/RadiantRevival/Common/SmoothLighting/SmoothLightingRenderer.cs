@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Daybreak.Common.Features.Models;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using Terraria;
@@ -33,26 +36,38 @@ public static class SmoothLightingRenderer
         public static void UnloadData(Data data) { }
     }
 
+    private sealed record ApplicationState(
+        Vector2 DrawOffset,
+        float DrawZoom,
+        Texture[] Targets
+    );
+
     private sealed class ApplicationScope : IDisposable
     {
-        public ApplicationScope()
+        public ApplicationScope(Vector2 drawOffset, float drawZoom)
         {
-            currentlyApplied++;
+            var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
+            var state = new ApplicationState(drawOffset, drawZoom, targets);
+            currently_applied.Push(state);
         }
 
         public void Dispose()
         {
-            currentlyApplied--;
+            currently_applied.Pop();
         }
     }
 
-    public static bool IsCurrentlyApplied => currentlyApplied > 0;
+    public static bool IsCurrentlyApplied => currently_applied.Count > 0;
 
-    private static int currentlyApplied;
+    private static readonly Stack<ApplicationState> currently_applied = [];
 
-    public static IDisposable BeginScope()
+    public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null)
     {
-        return new ApplicationScope();
+        var screenPosition = Main.screenPosition;
+
+        var off = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
+
+        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget);
     }
 
 #pragma warning disable CA2255
@@ -77,10 +92,12 @@ public static class SmoothLightingRenderer
         // maybe due to inlining, and the constructors are used everywhere, so I
         // can't selectively re-JIT affected methods.
 
-        if (ShouldInterceptEffect(self))
+        if (ShouldInterceptEffect(self, out var state))
         {
             var effect = Data.Instance.EntityLightingShader;
             {
+                effect.Parameters.draw_offset = state.DrawOffset;
+                effect.Parameters.draw_zoom = state.DrawZoom;
                 effect.Parameters.light_map = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,
@@ -95,8 +112,10 @@ public static class SmoothLightingRenderer
         orig(self);
     }
 
-    private static bool ShouldInterceptEffect(SpriteBatch sb)
+    private static bool ShouldInterceptEffect(SpriteBatch sb, [NotNullWhen(returnValue: true)] out ApplicationState? state)
     {
+        state = null;
+
         if (!IsCurrentlyApplied)
         {
             return false;
@@ -118,15 +137,24 @@ public static class SmoothLightingRenderer
             return false;
         }
 
-        var targets = Main.instance.GraphicsDevice.renderTargetBindings
-                          .Where(x => x.RenderTarget is not null)
-                          .Select(x => x.RenderTarget)
-                          .ToArray();
-        if (targets.Length != 0 && (targets.Length != 1 || targets[0] != Main.screenTarget))
+        // Shouldn't be possible.
+        if (!currently_applied.TryPeek(out state))
+        {
+            return false;
+        }
+
+        var targets = GetNonNullTextures(Main.instance.GraphicsDevice.renderTargetBindings).ToArray();
+        if (!targets.SequenceEqual(state.Targets))
         {
             return false;
         }
 
         return true;
+    }
+
+    private static IEnumerable<Texture> GetNonNullTextures(RenderTargetBinding[] bindings)
+    {
+        return bindings.Where(x => x.RenderTarget is not null)
+                       .Select(x => x.RenderTarget);
     }
 }
