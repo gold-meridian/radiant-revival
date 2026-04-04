@@ -1,16 +1,19 @@
 ﻿using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
+using Microsoft.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
 using ReLogic.Content;
+using SteelSeries.GameSense;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Terraria;
+using Terraria.Enums;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
 using Terraria.ModLoader;
@@ -41,7 +44,12 @@ public static class MoonStyles
 
     public delegate bool DrawAction(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale);
 
-    public static readonly Dictionary<int, DrawAction> SpecialStyleDrawing = [];
+    public static readonly Dictionary<int, DrawAction> SpecialStyleDrawing = new()
+    {
+        { 2, DrawMoon2Extras },
+    };
+
+    private static WrapperShaderData<Assets.Sky.RingShader.Parameters>? ringShaderData;
 
     private static WrapperShaderData<Assets.Sky.MoonShader.Parameters>? moonShaderData;
 
@@ -63,6 +71,7 @@ public static class MoonStyles
     [OnLoad]
     private static void Load()
     {
+        ringShaderData = Assets.Sky.RingShader.CreateRingShader();
         moonShaderData = Assets.Sky.MoonShader.CreateMoonShader();
 
         IL_Main.DrawSunAndMoon += DrawSunAndMoon_MoonStyles;
@@ -208,8 +217,10 @@ public static class MoonStyles
 
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
+        Main.moonType = 2;
+
         if (SpecialStyleDrawing.TryGetValue(Main.moonType, out var action)
-            && action.Invoke(sb, device, position, color, rotation, scale))
+            && !action.Invoke(sb, device, position, color, rotation, scale))
         {
             return true;
         }
@@ -219,44 +230,103 @@ public static class MoonStyles
             return false;
         }
 
-        DrawBody(asset.Value);
+        sb.End(out var ss);
+        sb.Begin(ss with { SortMode = SpriteSortMode.Immediate });
+
+        DrawBody(sb, asset.Value, position, color, rotation, scale);
+
+        sb.Restart(in ss);
 
         return true;
+    }
 
-        void DrawBody(Texture2D texture)
+    private static void DrawBody(SpriteBatch sb, Texture2D texture, Vector2 position, Color color, float rotation, float scale, float atmoRatio = 0.65f)
+    {
+        Debug.Assert(moonShaderData is not null);
+
+        Color skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
+
+        moonShaderData.Parameters.atmoColor = moon_atmosphere.ToVector4();
+        moonShaderData.Parameters.atmoShadowColor = moon_atmosphere_shadow.ToVector4();
+
+        moonShaderData.Parameters.shadowColor = skyColor.ToVector4();
+
+        moonShaderData.Parameters.shadowRotation = (Main.moonPhase / 8f) * MathHelper.TwoPi;
+
+        moonShaderData.Parameters.radius = atmoRatio;
+
+        moonShaderData.Apply();
+
+        Vector2 size = new Vector2(TextureAssets.Moon[Main.moonType].Value.Width / atmoRatio);
+
+        size *= scale;
+
+        size /= texture.Size();
+
+        Vector2 origin = texture.Size() * 0.5f;
+
+        sb.Draw(texture, position, null, color, rotation, origin, size, SpriteEffects.None, 0f);
+    }
+
+#region Styles
+
+    private static bool DrawMoon2Extras(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
+    {
+        sb.End(out var ss);
+        sb.Begin(ss with { SortMode = SpriteSortMode.Immediate });
+
+        Vector2 ringSize = new(0.28f, 0.07f);
+
+        const float ring_rotation = -0.13f;
+
+        const bool flip = false;
+
+        Color skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
+
+        Texture2D rings = Assets.Sky.CelestialBodies.Moon2Rings.Asset.Value;
+
+        float shadowRotation = (Main.moonPhase / 8f) * MathHelper.TwoPi;
+
+        if (!flip)
         {
-            Debug.Assert(moonShaderData is not null);
+            shadowRotation = MathHelper.Pi - shadowRotation;
+        }
 
-            sb.End(out var snapshot);
-            sb.Begin(snapshot with { SortMode = SpriteSortMode.Immediate });
+        DrawRing(!flip);
 
-            const float atmo_ratio = 0.65f;
+        Texture2D moon = Assets.Sky.CelestialBodies.Moon2.Asset.Value;
 
-            Color skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
+        DrawBody(sb, moon, position, color, rotation, scale);
 
-            moonShaderData.Parameters.atmoColor = moon_atmosphere.ToVector4();
-            moonShaderData.Parameters.atmoShadowColor = moon_atmosphere_shadow.ToVector4();
+        DrawRing(flip);
 
-            moonShaderData.Parameters.shadowColor = skyColor.ToVector4();
+        sb.Restart(in ss);
 
-            moonShaderData.Parameters.shadowRotation = -(Main.moonPhase / 8f) * MathHelper.TwoPi;
+        return false;
 
-            moonShaderData.Parameters.radius = atmo_ratio;
+        void DrawRing(bool upper)
+        {
+            Debug.Assert(ringShaderData is not null);
 
-            moonShaderData.Apply();
+            ringShaderData.Parameters.shadowRotation = shadowRotation;
 
-            Vector2 size = new Vector2(TextureAssets.Moon[Main.moonType].Value.Width / atmo_ratio);
+            ringShaderData.Parameters.shadowColor = skyColor.ToVector4();
 
-            size *= scale;
+            ringShaderData.Apply();
 
-            size /= texture.Size();
-
-            Vector2 origin = texture.Size() * 0.5f;
-
-            sb.Draw(texture, position, null, color, rotation, origin, size, SpriteEffects.None, 0f);
-
-            sb.Restart(in snapshot);
+            sb.Draw(
+                rings,
+                position,
+                rings.Frame(1, 2, 0, upper ? 0 : 1),
+                color,
+                rotation + ring_rotation,
+                new Vector2(rings.Width * 0.5f, upper ? (rings.Height * 0.5f) : 0f),
+                ringSize * scale,
+                SpriteEffects.None,
+                0f
+            );
         }
     }
+#endregion
 }
 
