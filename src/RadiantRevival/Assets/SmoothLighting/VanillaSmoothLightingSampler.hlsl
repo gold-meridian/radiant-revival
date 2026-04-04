@@ -58,7 +58,7 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
 {
     float4 albedo = tex2D(tex, uv) * color;
     
-    float2 screen_pos_tiles = (pos - draw_offset / draw_zoom) / TILE_SIZE;
+    float2 screen_pos_tiles = (pos + draw_offset / draw_zoom) / TILE_SIZE;
     screen_pos_tiles += OFFSCREEN_TILES;
     float2 light_uv = screen_pos_tiles / lighting_buffer_size;
 

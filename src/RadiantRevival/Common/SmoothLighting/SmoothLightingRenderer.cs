@@ -67,7 +67,7 @@ public static class SmoothLightingRenderer
 
         var off = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
 
-        return new ApplicationScope(drawOffset ?? -off, drawZoom ?? 1f / Main.GameZoomTarget);
+        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget);
     }
 
 #pragma warning disable CA2255
