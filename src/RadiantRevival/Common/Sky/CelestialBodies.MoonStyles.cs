@@ -217,8 +217,6 @@ public static class MoonStyles
 
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
-        Main.moonType = 2;
-
         if (SpecialStyleDrawing.TryGetValue(Main.moonType, out var action)
             && !action.Invoke(sb, device, position, color, rotation, scale))
         {
