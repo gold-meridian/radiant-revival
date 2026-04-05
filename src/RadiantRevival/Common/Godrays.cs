@@ -16,6 +16,7 @@ namespace RadiantRevival.Common;
 public static class Godrays
 {
     private static WrapperShaderData<Assets.Sky.Godrays.Parameters>? godraysShaderData;
+    private static WrapperShaderData<Assets.Sky.GodraysSampler.Parameters>? blurShaderData;
 
     private static RenderTargetLease? celestialBodyLease;
 
@@ -23,6 +24,7 @@ public static class Godrays
     private static void Load()
     {
         godraysShaderData = Assets.Sky.Godrays.CreateGodraysShader();
+        blurShaderData = Assets.Sky.GodraysSampler.CreateRadialBlurShader();
 
         On_Main.DrawSunAndMoon += DrawSunAndMoon_CaptureCelestialBodies;
 
@@ -68,7 +70,15 @@ public static class Godrays
 
     private static void Draw(SpriteBatch sb, GraphicsDevice device, RenderTarget2D target)
     {
-        Debug.Assert(godraysShaderData is not null && celestialBodyLease is not null);
+        Debug.Assert(godraysShaderData is not null && blurShaderData is not null && celestialBodyLease is not null);
+
+        const int godrays_samples = 32;
+        const int radial_blur_samples = 16;
+        const float radial_blur_strength = 0.25f;
+
+        var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
+
+        Vector2 lightPosition = Main.LastCelestialBodyPosition * screenSize;
 
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var _);
 
@@ -87,8 +97,6 @@ public static class Godrays
             return;
         }
 
-        var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
-
         using var lease = ScreenspaceTargetPool.Shared.Rent(device, (int)screenSize.X / 4, (int)screenSize.Y / 4);
 
         using var _ = sb.Scope();
@@ -97,10 +105,9 @@ public static class Godrays
         {
             sb.Begin(SpriteSortMode.Immediate, BlendState.Additive, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
 
-            godraysShaderData.Parameters.light_position = Main.LastCelestialBodyPosition * screenSize;
-            godraysShaderData.Parameters.light_size = 4.6f;
-            godraysShaderData.Parameters.sample_count = 64;
-            godraysShaderData.Parameters.decay_mult = 0.925f;
+            godraysShaderData.Parameters.light_position = lightPosition;
+            godraysShaderData.Parameters.sample_count = godrays_samples;
+            godraysShaderData.Parameters.decay_mult = 0.92f;
 
             godraysShaderData.Parameters.lights = new HlslSampler2D
             {
@@ -115,6 +122,12 @@ public static class Godrays
         }
 
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
+
+        blurShaderData.Parameters.light_position = lightPosition;
+        blurShaderData.Parameters.sample_count = radial_blur_samples;
+        blurShaderData.Parameters.blur_strength = radial_blur_strength;
+
+        blurShaderData.Apply();
 
         sb.Draw(lease.Target, device.Viewport.Bounds, Color.White);
 

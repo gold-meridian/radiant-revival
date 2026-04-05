@@ -8,8 +8,6 @@ float screen_size_y SCREEN_SIZE_Y;
 
 float2 light_position;
 
-float light_size;
-
 float decay_mult;
 
 int sample_count;
@@ -26,19 +24,15 @@ float godrays(float2 uv)
     
     float2 light = light_position / screenSize;
     
-    float2 screen = screenSize / min(screenSize.x, screenSize.y);
-    
-    float2 dir = (light - uv) * screen;
+    float2 dir = (light - uv);
     
     int samples = max(sample_count, 4);
     
     float2 dtc = dir * (1.0 / samples);
     
-    float size = 3.9 / max(light_size, 0.001);
-    
     float occ = 0;
     
-    float2 bayeruv = frac(uv * screenSize);
+    float2 bayeruv = frac(uv * screenSize / 16) * 4;
     float dither = bayer[bayeruv.x][bayeruv.y];
     
     float decay = 1;
@@ -48,12 +42,12 @@ float godrays(float2 uv)
     {
         uv += dtc;
         
-        float l = tex2D(lights, uv + dither).a;
+        float l = tex2D(lights, uv + (dtc * dither)).a;
     
         l *= l;
         l = 1 - l;
     
-        occ += (l - pow(tex2D(tex, uv).a, 2)) * decay;
+        occ += (l - pow(tex2D(tex, uv + (dtc * dither)).a, 2)) * decay;
         
         decay *= decay_mult;
     }
