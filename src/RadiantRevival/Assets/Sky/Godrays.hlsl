@@ -30,7 +30,7 @@ float godrays(float2 uv)
     
     float2 dir = (light - uv) * screen;
     
-    int samples = max(sample_count, 8);
+    int samples = max(sample_count, 4);
     
     float2 dtc = dir * (1.0 / samples);
     
@@ -43,7 +43,7 @@ float godrays(float2 uv)
     
     float decay = 1;
     
-    [unroll(128)]
+    [unroll(64)]
     for (int i = 0; i < samples; i++)
     {
         uv += dtc;
@@ -53,22 +53,18 @@ float godrays(float2 uv)
         l *= l;
         l = 1 - l;
     
-        occ += (l - tex2D(tex, uv).a) * decay;
+        occ += (l - pow(tex2D(tex, uv).a, 2)) * decay;
         
         decay *= decay_mult;
     }
     
     occ /= samples;
     
-    float dist = length(dir);
-    
     return occ;
 }
 
 float4 main(float2 uv : TEXCOORD0, float4 color : COLOR0) : COLOR0
 {
-    clip(color.r + color.g + color.b - 1e-10);
-
     float gr = godrays(uv);
     
     gr = 1 - pow(1 - gr, 2);

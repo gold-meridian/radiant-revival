@@ -6,7 +6,9 @@ using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using System.Diagnostics;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
+using Terraria.UI.Chat;
 
 namespace RadiantRevival.Common;
 
@@ -29,6 +31,14 @@ public static class Godrays
 
     private static void DrawSunAndMoon_CaptureCelestialBodies(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
     {
+        // FIXME: Moon seems to render as an occluder?
+        if (!Main.dayTime || !Main.ForegroundSunlightEffects || Main.screenTarget is null)
+        {
+            orig(self, sceneArea, moonColor, sunColor, tempMushroomInfluence);
+            return;
+        }
+
+        celestialBodyLease?.Dispose();
         celestialBodyLease = ScreenspaceTargetPool.Shared.Rent(self.GraphicsDevice);
 
         using (celestialBodyLease.Scope(clearColor: Color.Transparent))
@@ -45,7 +55,7 @@ public static class Godrays
 
     private static void DrawLensFlare_Godrays(On_Main.orig_DrawLensFlare orig)
     {
-        if (!Main.ForegroundSunlightEffects || Main.screenTarget is null || celestialBodyLease is null)
+        if (!Main.dayTime || !Main.ForegroundSunlightEffects || Main.screenTarget is null || celestialBodyLease is null)
         {
             orig();
             return;
@@ -60,20 +70,38 @@ public static class Godrays
     {
         Debug.Assert(godraysShaderData is not null && celestialBodyLease is not null);
 
+        HorizonHelper.GetCelestialBodyColors(out var sunColor, out var _);
+
+        sunColor = sunColor.MultiplyRGB(Color.PeachPuff);
+
+        NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
+
+        Color color = sunColor;
+
+        float num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
+
+        color *= num;
+
+        if (color is not { R: > 0, G: > 0, B: > 0 })
+        {
+            return;
+        }
+
         var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
 
-        using var lease = ScreenspaceTargetPool.Shared.RentScaled(device, Main.ScreenSize, 0.25f);
+        using var lease = ScreenspaceTargetPool.Shared.Rent(device, (int)screenSize.X / 4, (int)screenSize.Y / 4);
 
         using var _ = sb.Scope();
 
-        sb.Begin(SpriteSortMode.Immediate, BlendState.Additive, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
-
         using (lease.Scope(clearColor: Color.Transparent))
         {
+            sb.Begin(SpriteSortMode.Immediate, BlendState.Additive, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
+
             godraysShaderData.Parameters.light_position = Main.LastCelestialBodyPosition * screenSize;
             godraysShaderData.Parameters.light_size = 4.6f;
-            godraysShaderData.Parameters.sample_count = 128;
-            godraysShaderData.Parameters.decay_mult = 0.97f;
+            godraysShaderData.Parameters.sample_count = 64;
+            godraysShaderData.Parameters.decay_mult = 0.925f;
+
             godraysShaderData.Parameters.lights = new HlslSampler2D
             {
                 Texture = celestialBodyLease.Target,
@@ -82,24 +110,7 @@ public static class Godrays
 
             godraysShaderData.Apply();
 
-            HorizonHelper.GetCelestialBodyColors(out var sunColor, out var moonColor);
-
-            sunColor = sunColor.MultiplyRGB(Color.PeachPuff);
-            moonColor = Color.Pow(moonColor, 6f) * 100f;
-
-            NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
-
-            Color color = Main.dayTime ? sunColor : moonColor;
-
-            float num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
-            if (!Main.dayTime)
-            {
-                num = Math.Max(num, celestialVisibility * 0.15f) * 2.2f;
-            }
-
-            color *= num;
-
-            sb.Draw(target, Vector2.Zero, color);
+            sb.Draw(target, device.Viewport.Bounds, color);
             sb.End();
         }
 
@@ -107,6 +118,9 @@ public static class Godrays
 
         sb.Draw(lease.Target, device.Viewport.Bounds, Color.White);
 
+        sb.End();
+
         celestialBodyLease.Dispose();
+        celestialBodyLease = null;
     }
 }

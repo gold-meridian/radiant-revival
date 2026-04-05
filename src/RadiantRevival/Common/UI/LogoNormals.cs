@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Reflection;
 using Terraria;
 using Terraria.GameContent.Drawing;
-using Terraria.GameContent.Skies;
 using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
