@@ -2,7 +2,7 @@
 
 namespace RadiantRevival.Common;
 
-public readonly ref struct ScopeStateCapture<T> : IDisposable
+internal readonly ref struct ScopeStateCapture<T> : IDisposable
 {
     private readonly T oldValue;
     private readonly ref T reference;

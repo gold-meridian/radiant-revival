@@ -3,7 +3,7 @@ using JetBrains.Annotations;
 
 namespace RadiantRevival.Common;
 
-[MeansImplicitUse()]
+[MeansImplicitUse]
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
 internal sealed class ModCallAttribute(params string[] nameAliases) : Attribute
 {
