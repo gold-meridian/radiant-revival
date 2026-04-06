@@ -134,9 +134,16 @@ public static class AmbientOcclusion
 
         using (WallTargetSwap.Scope(clearColor: Color.Transparent))
         {
+            var wallPos = Main.wallTarget.Position;
+            var tileOffset = new Vector2(
+                IsIntegerOdd(wallPos.X) ? -0.5f : 0,
+                IsIntegerOdd(wallPos.Y) ? -0.5f : 0
+            );
+
             var color = Color.Black * 0.36f;
             var maskShader = Data.Instance.MaskShader;
             maskShader.Parameters.occlusion_color = color.ToVector4();
+            maskShader.Parameters.tex_pixel_offset = tileOffset;
             maskShader.Parameters.tile_tex = new HlslSampler2D
             {
                 Texture = BlurTarget.Target,
@@ -154,6 +161,13 @@ public static class AmbientOcclusion
             sb.Begin();
             sb.Draw(WallTargetSwap.Target, Vector2.Zero, Color.White);
             sb.End();
+        }
+
+        return;
+
+        static bool IsIntegerOdd(float f)
+        {
+            return (int)f % 2 == 1;
         }
     }
 }
