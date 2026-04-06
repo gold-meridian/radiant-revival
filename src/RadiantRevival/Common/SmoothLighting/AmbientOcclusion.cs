@@ -1,12 +1,12 @@
-﻿using Daybreak.Common.CIL;
+﻿using System.Collections.Generic;
 using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MonoMod.Cil;
 using RadiantRevival.Core;
 using Terraria;
+using Terraria.Graphics;
 using Terraria.ModLoader;
 
 namespace RadiantRevival.Common.SmoothLighting;
@@ -27,6 +27,8 @@ public static class AmbientOcclusion
 
         public required RenderTargetLease BlurTargetSwap { get; init; }
 
+        public required RenderTargetLease WallTargetSwap { get; init; }
+
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
@@ -37,6 +39,7 @@ public static class AmbientOcclusion
                     MaskShader = Assets.SmoothLighting.AmbientOcclusionSampler.CreateMaskShader(),
                     BlurTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                     BlurTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    WallTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
                 }
             ).GetAwaiter().GetResult();
 
@@ -58,15 +61,27 @@ public static class AmbientOcclusion
         }
     }
 
+    public sealed class WallRenderer : ITargetPipelineStep
+    {
+        public List<WorldSceneLayerTarget> Inputs => [Main.wallTarget, Main.tileTarget];
+
+        public List<WorldSceneLayerTarget> Apply()
+        {
+            RenderToWallTarget();
+            return [Main.wallTarget];
+        }
+    }
+
     private static RenderTargetLease BlurTarget => Data.Instance.BlurTarget;
 
     private static RenderTargetLease BlurTargetSwap => Data.Instance.BlurTargetSwap;
+
+    private static RenderTargetLease WallTargetSwap => Data.Instance.WallTargetSwap;
 
     [OnLoad]
     private static void Load()
     {
         On_Main.RenderTiles += RenderTiles_BlurTarget;
-        IL_Main.DoDraw_WallsAndBlacks += WallsAndBlacks_Occlusion;
     }
 
     private static void RenderTiles_BlurTarget(On_Main.orig_RenderTiles orig, Main self)
@@ -113,51 +128,32 @@ public static class AmbientOcclusion
         }
     }
 
-    private static void WallsAndBlacks_Occlusion(ILContext il)
+    private static void RenderToWallTarget()
     {
-        var c = new ILCursor(il);
+        var sb = Main.spriteBatch;
 
-        var snapshotDef = il.AddVariable<SpriteBatchSnapshot>();
-
-        c.GotoNext(
-            MoveType.After,
-            i => i.MatchCallvirt<SpriteBatch>(nameof(SpriteBatch.Begin)),
-            i => i.MatchBr(out _)
-        );
-        c.MoveAfterLabels();
-
-        c.EmitLdloca(snapshotDef);
-        c.EmitDelegate(
-            static (ref SpriteBatchSnapshot ss) =>
+        using (WallTargetSwap.Scope(clearColor: Color.Transparent))
+        {
+            var color = Color.Black * 0.36f;
+            var maskShader = Data.Instance.MaskShader;
+            maskShader.Parameters.occlusion_color = color.ToVector4();
+            maskShader.Parameters.tile_tex = new HlslSampler2D
             {
-                var sb = Main.spriteBatch;
-                sb.End(out ss);
+                Texture = BlurTarget.Target,
+                Sampler = SamplerState.PointClamp,
+            };
+            maskShader.Apply();
 
-                var color = Color.Black * 0.36f;
-                var maskShader = Data.Instance.MaskShader;
-                maskShader.Parameters.occlusion_color = color.ToVector4();
-                maskShader.Parameters.tile_tex = new HlslSampler2D
-                {
-                    Texture = BlurTarget.Target,
-                    Sampler = SamplerState.PointClamp,
-                };
-                maskShader.Apply();
+            sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, maskShader.Shader);
+            sb.Draw(Main.wallTarget.Texture, Vector2.Zero, Color.White);
+            sb.End();
+        }
 
-                sb.Begin(ss with { SortMode = SpriteSortMode.Immediate, CustomEffect = maskShader.Shader });
-            }
-        );
-
-        c.GotoNext(
-            MoveType.After,
-            i => i.MatchCallvirt<SpriteBatch>(nameof(SpriteBatch.Draw))
-        );
-
-        c.EmitLdloca(snapshotDef);
-        c.EmitDelegate(
-            static (ref SpriteBatchSnapshot ss) =>
-            {
-                Main.spriteBatch.Restart(in ss);
-            }
-        );
+        using (Main.wallTarget._target.Scope(clearColor: Color.Transparent))
+        {
+            sb.Begin();
+            sb.Draw(WallTargetSwap.Target, Vector2.Zero, Color.White);
+            sb.End();
+        }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Daybreak.Common.Features.Hooks;
+using RadiantRevival.Common.SmoothLighting;
 using Terraria;
 using Terraria.Graphics;
 
@@ -10,7 +11,7 @@ namespace RadiantRevival.Common;
 /// <summary>
 ///     An arbitrary step in the vanilla-wrapped target pipeline.
 /// </summary>
-internal interface ITargetPipelineStep
+public interface ITargetPipelineStep
 {
     /// <summary>
     ///     Input targets which, when modified, indicates that
@@ -34,9 +35,12 @@ internal interface ITargetPipelineStep
 ///     Applies an arbitrary set of pipeline steps after-the-fact to facilitate
 ///     mutating rendered targets.
 /// </summary>
-internal static class VanillaTargetPipeline
+public static class VanillaTargetPipeline
 {
-    private static readonly ITargetPipelineStep[] steps = [];
+    private static readonly ITargetPipelineStep[] steps =
+    [
+        new AmbientOcclusion.WallRenderer(),
+    ];
 
     private static HashSet<WorldSceneLayerTarget>? mutatedTargets;
 
@@ -79,7 +83,7 @@ internal static class VanillaTargetPipeline
     private static void ApplyPipeline()
     {
         var mutatedSet = new HashSet<WorldSceneLayerTarget>(mutatedTargets ?? []);
-        
+
         foreach (var step in steps)
         {
             if (!step.Inputs.Any(mutatedSet.Contains))
