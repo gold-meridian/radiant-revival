@@ -57,9 +57,9 @@ public static class SmoothLightingRenderer
         }
     }
 
-    public static bool IsCurrentlyApplied => currently_applied.Count > 0;
-
     private static readonly Stack<ApplicationState> currently_applied = [];
+
+    public static bool IsCurrentlyApplied => currently_applied.Count > 0;
 
     public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null)
     {

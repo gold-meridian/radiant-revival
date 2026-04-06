@@ -1,14 +1,12 @@
-﻿using System.Diagnostics;
+﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Terraria;
 using Terraria.GameContent.Animations;
 using Terraria.GameContent.Drawing;
-using Terraria.GameContent.Liquid;
 using Terraria.GameContent.UI.Elements;
 using Terraria.Graphics.Capture;
 using Terraria.Graphics.Effects;
@@ -28,7 +26,8 @@ public static class RetroLighting
     {
         MonoModHooks.Modify(
             typeof(Main).GetProperty(
-                nameof(Main.DefaultSamplerState), BindingFlags.Public | BindingFlags.Static
+                nameof(Main.DefaultSamplerState),
+                BindingFlags.Public | BindingFlags.Static
             )!.GetMethod,
             get_DefaultSamplerState_RetPointClamp
         );
@@ -97,8 +96,8 @@ public static class RetroLighting
     {
         var c = new ILCursor(il);
 
-        ILLabel jumpDrawMenuTarget = c.DefineLabel();
-        ILLabel drawMenuTarget = c.DefineLabel();
+        var jumpDrawMenuTarget = c.DefineLabel();
+        var drawMenuTarget = c.DefineLabel();
 
         c.GotoNext(
             MoveType.Before,
@@ -137,7 +136,7 @@ public static class RetroLighting
     {
         var c = new ILCursor(il);
 
-        ILLabel jumpInitTargets = c.DefineLabel();
+        var jumpInitTargets = c.DefineLabel();
 
         c.GotoNext(
             MoveType.Before,
@@ -160,7 +159,7 @@ public static class RetroLighting
 
         c.MarkLabel(jumpInitTargets);
 
-        for (int j = 0; j < 2; j++)
+        for (var j = 0; j < 2; j++)
         {
             c.GotoNext(i => i.MatchLdstr("Sepia"));
         }
@@ -182,13 +181,14 @@ public static class RetroLighting
         c.EmitPop();
 
         // Add our own condition, (This is just to be extra safe, if the targets were null the game may attempt to draw a null target in EndCapture).
-        c.EmitDelegate(() =>
-            Main.screenTarget is not null &&
-            Main.screenTargetSwap is not null &&
-            Main.skyTarget is not null &&
-            !Main.screenTarget.IsContentLost &&
-            !Main.screenTargetSwap.IsContentLost &&
-            !Main.skyTarget.IsContentLost
+        c.EmitDelegate(
+            () =>
+                Main.screenTarget is not null &&
+                Main.screenTargetSwap is not null &&
+                Main.skyTarget is not null &&
+                !Main.screenTarget.IsContentLost &&
+                !Main.screenTargetSwap.IsContentLost &&
+                !Main.skyTarget.IsContentLost
         );
     }
 
@@ -243,10 +243,10 @@ public static class RetroLighting
 
         Main.targetSet = false;
 
-        GraphicsDevice device = Main.graphics.GraphicsDevice;
+        var device = Main.graphics.GraphicsDevice;
 
-        int width = device.PresentationParameters.BackBufferWidth;
-        int height = device.PresentationParameters.BackBufferHeight;
+        var width = device.PresentationParameters.BackBufferWidth;
+        var height = device.PresentationParameters.BackBufferHeight;
 
         if (!ShouldRefreshTarget(Main.screenTarget)
          && !ShouldRefreshTarget(Main.screenTargetSwap)

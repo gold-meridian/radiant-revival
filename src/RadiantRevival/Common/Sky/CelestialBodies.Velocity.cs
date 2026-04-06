@@ -1,8 +1,8 @@
-﻿using Daybreak.Common.Features.Hooks;
+﻿using System;
+using System.Diagnostics;
+using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;
-using System;
-using System.Diagnostics;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.ID;
@@ -15,20 +15,15 @@ public static class CelestialBodyVelocity
 {
     private static Vector2 celestialBodyVelocity;
 
-    private static bool CanGrabCelestialBody
-    {
-        get
-        {
-            return Main.instance.focusMenu == -1
-                && Main.MenuUI._lastElementHover is null or UIState
-                   // Niche slider behavior
-                && IngameOptions.rightHover == -1
-                && IngameOptions.rightLock == -1
-                && !IngameOptions.inBar
-                && RangeElement.rightHover is null
-                && RangeElement.rightLock is null;
-        }
-    }
+    private static bool CanGrabCelestialBody =>
+        Main.instance.focusMenu == -1
+     && Main.MenuUI._lastElementHover is null or UIState
+        // Niche slider behavior
+     && IngameOptions.rightHover == -1
+     && IngameOptions.rightLock == -1
+     && !IngameOptions.inBar
+     && RangeElement.rightHover is null
+     && RangeElement.rightLock is null;
 
     [OnLoad]
     private static void Load()
@@ -65,8 +60,8 @@ public static class CelestialBodyVelocity
 
     private static void DrawMenu_DisableInteraction(On_Main.orig_DrawMenu orig, Main self, GameTime gameTime)
     {
-        int oldMouseX = Main.mouseX;
-        int oldMouseY = Main.mouseY;
+        var oldMouseX = Main.mouseX;
+        var oldMouseY = Main.mouseY;
 
         if (Main.alreadyGrabbingSunOrMoon)
         {
@@ -89,8 +84,8 @@ public static class CelestialBodyVelocity
             return;
         }
 
-        int oldMouseX = Main.mouseX;
-        int oldMouseY = Main.mouseY;
+        var oldMouseX = Main.mouseX;
+        var oldMouseY = Main.mouseY;
 
         if (Main.alreadyGrabbingSunOrMoon)
         {
@@ -124,7 +119,7 @@ public static class CelestialBodyVelocity
                     return;
                 }
 
-                double timeRatio = Main.dayTime
+                var timeRatio = Main.dayTime
                     ? Main.nightLength / Main.dayLength
                     : Main.dayLength / Main.nightLength;
 
@@ -191,7 +186,7 @@ public static class CelestialBodyVelocity
             ? Main.dayLength
             : Main.nightLength;
 
-        ref short modY = ref (Main.dayTime ? ref Main.sunModY : ref Main.moonModY);
+        ref var modY = ref Main.dayTime ? ref Main.sunModY : ref Main.moonModY;
 
         if (Main.mouseRight && CanGrabCelestialBody)
         {

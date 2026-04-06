@@ -9,7 +9,7 @@ public class AliasDictionary<TKey, TValue> : List<(HashSet<TKey> Keys, List<TVal
     {
         get
         {
-            if (!TryFind(name, out List<TValue> elements))
+            if (!TryFind(name, out var elements))
             {
                 throw new KeyNotFoundException();
             }
@@ -18,10 +18,10 @@ public class AliasDictionary<TKey, TValue> : List<(HashSet<TKey> Keys, List<TVal
         }
     }
 
-    /// <inheritdoc cref="List{T}.Add"/>
+    /// <inheritdoc cref="List{T}.Add" />
     public bool Add(TKey key, TValue item)
     {
-        int inList = FindIndex(e => e.Keys.Contains(key));
+        var inList = FindIndex(e => e.Keys.Contains(key));
 
         if (inList != -1)
         {
@@ -35,19 +35,28 @@ public class AliasDictionary<TKey, TValue> : List<(HashSet<TKey> Keys, List<TVal
         return inList == -1;
     }
 
-    /// <inheritdoc cref="List{T}.Add"/>
-    public bool Add(TKey key, List<TValue> items) => Add([key], items);
+    /// <inheritdoc cref="List{T}.Add" />
+    public bool Add(TKey key, List<TValue> items)
+    {
+        return Add([key], items);
+    }
 
-    /// <inheritdoc cref="List{T}.Add"/>
-    public bool Add(IEnumerable<TKey> keys, List<TValue> items) => Add(keys.ToHashSet(), items);
+    /// <inheritdoc cref="List{T}.Add" />
+    public bool Add(IEnumerable<TKey> keys, List<TValue> items)
+    {
+        return Add(keys.ToHashSet(), items);
+    }
 
-    /// <inheritdoc cref="List{T}.Add"/>
-    public bool Add(HashSet<TKey> keys, TValue item) => Add(keys, [item]);
+    /// <inheritdoc cref="List{T}.Add" />
+    public bool Add(HashSet<TKey> keys, TValue item)
+    {
+        return Add(keys, [item]);
+    }
 
-    /// <inheritdoc cref="List{T}.Add"/>
+    /// <inheritdoc cref="List{T}.Add" />
     public bool Add(HashSet<TKey> keys, List<TValue> items)
     {
-        int inList = FindIndex(e => keys.All(k => e.Keys.Contains(k)));
+        var inList = FindIndex(e => keys.All(k => e.Keys.Contains(k)));
 
         if (inList != -1)
         {
@@ -63,7 +72,7 @@ public class AliasDictionary<TKey, TValue> : List<(HashSet<TKey> Keys, List<TVal
 
     public bool TryFind(TKey key, out List<TValue> items)
     {
-        foreach ((HashSet<TKey> keys, List<TValue> elements) in this)
+        foreach (var (keys, elements) in this)
         {
             if (!keys.Contains(key))
             {

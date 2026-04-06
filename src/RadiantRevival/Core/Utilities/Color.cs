@@ -1,22 +1,10 @@
-﻿using Microsoft.Xna.Framework;
-using System;
+﻿using System;
+using Microsoft.Xna.Framework;
 
 namespace RadiantRevival.Core;
 
 public static class ColorExtensions
 {
-    private static readonly Matrix cone_to_lms = new(
-        0.4121656120f, 0.2118591070f, 0.0883097947f, 0f,
-        0.5362752080f, 0.6807189584f, 0.2818474174f, 0f,
-        0.0514575653f, 0.1074065790f, 0.6302613616f, 0f,
-        0f, 0f, 0f, 0f);
-
-    private static readonly Matrix lms_to_cone = new(
-        4.0767245293f, -1.2681437731f, -0.0041119885f, 0f,
-        -3.3072168827f, 2.6093323231f, -0.7034763098f, 0f,
-        0.2307590544f, -0.3411344290f, 1.7068625689f, 0f,
-        0f, 0f, 0f, 0f);
-
     extension(Color col)
     {
         public static Vector3 ToOklab(Color color)
@@ -74,4 +62,18 @@ public static class ColorExtensions
             }
         }
     }
+    
+    private static readonly Matrix cone_to_lms = new(
+        0.4121656120f, 0.2118591070f, 0.0883097947f, 0f,
+        0.5362752080f, 0.6807189584f, 0.2818474174f, 0f,
+        0.0514575653f, 0.1074065790f, 0.6302613616f, 0f,
+        0f, 0f, 0f, 0f
+    );
+
+    private static readonly Matrix lms_to_cone = new(
+        4.0767245293f, -1.2681437731f, -0.0041119885f, 0f,
+        -3.3072168827f, 2.6093323231f, -0.7034763098f, 0f,
+        0.2307590544f, -0.3411344290f, 1.7068625689f, 0f,
+        0f, 0f, 0f, 0f
+    );
 }

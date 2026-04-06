@@ -14,14 +14,14 @@ namespace RadiantRevival.Common;
 
 public sealed class LightingBuffers : IStatic<LightingBuffers>
 {
-    public required RenderTargetLease TotalLightingBuffer { get; init; }
-
-    public required RenderTargetLease ScreenSizeLightingBuffer { get; init; }
+    private const int lighting_buffer_offscreen_range_tiles = 1;
 
     private static Color[] colorBuffer = [];
     private static bool debugLightMap;
 
-    private const int lighting_buffer_offscreen_range_tiles = 1;
+    public required RenderTargetLease TotalLightingBuffer { get; init; }
+
+    public required RenderTargetLease ScreenSizeLightingBuffer { get; init; }
 
     public static LightingBuffers LoadData(Mod mod)
     {

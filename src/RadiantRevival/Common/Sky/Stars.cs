@@ -1,10 +1,10 @@
-﻿using Daybreak.Common.Features.Hooks;
+﻿using System;
+using System.Diagnostics;
+using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
-using System;
-using System.Diagnostics;
 using RadiantRevival.Core;
 using Terraria;
 using Terraria.Utilities;
@@ -20,10 +20,10 @@ public static class Stars
 
     private const int star_count = 1600;
 
-    private static readonly Star[] stars = new Star[star_count];
-
     private const float star_min_scale = 0.15f;
     private const float star_max_scale = 1.1f;
+
+    private static readonly Star[] stars = new Star[star_count];
 
     private static readonly Color star_color_low = new(148, 182, 255);
     private static readonly Color star_color_high = new(255, 204, 152);
@@ -35,15 +35,15 @@ public static class Stars
     {
         starShaderData = Assets.Sky.StarShader.CreateStarShader();
 
-        for (int i = 0; i < stars.Length; i++)
+        for (var i = 0; i < stars.Length; i++)
         {
             var position = Main.rand.NextPointSphereSurface();
 
             var color = Color.OklabLerp(star_color_low, star_color_high, Main.rand.NextFloat());
 
-            float scale = Main.rand.NextFloat(star_min_scale, star_max_scale);
+            var scale = Main.rand.NextFloat(star_min_scale, star_max_scale);
 
-            float phase = Main.rand.NextFloat(MathF.Tau);
+            var phase = Main.rand.NextFloat(MathF.Tau);
 
             stars[i] = new Star(position, color, scale, phase);
         }
@@ -55,13 +55,13 @@ public static class Stars
     {
         var c = new ILCursor(il);
 
-        ILLabel jumpRetTarget = c.DefineLabel();
+        var jumpRetTarget = c.DefineLabel();
 
         c.EmitDelegate(
             static () =>
             {
                 Draw(Main.spriteBatch, Main.graphics.graphicsDevice);
-                
+
                 return true;
             }
         );
@@ -97,20 +97,20 @@ public static class Stars
 
         var center = new Vector2(screenSize.X * 0.5f, screenSize.Y * 0.5f);
 
-        float screenScale = center.Length();
+        var screenScale = center.Length();
         screenScale += offscreen_margin * screenScale / screen_length_denom;
 
         var transform =
             Matrix.CreateRotationY(Main.GlobalTimeWrappedHourly * rotation_speed)
           * Matrix.CreateRotationX(rotation_x)
           * Matrix.CreateScale(screenScale)
-          * Matrix.CreateTranslation(new(center, 0));
+          * Matrix.CreateTranslation(new Vector3(center, 0));
 
         var texture = Assets.Sky.Stars.Circle.Asset.Value;
 
         var origin = texture.Size() * 0.5f;
 
-        float alpha = GetStarAlpha();
+        var alpha = GetStarAlpha();
 
         foreach (var star in stars)
         {
@@ -121,14 +121,14 @@ public static class Stars
                 continue;
             }
 
-            float twinkle = (MathF.Sin(star.Phase + Main.GlobalTimeWrappedHourly * 2.3f) + 1) * 0.5f;
+            var twinkle = (MathF.Sin(star.Phase + Main.GlobalTimeWrappedHourly * 2.3f) + 1) * 0.5f;
 
             // Scale up stars near the edge of the screen.
-            float edgeScale = (1 - position.Z / screenScale) * 2;
+            var edgeScale = (1 - position.Z / screenScale) * 2;
 
-            float fade = 1f - MathF.Pow(position.Y / Main.screenHeight, 2f) + edgeScale;
+            var fade = 1f - MathF.Pow(position.Y / Main.screenHeight, 2f) + edgeScale;
 
-            float scale = star.Scale * star_scale * fade * twinkle;
+            var scale = star.Scale * star_scale * fade * twinkle;
 
             scale = Math.Max(scale, 0.13f) * alpha;
 
@@ -137,8 +137,8 @@ public static class Stars
             sb.Draw(
                 new DrawParameters(texture)
                 {
-                    Position = new(position.X, position.Y),
-                    Scale = new(scale),
+                    Position = new Vector2(position.X, position.Y),
+                    Scale = new Vector2(scale),
                     Color = color,
                     Origin = origin,
                 }
@@ -157,9 +157,9 @@ public static class Stars
         const float graveyard_alpha = 1.4f;
         const float atmo_multiplier = 0.43f;
 
-        float alpha = 1f;
+        var alpha = 1f;
 
-        float time = (float)Main.time;
+        var time = (float)Main.time;
 
         if (Main.dayTime)
         {
@@ -179,7 +179,7 @@ public static class Stars
 
         alpha *= 1f - Main.GraveyardVisualIntensity * graveyard_alpha;
 
-        float atmosphericBoost = MathF.Pow(1f - Main.atmo, 3) * atmo_multiplier;
+        var atmosphericBoost = MathF.Pow(1f - Main.atmo, 3) * atmo_multiplier;
 
         alpha = Math.Clamp(MathF.Pow(alpha + atmosphericBoost, 1.7f), 0f, 1f);
 
@@ -188,15 +188,15 @@ public static class Stars
 
     private static Vector3 NextPointSphereSurface(this UnifiedRandom rand, float radius = 1f)
     {
-        float u = rand.NextFloat();
-        float v = rand.NextFloat();
+        var u = rand.NextFloat();
+        var v = rand.NextFloat();
 
-        float theta = 2 * MathF.PI * u;
-        float phi = MathF.Acos(2 * v - 1);
+        var theta = 2 * MathF.PI * u;
+        var phi = MathF.Acos(2 * v - 1);
 
-        float x = MathF.Sin(phi) * MathF.Cos(theta);
-        float y = MathF.Sin(phi) * MathF.Sin(theta);
-        float z = MathF.Cos(phi);
+        var x = MathF.Sin(phi) * MathF.Cos(theta);
+        var y = MathF.Sin(phi) * MathF.Sin(theta);
+        var z = MathF.Cos(phi);
 
         return new Vector3(x, y, z) * radius;
     }
