@@ -1,6 +1,6 @@
 ﻿using Daybreak.Common.Features.Authorship;
 using Daybreak.Common.Features.ModPanel;
-using RadiantRevival.Core;
+using RadiantRevival.Common;
 
 namespace RadiantRevival;
 
@@ -14,13 +14,13 @@ partial class ModImpl : IHasCustomAuthorMessage
         MusicAutoloadingEnabled = false;
     }
 
+    public override object Call(params object[] args)
+    {
+        return ModCallDispatcher.Dispatch(args);
+    }
+
     string IHasCustomAuthorMessage.GetAuthorText()
     {
         return AuthorText.GetAuthorTooltip(this, headerText: null);
-    }
-
-    public override object Call(params object[] args)
-    {
-        return ModCallLoader.HandleCall(args);
     }
 }

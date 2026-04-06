@@ -9,35 +9,14 @@ using Terraria.Graphics;
 namespace RadiantRevival.Common;
 
 /// <summary>
-///     An arbitrary step in the vanilla-wrapped target pipeline.
-/// </summary>
-public interface ITargetPipelineStep
-{
-    /// <summary>
-    ///     Input targets which, when modified, indicates that
-    ///     <see cref="Apply" /> should be run.
-    /// </summary>
-    List<WorldSceneLayerTarget> Inputs { get; }
-
-    /// <summary>
-    ///     Mutates vanilla targets, returning the mutated targets.
-    /// </summary>
-    /// <remarks>
-    ///     API consumers *must* report any mutated targets.  Built-in state
-    ///     tracking only applies to vanilla operations.
-    /// </remarks>
-    List<WorldSceneLayerTarget> Apply();
-}
-
-/// <summary>
 ///     Wraps vanilla rendering to track state changes within its targets.
 ///     <br />
 ///     Applies an arbitrary set of pipeline steps after-the-fact to facilitate
 ///     mutating rendered targets.
 /// </summary>
-public static class VanillaTargetPipeline
+public static class VanillaTargetRenderer
 {
-    private static readonly ITargetPipelineStep[] steps =
+    private static readonly IVanillaPipelineStep[] steps =
     [
         new AmbientOcclusion.WallRenderer(),
     ];

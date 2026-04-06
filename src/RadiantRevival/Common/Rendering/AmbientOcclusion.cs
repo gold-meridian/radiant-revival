@@ -9,7 +9,7 @@ using Terraria;
 using Terraria.Graphics;
 using Terraria.ModLoader;
 
-namespace RadiantRevival.Common.SmoothLighting;
+namespace RadiantRevival.Common;
 
 // TODO: Config
 
@@ -61,7 +61,7 @@ public static class AmbientOcclusion
         }
     }
 
-    public sealed class WallRenderer : ITargetPipelineStep
+    public sealed class WallRenderer : IVanillaPipelineStep
     {
         public List<WorldSceneLayerTarget> Inputs => [Main.wallTarget, Main.tileTarget];
 

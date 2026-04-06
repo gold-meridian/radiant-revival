@@ -11,7 +11,7 @@ using RadiantRevival.Core;
 using Terraria;
 using Terraria.ModLoader;
 
-namespace RadiantRevival.Common.SmoothLighting;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     Scoped override to apply a smooth lighting shader to some known

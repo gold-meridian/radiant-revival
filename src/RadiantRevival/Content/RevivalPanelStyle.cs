@@ -16,7 +16,7 @@ using Terraria.UI.Chat;
 
 namespace RadiantRevival.Content;
 
-internal sealed class PanelStyle : ModPanelStyleExt
+internal sealed class RevivalPanelStyle : ModPanelStyleExt
 {
     [Autoload(Side = ModSide.Client)]
     private sealed class Data : IStatic<Data>
