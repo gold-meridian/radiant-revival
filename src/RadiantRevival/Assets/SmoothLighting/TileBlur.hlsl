@@ -12,7 +12,7 @@ float4 occlusion_color;
 
 float4 main_horizontal(float2 uv : TEXCOORD0) : COLOR0
 {
-    float4 color = 0;
+    float color = 0;
     
     int samples = max(sample_count, 4);
     
@@ -24,7 +24,7 @@ float4 main_horizontal(float2 uv : TEXCOORD0) : COLOR0
     [unroll(16)]
     for (int i = -sampleHalf; i <= sampleHalf; i++)
     {
-        color += tex2D(uImage0, uv + dtc * i);
+        color += tex2D(uImage0, uv + dtc * i).a;
     }
     
     color /= samples;
@@ -34,7 +34,7 @@ float4 main_horizontal(float2 uv : TEXCOORD0) : COLOR0
 
 float4 main_vertical(float2 uv : TEXCOORD0) : COLOR0
 {
-    float4 color = 0;
+    float color = 0;
     
     int samples = max(sample_count, 4);
     
@@ -46,13 +46,14 @@ float4 main_vertical(float2 uv : TEXCOORD0) : COLOR0
     [unroll(16)]
     for (int i = -sampleHalf; i <= sampleHalf; i++)
     {
-        color += tex2D(uImage0, uv + dtc * i);
+        color += tex2D(uImage0, uv + dtc * i).a;
     }
     
     color /= samples;
     
     return color;
 }
+
 #ifdef FX
 technique Technique1
 {

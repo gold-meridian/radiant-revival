@@ -35,8 +35,8 @@ public static class AmbientOcclusion
                     HorizontalShader = Assets.SmoothLighting.TileBlur.CreateHorizontalShader(),
                     VerticalShader = Assets.SmoothLighting.TileBlur.CreateVerticalShader(),
                     MaskShader = Assets.SmoothLighting.AmbientOcclusionSampler.CreateMaskShader(),
-                    BlurTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize),
-                    BlurTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize),
+                    BlurTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    BlurTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                 }
             ).GetAwaiter().GetResult();
 

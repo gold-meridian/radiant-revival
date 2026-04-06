@@ -10,13 +10,16 @@ float4 occlusion_color;
 
 float4 main_mask(float2 uv : TEXCOORD0) : COLOR0
 {
+    float2 screenSize = float2(screen_size_x, screen_size_y);
+
     float4 mask = tex2D(wall_tex, uv);
-    float4 blur = tex2D(tile_tex, uv);
+    
+    float blur = tex2D(tile_tex, uv);
     
     float4 occColor = occlusion_color;
     occColor.a = 1;
     
-    float4 color = lerp(mask, occColor, pow(blur.a, 2.4) * mask.a * occlusion_color.a);
+    float4 color = lerp(mask, occColor, pow(blur, 2.4) * mask.a * occlusion_color.a);
     
     return color;
 }
