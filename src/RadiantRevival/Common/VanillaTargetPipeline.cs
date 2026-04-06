@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
 using Daybreak.Common.Features.Hooks;
-using GoldMeridian.CodeAnalysis;
 using Terraria;
 using Terraria.Graphics;
 
@@ -35,45 +35,9 @@ internal interface ITargetPipelineStep
 /// </summary>
 internal static class VanillaTargetPipeline
 {
-    [ExtensionDataFor<WorldSceneLayerTarget>]
-    public sealed class WorldSceneLayerTargetStateTracking
-    {
-        public bool TrackingContentUpdates { get; set; }
+    private static readonly ITargetPipelineStep[] steps = [];
 
-        public bool ContentUpdated { get; set; }
-    }
-
-    extension(WorldSceneLayerTarget target)
-    {
-        public bool ContentUpdated => target.StateTracking is { TrackingContentUpdates: true, ContentUpdated: true };
-    }
-
-    private readonly ref struct ContentUpdateTracker : IDisposable
-    {
-        private readonly WorldSceneLayerTarget target;
-
-        public ContentUpdateTracker(WorldSceneLayerTarget target)
-        {
-            this.target = target;
-            ResetState(tracking: true);
-        }
-
-        public void Dispose()
-        {
-            ResetState(tracking: false);
-        }
-
-        private void ResetState(bool tracking)
-        {
-            target.StateTracking ??= new WorldSceneLayerTargetStateTracking();
-            target.StateTracking.TrackingContentUpdates = tracking;
-            target.StateTracking.ContentUpdated = false;
-        }
-    }
-
-    private static readonly ITargetPipelineStep[] steps = [
-        
-    ];
+    private static List<WorldSceneLayerTarget>? mutatedTargets;
 
     [OnLoad]
     private static void ApplyHooks()
@@ -91,27 +55,25 @@ internal static class VanillaTargetPipeline
             return;
         }
 
-        using (new ContentUpdateTracker(Main.backWaterTarget))
-        using (new ContentUpdateTracker(Main.waterTarget))
-        using (new ContentUpdateTracker(Main.tileTarget))
-        using (new ContentUpdateTracker(Main.tile2Target))
-        using (new ContentUpdateTracker(Main.wallTarget))
-        using (new ContentUpdateTracker(Main.backgroundTarget))
-        using (new ContentUpdateTracker(Main.backgroundTargetSwap))
+        mutatedTargets = [];
+
+        try
         {
             orig(self);
             ApplyPipeline();
+        }
+        finally
+        {
+            mutatedTargets.Clear();
+            mutatedTargets = null;
         }
     }
 
     private static void UpdateContent_RecordChange(On_WorldSceneLayerTarget.orig_UpdateContent orig, WorldSceneLayerTarget self, Action render)
     {
         orig(self, render);
-        self.StateTracking?.ContentUpdated = true;
+        mutatedTargets?.Add(self);
     }
 
-    private static void ApplyPipeline()
-    {
-        
-    }
+    private static void ApplyPipeline() { }
 }
