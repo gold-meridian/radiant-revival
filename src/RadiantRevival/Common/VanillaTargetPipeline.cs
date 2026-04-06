@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Daybreak.Common.Features.Hooks;
 using Terraria;
 using Terraria.Graphics;
@@ -15,7 +16,7 @@ internal interface ITargetPipelineStep
     ///     Input targets which, when modified, indicates that
     ///     <see cref="Apply"/> should be run.
     /// </summary>
-    ReadOnlySpan<WorldSceneLayerTarget> Inputs { get; }
+    List<WorldSceneLayerTarget> Inputs { get; }
 
     /// <summary>
     ///     Mutates vanilla targets, returning the mutated targets.
@@ -24,7 +25,7 @@ internal interface ITargetPipelineStep
     ///     API consumers *must* report any mutated targets.  Built-in state
     ///     tracking only applies to vanilla operations.
     /// </remarks>
-    ReadOnlySpan<WorldSceneLayerTarget> Apply();
+    List<WorldSceneLayerTarget> Apply();
 }
 
 /// <summary>
@@ -37,7 +38,7 @@ internal static class VanillaTargetPipeline
 {
     private static readonly ITargetPipelineStep[] steps = [];
 
-    private static List<WorldSceneLayerTarget>? mutatedTargets;
+    private static HashSet<WorldSceneLayerTarget>? mutatedTargets;
 
     [OnLoad]
     private static void ApplyHooks()
@@ -75,5 +76,22 @@ internal static class VanillaTargetPipeline
         mutatedTargets?.Add(self);
     }
 
-    private static void ApplyPipeline() { }
+    private static void ApplyPipeline()
+    {
+        var mutatedSet = new HashSet<WorldSceneLayerTarget>(mutatedTargets ?? []);
+        
+        foreach (var step in steps)
+        {
+            if (!step.Inputs.Any(mutatedSet.Contains))
+            {
+                continue;
+            }
+
+            var mutatedNew = step.Apply();
+            foreach (var mutated in mutatedNew)
+            {
+                mutatedSet.Add(mutated);
+            }
+        }
+    }
 }
