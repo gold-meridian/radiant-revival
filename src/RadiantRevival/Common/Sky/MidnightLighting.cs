@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using Daybreak.Common.Features.Hooks;
 using MonoMod.Cil;
@@ -103,20 +104,45 @@ public sealed class MidnightLighting
 
         var minimalLightIndex = -1;
 
+        ILLabel? jumpMenuNightColorTarget = null;
+
         var jumpMinimalLightTarget = c.DefineLabel();
 
-        ReplaceAddition(25, 1);
-        ReplaceAddition(35, 6);
+        int[] replaceAddition = [35, 15, 15, 35, 15, 15, 5, 5, 5, 5, 5, 5];
 
-        ReplaceAddition(15, 2);
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchLdsfld<Main>(nameof(Main.dayTime)),
+            i => i.MatchBrtrue(out _)
+        );
 
-        ReplaceAddition(35, 1);
-        ReplaceAddition(15, 2);
+        for (var j = 0; j < replaceAddition.Length; j++)
+        {
+            var value = replaceAddition[j];
 
-        ReplaceAddition(5, 6);
+            c.GotoNext(
+                MoveType.Before,
+                i => i.MatchLdcR4(value),
+                i => i.MatchAdd()
+            );
 
-        // Menu
-        ReplaceValue(35, 3);
+            c.Index++;
+
+            c.EmitPop();
+
+            c.EmitLdcI4(0);
+        }
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchBrfalse(out _),
+            i => i.MatchLdsfld<Main>(nameof(Main.dayTime)),
+            i => i.MatchBrtrue(out jumpMenuNightColorTarget)
+        );
+
+        Debug.Assert(jumpMenuNightColorTarget is not null);
+
+        c.EmitBr(jumpMinimalLightTarget);
 
         while (c.TryGotoNext(
                    MoveType.After,
@@ -165,6 +191,7 @@ public sealed class MidnightLighting
 
             c.EmitLdcI4(0);
         }
+
 
         void ReplaceAddition(float value, int loops)
         {
