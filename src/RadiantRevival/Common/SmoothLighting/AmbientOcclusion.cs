@@ -2,6 +2,7 @@
 using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
+using Microsoft.Build.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
@@ -91,9 +92,11 @@ public static class AmbientOcclusion
 
             horizShader.Apply();
 
+            var bounds = device.Viewport.Bounds;
+
             sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, horizShader.Shader);
             {
-                sb.Draw(Main.tileTarget.Texture, device.Viewport.Bounds, Color.White);
+                sb.Draw(Main.tileTarget.Texture, bounds, Color.White);
             }
             sb.End();
         }
@@ -105,9 +108,11 @@ public static class AmbientOcclusion
 
             vertShader.Apply();
 
+            var bounds = device.Viewport.Bounds;
+
             sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, vertShader.Shader);
             {
-                sb.Draw(BlurTargetSwap.Target, device.Viewport.Bounds, Color.White);
+                sb.Draw(BlurTargetSwap.Target, bounds, Color.White);
             }
             sb.End();
         }
@@ -134,16 +139,24 @@ public static class AmbientOcclusion
                 sb.End(out ss);
 
                 var color = Color.Black * 0.36f;
+
+                var position = Main.wallTarget.Position;
+                position = new Vector2(position.X % 2, position.Y % 2);
+                var offset = position / Main.wallTarget.Texture.Size();
+
                 var maskShader = Data.Instance.MaskShader;
                 maskShader.Parameters.occlusion_color = color.ToVector4();
+                maskShader.Parameters.draw_offset = offset;
                 maskShader.Parameters.tile_tex = new HlslSampler2D
                 {
                     Texture = BlurTarget.Target,
-                    Sampler = SamplerState.PointClamp,
+                    Sampler = SamplerState.LinearClamp,
                 };
                 maskShader.Apply();
 
                 sb.Begin(ss with { SortMode = SpriteSortMode.Immediate, CustomEffect = maskShader.Shader });
+
+
             }
         );
 

@@ -1,20 +1,22 @@
 #include "../tmlbuild.h"
+#include "../expressions.h"
 
 sampler2D wall_tex : register(s0);
 sampler2D tile_tex : register(s1);
 
-float screen_size_x SCREEN_SIZE_X;
-float screen_size_y SCREEN_SIZE_Y;
-
 float4 occlusion_color;
+
+float2 tile_tex_size TEXTURE_SIZE(1);
+
+float2 draw_offset;
 
 float4 main_mask(float2 uv : TEXCOORD0) : COLOR0
 {
-    float2 screenSize = float2(screen_size_x, screen_size_y);
-
     float4 mask = tex2D(wall_tex, uv);
     
-    float blur = tex2D(tile_tex, uv);
+    float2 bluruv = ceil((uv - draw_offset) * tile_tex_size) / tile_tex_size;
+    
+    float blur = tex2D(tile_tex, bluruv + (draw_offset));
     
     float4 occColor = occlusion_color;
     occColor.a = 1;
