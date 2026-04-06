@@ -1,12 +1,12 @@
-﻿using Daybreak.Common.Features.Hooks;
+﻿using System;
+using System.Diagnostics;
+using System.Reflection;
+using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
-using System;
-using System.Diagnostics;
-using System.Reflection;
 using Terraria;
 using Terraria.GameContent.Drawing;
 using Terraria.ModLoader;
@@ -36,11 +36,11 @@ public class LogoNormals
     {
         var c = new ILCursor(il);
 
-        int spriteBatchIndex = -1; // loc
-        int logoDrawCenterIndex = -1; // loc
+        var spriteBatchIndex = -1;    // loc
+        var logoDrawCenterIndex = -1; // loc
 
-        int logoRotationIndex = -1; // arg
-        int logoScale2Index = -1; // loc
+        var logoRotationIndex = -1; // arg
+        var logoScale2Index = -1;   // loc
 
         c.GotoNext(
             i => i.MatchCallvirt<ModMenu>(nameof(ModMenu.PreDrawLogo))
@@ -60,7 +60,8 @@ public class LogoNormals
 
         c.GotoNext(
             i => i.MatchNewobj<Vector2>(),
-            i => i.MatchLdloc(out logoScale2Index));
+            i => i.MatchLdloc(out logoScale2Index)
+        );
 
         c.GotoNext(
             MoveType.Before,
@@ -99,8 +100,8 @@ public class LogoNormals
 
         logoNormalsShaderData.Apply();
 
-        Texture2D normal = Assets.UI.tMLLogoNormals.Asset.Value;
-        Vector2 normalOrigin = normal.Size() * 0.5f;
+        var normal = Assets.UI.tMLLogoNormals.Asset.Value;
+        var normalOrigin = normal.Size() * 0.5f;
 
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var moonColor);
 
@@ -109,9 +110,9 @@ public class LogoNormals
 
         NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
 
-        Color color = Main.dayTime ? sunColor : moonColor;
+        var color = Main.dayTime ? sunColor : moonColor;
 
-        float num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
+        var num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
         if (!Main.dayTime)
         {
             num = Math.Max(num, celestialVisibility * 0.15f);

@@ -1,10 +1,10 @@
-﻿using Daybreak.Common.Features.Hooks;
-using JetBrains.Annotations;
-using RadiantRevival.Core.DataStructures;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Daybreak.Common.Features.Hooks;
+using JetBrains.Annotations;
+using RadiantRevival.Core.DataStructures;
 using Terraria.ModLoader;
 
 namespace RadiantRevival.Core;
@@ -33,7 +33,7 @@ internal static class ModCallLoader
 
             bool MatchesParameters(MethodInfo methodInfo)
             {
-                ParameterInfo[] parameters = methodInfo.GetParameters();
+                var parameters = methodInfo.GetParameters();
 
                 if (parameters.Length != (args?.Length ?? 0))
                 {
@@ -45,7 +45,7 @@ internal static class ModCallLoader
                     return true;
                 }
 
-                for (int i = 0; i < parameters.Length; i++)
+                for (var i = 0; i < parameters.Length; i++)
                 {
                     if (parameters[i].ParameterType != args?[i]?.GetType())
                     {
@@ -71,25 +71,25 @@ internal static class ModCallLoader
         const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
 
         var methods = mod.Code.GetTypes()
-                              .SelectMany(t => t.GetMethods(flags));
+                         .SelectMany(t => t.GetMethods(flags));
 
-        foreach (MethodInfo method in methods)
+        foreach (var method in methods)
         {
             if (method.IsGenericMethod)
             {
                 continue;
             }
 
-            ModCallAttribute? attribute = method.GetCustomAttribute<ModCallAttribute>();
+            var attribute = method.GetCustomAttribute<ModCallAttribute>();
 
             if (attribute is null)
             {
                 continue;
             }
 
-            string[] names = attribute.NameAliases.Length <= 0
-              ? [method.Name]
-              : attribute.NameAliases;
+            var names = attribute.NameAliases.Length <= 0
+                ? [method.Name]
+                : attribute.NameAliases;
 
             handlers.Add(names.ToHashSet(), method);
         }

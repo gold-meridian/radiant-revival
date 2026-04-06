@@ -1,22 +1,20 @@
-﻿using Daybreak.Common.Features.Hooks;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
-using Microsoft.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
 using ReLogic.Content;
-using SteelSeries.GameSense;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Terraria;
-using Terraria.Enums;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
 using Terraria.ModLoader;
+
 // ReSharper disable PossiblyImpureMethodCallOnReadonlyVariable
 
 namespace RadiantRevival.Common;
@@ -24,6 +22,8 @@ namespace RadiantRevival.Common;
 // TODO: Config
 public static class MoonStyles
 {
+    public delegate bool DrawAction(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale);
+
     private static readonly Color moon_sky_color = new(128, 168, 248);
 
     private static readonly Color moon_atmosphere = new(226, 235, 255);
@@ -41,8 +41,6 @@ public static class MoonStyles
         { 7, Assets.Sky.CelestialBodies.Moon7.Asset },
         { 8, Assets.Sky.CelestialBodies.Moon8.Asset },
     };
-
-    public delegate bool DrawAction(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale);
 
     public static readonly Dictionary<int, DrawAction> SpecialStyleDrawing = new()
     {
@@ -80,7 +78,7 @@ public static class MoonStyles
     [ModCall]
     public static int AddMoonStyle(Color color, Asset<Texture2D> texture, Asset<Texture2D>? hdTexture, DrawAction? specialAction = null)
     {
-        int index = TextureAssets.Moon.Length;
+        var index = TextureAssets.Moon.Length;
 
         Array.Resize(ref HorizonHelper.MoonColors, index + 1);
         HorizonHelper.MoonColors[index] = color;
@@ -112,10 +110,10 @@ public static class MoonStyles
     {
         var c = new ILCursor(il);
 
-        int moonPositionIndex = -1; // loc
-        int moonColorIndex = -1; // arg
-        int moonRotationIndex = -1; // loc
-        int moonScaleIndex = -1; // loc
+        var moonPositionIndex = -1; // loc
+        var moonColorIndex = -1;    // arg
+        var moonRotationIndex = -1; // loc
+        var moonScaleIndex = -1;    // loc
 
         ILLabel? jumpMoonRenderingTarget = null;
 
@@ -137,7 +135,6 @@ public static class MoonStyles
         c.FindPrev(
             out _,
             i => i.MatchStarg(out moonColorIndex),
-
             i => i.MatchLdloca(out moonPositionIndex),
             i => i.MatchLdsfld<Main>(nameof(Main.moonModY))
         );
@@ -148,7 +145,6 @@ public static class MoonStyles
             i => i.MatchLdloc(out moonRotationIndex),
             i => i.MatchLdcR4(2f),
             i => i.MatchDiv(),
-
             i => i.MatchNewobj<Vector2>(),
             i => i.MatchLdloc(out moonScaleIndex)
         );
@@ -218,7 +214,7 @@ public static class MoonStyles
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
         if (SpecialStyleDrawing.TryGetValue(Main.moonType, out var action)
-            && !action.Invoke(sb, device, position, color, rotation, scale))
+         && !action.Invoke(sb, device, position, color, rotation, scale))
         {
             return true;
         }
@@ -242,32 +238,31 @@ public static class MoonStyles
     {
         Debug.Assert(moonShaderData is not null);
 
-        Color skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
+        var skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
 
         moonShaderData.Parameters.atmoColor = moon_atmosphere.ToVector4();
         moonShaderData.Parameters.atmoShadowColor = moon_atmosphere_shadow.ToVector4();
 
         moonShaderData.Parameters.shadowColor = skyColor.ToVector4();
 
-        moonShaderData.Parameters.shadowRotation = (Main.moonPhase / 8f) * MathHelper.TwoPi;
+        moonShaderData.Parameters.shadowRotation = Main.moonPhase / 8f * MathHelper.TwoPi;
 
         moonShaderData.Parameters.radius = atmoRatio;
 
         moonShaderData.Apply();
 
-        Vector2 size = new Vector2(TextureAssets.Moon[Main.moonType].Value.Width / atmoRatio);
+        var size = new Vector2(TextureAssets.Moon[Main.moonType].Value.Width / atmoRatio);
 
         size *= scale;
 
         size /= texture.Size();
 
-        Vector2 origin = texture.Size() * 0.5f;
+        var origin = texture.Size() * 0.5f;
 
         sb.Draw(texture, position, null, color, rotation, origin, size, SpriteEffects.None, 0f);
     }
 
 #region Styles
-
     private static bool DrawMoon2Extras(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
         sb.End(out var ss);
@@ -279,11 +274,11 @@ public static class MoonStyles
 
         const bool flip = false;
 
-        Color skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
+        var skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
 
-        Texture2D rings = Assets.Sky.CelestialBodies.Moon2Rings.Asset.Value;
+        var rings = Assets.Sky.CelestialBodies.Moon2Rings.Asset.Value;
 
-        float shadowRotation = (Main.moonPhase / 8f) * MathHelper.TwoPi;
+        var shadowRotation = Main.moonPhase / 8f * MathHelper.TwoPi;
 
         if (!flip)
         {
@@ -292,7 +287,7 @@ public static class MoonStyles
 
         DrawRing(!flip);
 
-        Texture2D moon = Assets.Sky.CelestialBodies.Moon2.Asset.Value;
+        var moon = Assets.Sky.CelestialBodies.Moon2.Asset.Value;
 
         DrawBody(sb, moon, position, color, rotation, scale);
 
@@ -327,4 +322,3 @@ public static class MoonStyles
     }
 #endregion
 }
-

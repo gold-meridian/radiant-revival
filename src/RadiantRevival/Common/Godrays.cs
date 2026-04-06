@@ -1,14 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
-using System.Diagnostics;
 using Terraria;
-using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
-using Terraria.UI.Chat;
 
 namespace RadiantRevival.Common;
 
@@ -78,7 +76,7 @@ public static class Godrays
 
         var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
 
-        Vector2 lightPosition = Main.LastCelestialBodyPosition * screenSize;
+        var lightPosition = Main.LastCelestialBodyPosition * screenSize;
 
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var _);
 
@@ -86,9 +84,9 @@ public static class Godrays
 
         NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
 
-        Color color = sunColor;
+        var color = sunColor;
 
-        float num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
+        var num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
 
         color *= num;
 
@@ -112,7 +110,7 @@ public static class Godrays
             godraysShaderData.Parameters.lights = new HlslSampler2D
             {
                 Texture = celestialBodyLease.Target,
-                Sampler = SamplerState.LinearClamp
+                Sampler = SamplerState.LinearClamp,
             };
 
             godraysShaderData.Apply();

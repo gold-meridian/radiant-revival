@@ -6,7 +6,7 @@ public readonly ref struct ScopeStateCapture<T> : IDisposable
 {
     private readonly T oldValue;
     private readonly ref T reference;
-    
+
     public ScopeStateCapture(ref T value)
     {
         oldValue = value;
@@ -18,4 +18,3 @@ public readonly ref struct ScopeStateCapture<T> : IDisposable
         reference = oldValue;
     }
 }
-

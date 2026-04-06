@@ -1,7 +1,7 @@
-﻿using Daybreak.Common.Features.Hooks;
-using MonoMod.Cil;
-using System;
+﻿using System;
 using System.Linq;
+using Daybreak.Common.Features.Hooks;
+using MonoMod.Cil;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
@@ -24,10 +24,10 @@ public sealed class MidnightLighting
     {
         var c = new ILCursor(il);
 
-        int iIndex = -1; // arg
-        int jIndex = -1; // arg
+        var iIndex = -1; // arg
+        var jIndex = -1; // arg
 
-        int skipDrawIndex = -1; // loc
+        var skipDrawIndex = -1; // loc
 
         c.GotoNext(
             i => i.MatchLdarg(out iIndex),
@@ -59,18 +59,19 @@ public sealed class MidnightLighting
 
     private static bool EdgeTile(int i, int j)
     {
-        Tile center = Main.tile[i, j];
+        var center = Main.tile[i, j];
 
         if (!BlocksLight(center))
         {
             return true;
         }
 
-        Tile[] neighbors = [
+        Tile[] neighbors =
+        [
             Main.tile[Math.Min(i + 1, Main.tile.Width), j],
             Main.tile[Math.Max(i - 1, 0), j],
             Main.tile[i, Math.Min(j + 1, Main.tile.Height)],
-            Main.tile[i, Math.Max(j - 1, 0)]
+            Main.tile[i, Math.Max(j - 1, 0)],
         ];
 
         return neighbors.Any(t => !BlocksLight(t));
@@ -100,9 +101,9 @@ public sealed class MidnightLighting
     {
         var c = new ILCursor(il);
 
-        int minimalLightIndex = -1;
+        var minimalLightIndex = -1;
 
-        ILLabel jumpMinimalLightTarget = c.DefineLabel();
+        var jumpMinimalLightTarget = c.DefineLabel();
 
         ReplaceAddition(25, 1);
         ReplaceAddition(35, 6);
@@ -167,7 +168,7 @@ public sealed class MidnightLighting
 
         void ReplaceAddition(float value, int loops)
         {
-            for (int i = 0; i < loops; i++)
+            for (var i = 0; i < loops; i++)
             {
                 c.GotoNext(
                     MoveType.Before,
@@ -185,7 +186,7 @@ public sealed class MidnightLighting
 
         void ReplaceValue(int value, int loops)
         {
-            for (int i = 0; i < loops; i++)
+            for (var i = 0; i < loops; i++)
             {
                 c.GotoNext(
                     MoveType.After,

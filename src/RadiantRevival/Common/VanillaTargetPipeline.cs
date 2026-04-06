@@ -15,7 +15,7 @@ public interface ITargetPipelineStep
 {
     /// <summary>
     ///     Input targets which, when modified, indicates that
-    ///     <see cref="Apply"/> should be run.
+    ///     <see cref="Apply" /> should be run.
     /// </summary>
     List<WorldSceneLayerTarget> Inputs { get; }
 

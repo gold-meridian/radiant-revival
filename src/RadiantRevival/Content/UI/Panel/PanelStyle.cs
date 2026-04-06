@@ -87,8 +87,6 @@ internal sealed class PanelStyle : ModPanelStyleExt
 
     private sealed class ModIcon : UIImage
     {
-        public ModIcon() : base() { }
-
         protected override void DrawSelf(SpriteBatch spriteBatch)
         {
             // base.DrawSelf(spriteBatch);

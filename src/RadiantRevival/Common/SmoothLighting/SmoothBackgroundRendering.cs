@@ -1,13 +1,12 @@
-﻿using Daybreak.Common.Features.Hooks;
+﻿using System;
+using Daybreak.Common.CIL;
+using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System;
-using Daybreak.Common.CIL;
 using MonoMod.Cil;
 using Terraria;
 using Terraria.GameContent;
-using Terraria.Graphics;
 
 namespace RadiantRevival.Common.SmoothLighting;
 
@@ -549,6 +548,7 @@ internal static class SmoothBackgroundRendering
     }
 #endregion
 
+#region Implementation
     private static void DrawStripX(
         Texture2D texture,
         int bgStartX,
@@ -657,4 +657,5 @@ internal static class SmoothBackgroundRendering
             hitRockTransition = true;
         }
     }
+#endregion
 }
