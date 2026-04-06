@@ -7,7 +7,6 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
 using System.Diagnostics;
-using SDL3;
 using Terraria;
 using Terraria.ModLoader;
 
@@ -55,47 +54,46 @@ public static class AmbientOcclusion
         var vertShader = Data.Instance.VerticalShader;
 
         SpriteBatch sb = Main.spriteBatch;
+        GraphicsDevice device = Main.graphics.GraphicsDevice;
 
-        const int sample_count = 8;
+        const int sample_count = 16;
 
         var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
 
         var blurSize = new Vector2(16) / screenSize;
 
-        var width = Main.tileTarget.Texture.Width;
-        var height = Main.tileTarget.Texture.Height;
+        var width = Main.tileTarget.Texture.Width / 2;
+        var height = Main.tileTarget.Texture.Height / 2;
 
-        using var _ = sb.Scope();
-
-        using var blurTargetSwap = RenderTargetPool.Shared.Rent(Main.graphics.GraphicsDevice, width, height);
+        using var blurTargetSwap = RenderTargetPool.Shared.Rent(device, width, height);
 
         blurTarget?.Dispose();
-        blurTarget = RenderTargetPool.Shared.Rent(Main.graphics.GraphicsDevice, width, height);
+        blurTarget = RenderTargetPool.Shared.Rent(device, width, height);
 
         using (blurTargetSwap.Scope(clearColor: Color.Transparent))
         {
-            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
-
             horizShader.Parameters.sample_count = sample_count;
             horizShader.Parameters.blur_size = blurSize;
 
             horizShader.Apply();
 
-            sb.Draw(Main.tileTarget.Texture, Vector2.Zero, Color.White);
+            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, horizShader.Shader);
+
+            sb.Draw(Main.tileTarget.Texture, device.Viewport.Bounds, Color.White);
 
             sb.End();
         }
 
         using (blurTarget.Scope(clearColor: Color.Transparent))
         {
-            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
-
             vertShader.Parameters.sample_count = sample_count;
             vertShader.Parameters.blur_size = blurSize;
 
             vertShader.Apply();
 
-            sb.Draw(blurTargetSwap.Target, Vector2.Zero, Color.White);
+            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, vertShader.Shader); // vertShader.Shader
+
+            sb.Draw(blurTargetSwap.Target, device.Viewport.Bounds, Color.White);
 
             sb.End();
         }
@@ -120,24 +118,27 @@ public static class AmbientOcclusion
         c.EmitDelegate(
             static (ref SpriteBatchSnapshot ss) =>
             {
+                Debug.Assert(blurTarget is not null);
+
                 var maskShader = Data.Instance.MaskShader;
 
                 SpriteBatch sb = Main.spriteBatch;
 
                 sb.End(out ss);
-                sb.Begin(ss with { SortMode = SpriteSortMode.Immediate });
 
-                maskShader.Parameters.occlusion_color = Color.Black.ToVector4();
+                Color color = Color.Black * 0.36f;
+
+                maskShader.Parameters.occlusion_color = color.ToVector4();
 
                 maskShader.Parameters.tile_tex = new HlslSampler2D
                 {
-                    Texture = Main.tileTarget.Texture,
+                    Texture = blurTarget.Target,
                     Sampler = SamplerState.PointClamp
                 };
 
                 maskShader.Apply();
 
-                Main.NewText(SDL.SDL_GetError());
+                sb.Begin(ss with { SortMode = SpriteSortMode.Immediate, CustomEffect = maskShader.Shader });
             }
         );
 
@@ -152,9 +153,6 @@ public static class AmbientOcclusion
             static (ref SpriteBatchSnapshot ss) =>
             {
                 Main.spriteBatch.Restart(in ss);
-
-                blurTarget?.Dispose();
-                blurTarget = null;
             }
         );
     }
