@@ -1,4 +1,5 @@
 ﻿using System;
+using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using Terraria.Graphics.Light;
 
@@ -6,8 +7,7 @@ namespace RadiantRevival.Common;
 
 internal static class FullbrightLightMap
 {
-    private static Vector3[] colors = [];
-    private static LightMaskMode[] masks = [];
+    private static readonly LightMap fullbright_light_map = new();
 
     private static readonly LegacyLighting.LightingState default_lighting_state = new()
     {
@@ -21,51 +21,46 @@ internal static class FullbrightLightMap
 
     static FullbrightLightMap()
     {
-        EnsureSize(LightMap.DEFAULT_WIDTH * LightMap.DEFAULT_HEIGHT);
+        EnsureLightMapSize(LightMap.DEFAULT_WIDTH, LightMap.DEFAULT_HEIGHT, firstInit: true);
     }
 
-    public static IDisposable ApplyTo(LightMap lightMap)
+    [OnLoad]
+    private static void ApplyHooks()
     {
-        EnsureSize(lightMap._colors.Length);
+        On_LightMap.Clear += (orig, self) =>
+        {
+            if (self == fullbright_light_map)
+            {
+                return;
+            }
 
-        var oldColors = lightMap._colors;
-        var oldMasks = lightMap._mask;
-
-        // The array lengths is only checked for colors, and it's in the
-        // clearing operation, so we can pass our cached buffer.
-        // Clear should never be reached in our typical operations, so we should
-        // just care about not outright crashing.
-        lightMap._colors = colors;
-        lightMap._mask = masks;
-
-        return DisposableBuilder
-              .Create()
-              .AddAction(
-                   () =>
-                   {
-                       lightMap._colors = oldColors;
-                       lightMap._mask = oldMasks;
-                   }
-               )
-              .Build();
+            orig(self);
+        };
     }
 
-    private static void EnsureSize(int size)
+    public static LightMap GetLightMap(int width, int height)
     {
-        // masks must match colors in length due to a constraint in
-        // LightMap::Clear.
-        if (colors.Length >= size && masks.Length == colors.Length)
+        EnsureLightMapSize(width, height);
+        return fullbright_light_map;
+    }
+
+    private static void EnsureLightMapSize(int width, int height, bool firstInit = false)
+    {
+        if (!firstInit && fullbright_light_map.Width >= width && fullbright_light_map.Height >= height)
         {
             return;
         }
 
-        colors = new Vector3[size];
-        colors.AsSpan().Fill(Vector3.One);
+        fullbright_light_map.SetSize(width, height);
+        {
+            fullbright_light_map._colors.AsSpan().Fill(Vector3.One);
 
-        masks = new LightMaskMode[size];
+            // Probably not necessary?  Only if somehow mutated :(
+            // masks = new LightMaskMode[size];
+        }
     }
 
-    public static IDisposable ApplyTo(ref LegacyLighting.LightingState[][] states)
+    public static LegacyLighting.LightingState[][] GetLegacyStates(LegacyLighting.LightingState[][] states)
     {
         default_lighting_state.R = 1f;
         default_lighting_state.G = 1f;
@@ -74,13 +69,11 @@ internal static class FullbrightLightMap
         var length1 = states.Length;
         var length2 = states[0].Length;
 
-        EnsureSize(length1, length2);
-
-        var oldStates = states;
-        states = outerStateArray;
+        EnsureLegacyStatesSize(length1, length2);
+        return outerStateArray;
     }
 
-    private static void EnsureSize(int length1, int length2)
+    private static void EnsureLegacyStatesSize(int length1, int length2)
     {
         var dirty = false;
         if (innerStateArray.Length < length2)

@@ -22,10 +22,10 @@ public interface IAdvancedLightingEngine
     /// <remarks>
     ///     An object that, when disposed, undoes the map override.
     /// </remarks>
-    IDisposable OverrideMap(LightMap lightMap);
+    IDisposable OverrideLightMap(LightMap lightMap);
 
     /// <summary>
-    ///     A special case of <see cref="OverrideMap"/> which overrides the
+    ///     A special case of <see cref="OverrideLightMap"/> which overrides the
     ///     lightmap to be an all-white (fullbright) map.  This API is provided
     ///     separately for scenarios where the engine may provide optimized
     ///     support for it.
@@ -33,7 +33,7 @@ public interface IAdvancedLightingEngine
     /// <remarks>
     ///     An object that, when disposed, undoes the map override.
     /// </remarks>
-    IDisposable OverrideMapFullbright();
+    IDisposable OverrideLightMapFullbright();
 }
 
 /// <summary>

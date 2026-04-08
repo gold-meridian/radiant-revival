@@ -14,7 +14,7 @@ partial class LightingEngine
             return new LightingEngineExport(engine._activeLightMap, engine._activeProcessedArea);
         }
 
-        public IDisposable OverrideMap(LightMap lightMap)
+        public IDisposable OverrideLightMap(LightMap lightMap)
         {
             var activeLightMap = engine._activeLightMap;
             {
@@ -27,9 +27,10 @@ partial class LightingEngine
                   .Build();
         }
 
-        public IDisposable OverrideMapFullbright()
+        public IDisposable OverrideLightMapFullbright()
         {
-            return FullbrightLightMap.ApplyTo(engine._activeLightMap);
+            var fbMap = FullbrightLightMap.GetLightMap(engine._activeLightMap.Width, engine._activeLightMap.Height);
+            return OverrideLightMap(fbMap);
         }
     }
 
