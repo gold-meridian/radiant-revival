@@ -96,6 +96,20 @@ partial class LightingEngine
         IL_Lighting.LightTiles += il =>
         {
             var c = new ILCursor(il);
+
+            c.GotoNext(MoveType.After, x => x.MatchCallOrCallvirt<ILightingEngine>(nameof(ILightingEngine.ProcessArea)));
+            c.EmitDelegate(
+                static () =>
+                {
+                    if (!TryGetCurrentEngine(out var engine))
+                    {
+                        EngineExport = empty_export;
+                        return;
+                    }
+
+                    EngineExport = engine.GetExport();
+                }
+            );
         };
     }
 }
