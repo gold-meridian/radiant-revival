@@ -12,7 +12,7 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
-public static partial class LightingEngine
+partial class LightingEngine
 {
     private sealed class Buffers : IStatic<Buffers>
     {

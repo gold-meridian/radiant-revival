@@ -88,9 +88,9 @@ public static class SmoothLightingRenderer
         // ImmediateMode and shortly before rendering during a flush in any
         // other mode.  Both cases guarantee we can set customEffect before it's
         // used, which is what we need.
-        // I tried hooking SpriteBatch::.ctor but it seemingly wouldn't apply,
-        // maybe due to inlining, and the constructors are used everywhere, so I
-        // can't selectively re-JIT affected methods.
+        // I tried hooking SpriteBatch::.ctor, but it seemingly wouldn't
+        // apply -- possibly due to inlining -- and the constructors are used
+        // everywhere (so I can't selectively re-JIT affected methods).
 
         if (ShouldInterceptEffect(self, out var state))
         {
