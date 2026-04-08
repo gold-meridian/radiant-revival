@@ -131,7 +131,7 @@ partial class LightingEngine
                         var tileY = startY + y;
 
                         var color = export.GetColor(tileX, tileY);
-                        colorBuffer[y * lightingBuffer.Width + x] = new Color(color.X, color.Y, color.Z, 1f);
+                        colorBuffer[y * lightingBuffer.Width + x] = new Color(color);
                     }
                 }
             );

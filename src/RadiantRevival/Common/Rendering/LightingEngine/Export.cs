@@ -14,7 +14,7 @@ namespace RadiantRevival.Common;
 ///     None of the returned data accounts for
 ///     <see cref="Lighting.GlobalBrightness"/> (by design)!
 /// </summary>
-public readonly struct LightingEngineExport(LightMap? workingMap, Rectangle area)
+public sealed class LightingEngineExport(LightMap? workingMap, Rectangle area)
 {
     public Rectangle Area => area;
 
