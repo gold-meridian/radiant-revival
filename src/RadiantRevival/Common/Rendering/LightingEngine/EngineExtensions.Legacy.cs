@@ -50,9 +50,10 @@ partial class LightingEngine
             // TODO: Support overriding underlying buffer (see
             //       OverrideMapFullbright).
 
-            return DisposableBuilder.Create()
-                                    .AddAction(() => data.ExposedLightMap = oldMap)
-                                    .Build();
+            return DisposableBuilder
+                  .Create()
+                  .AddAction(() => data.ExposedLightMap = oldMap)
+                  .Build();
         }
 
         public IDisposable OverrideLightMapFullbright()
@@ -70,15 +71,16 @@ partial class LightingEngine
             var oldStates = engine._states;
             engine._states = FullbrightLightMap.GetLegacyStates(oldStates);
 
-            return DisposableBuilder.Create()
-                                    .AddAction(
-                                         () =>
-                                         {
-                                             data.ExposedLightMap = oldMap;
-                                             engine._states = oldStates;
-                                         }
-                                     )
-                                    .Build();
+            return DisposableBuilder
+                  .Create()
+                  .AddAction(
+                       () =>
+                       {
+                           data.ExposedLightMap = oldMap;
+                           engine._states = oldStates;
+                       }
+                   )
+                  .Build();
         }
     }
 
