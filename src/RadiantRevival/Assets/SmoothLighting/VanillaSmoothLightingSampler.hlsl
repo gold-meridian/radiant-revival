@@ -1,4 +1,4 @@
-#include "../tmlbuild.h"
+﻿#include "../tmlbuild.h"
 #include "../expressions.h"
 
 sampler2D tex : register(s0);
@@ -70,7 +70,7 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     light_uv += 0.5;
     
     float3 light = tex2D(light_map, light_uv).rgb;
-    light *= global_brightness;
+    light = saturate(light * global_brightness);
     
 #if DOGSHIT_SLOP
     float3 normal = compute_normal(uv);
