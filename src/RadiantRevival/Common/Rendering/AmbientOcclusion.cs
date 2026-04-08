@@ -27,8 +27,6 @@ public static class AmbientOcclusion
 
         public required RenderTargetLease BlurTargetSwap { get; init; }
 
-        public required RenderTargetLease WallTargetSwap { get; init; }
-
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
@@ -39,7 +37,6 @@ public static class AmbientOcclusion
                     MaskShader = Assets.SmoothLighting.AmbientOcclusionSampler.CreateMaskShader(),
                     BlurTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                     BlurTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
-                    WallTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
                 }
             ).GetAwaiter().GetResult();
 
@@ -65,9 +62,9 @@ public static class AmbientOcclusion
     {
         public List<WorldSceneLayerTarget> Inputs => [Main.wallTarget, Main.tileTarget];
 
-        public List<WorldSceneLayerTarget> Apply()
+        public List<WorldSceneLayerTarget> Apply(in VanillaTargetRendererContext ctx)
         {
-            RenderToWallTarget();
+            RenderToWallTarget(ctx.WorldSceneTargetSwap);
             return [Main.wallTarget];
         }
     }
@@ -75,8 +72,6 @@ public static class AmbientOcclusion
     private static RenderTargetLease BlurTarget => Data.Instance.BlurTarget;
 
     private static RenderTargetLease BlurTargetSwap => Data.Instance.BlurTargetSwap;
-
-    private static RenderTargetLease WallTargetSwap => Data.Instance.WallTargetSwap;
 
     [OnLoad]
     private static void Load()
@@ -128,11 +123,11 @@ public static class AmbientOcclusion
         }
     }
 
-    private static void RenderToWallTarget()
+    private static void RenderToWallTarget(RenderTargetLease wallTargetSwap)
     {
         var sb = Main.spriteBatch;
 
-        using (WallTargetSwap.Scope(clearColor: Color.Transparent))
+        using (wallTargetSwap.Scope(clearColor: Color.Transparent))
         {
             var wallPos = Main.wallTarget.Position;
             var tileOffset = new Vector2(
@@ -159,7 +154,7 @@ public static class AmbientOcclusion
         using (Main.wallTarget._target.Scope(clearColor: Color.Transparent))
         {
             sb.Begin();
-            sb.Draw(WallTargetSwap.Target, Vector2.Zero, Color.White);
+            sb.Draw(wallTargetSwap.Target, Vector2.Zero, Color.White);
             sb.End();
         }
 
