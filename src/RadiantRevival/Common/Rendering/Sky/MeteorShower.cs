@@ -8,6 +8,7 @@ using Terraria;
 
 namespace RadiantRevival.Common;
 
+// TODO: Config, drunk world minigame
 public static class MeteorShower
 {
     private record struct Meteor(Vector3 Position, Vector3 Velocity, Color Color, int Lifetime, bool Active);
@@ -16,28 +17,106 @@ public static class MeteorShower
 
     private const int max_lifetime = 160;
 
-    private const int spawn_chance = 8;
+    private const int spawn_chance = 9;
 
     private static readonly Color meteor_color_low = new(244, 178, 255);
     private static readonly Color meteor_color_high = new(255, 228, 178);
 
     private static readonly Meteor[] meteors = new Meteor[meteor_count];
 
-    private static Vector3 showerPosition = Vector3.Normalize(new Vector3(0.6f, -0.4f, 0.7f));
+    private static Vector3 showerPosition;
+    private static float spawnMultiplier;
+
+    private static bool Active
+    {
+        get
+        {
+            if (WorldGen.meteorShowerCount > 0)
+            {
+                return true;
+            }
+
+            if (!Main.dayTime || Main.remixWorld)
+            {
+                return Star.starfallBoost >= 3f || Main.gameMenu;
+            }
+
+            return false;
+        }
+    }
 
     [OnLoad]
     private static void Load()
     {
+        On_Main.UpdateMenu += UpdateMenu_RefreshShower;
+
+        On_Star.NightSetup += NightSetup_LightShower;
+        IL_Main.UpdateTime_StartNight += _ => { };
+
+        On_WorldGen.StartMeteorShower += StartMeteorShower_HeavyShower;
+        IL_Main.HandleMeteorFall += _ => { };
+
         On_Main.DrawSunAndMoon += DrawSunAndMoon_DrawMeteors;
 
         On_Main.DoUpdate += DoUpdate_UpdateMeteors;
+
+        RandomizePosition();
+        spawnMultiplier = 1.4f;
+    }
+
+    [ModSystemHooks.ClearWorld]
+    private static void ClearWorld()
+    {
+        RandomizePosition();
+        spawnMultiplier = 1.4f;
+    }
+
+    private static void UpdateMenu_RefreshShower(On_Main.orig_UpdateMenu orig)
+    {
+        var wasDay = Main.dayTime;
+
+        orig();
+
+        if (wasDay && !Main.dayTime)
+        {
+            RandomizePosition();
+        }
+    }
+
+    private static void NightSetup_LightShower(On_Star.orig_NightSetup orig)
+    {
+        orig();
+
+        if (Star.starfallBoost < 3f || WorldGen.meteorShowerCount > 0)
+        {
+            return;
+        }
+
+        RandomizePosition();
+
+        spawnMultiplier = 2.2f;
+    }
+
+    private static void StartMeteorShower_HeavyShower(On_WorldGen.orig_StartMeteorShower orig)
+    {
+        orig();
+
+        RandomizePosition();
+
+        spawnMultiplier = 0.9f;
+    }
+
+    private static void RandomizePosition()
+    {
+        var x = Main.rand.NextFloat(-1f, 1f);
+        var y = Main.rand.NextFloat(-0.7f, -0.5f);
+
+        showerPosition = Vector3.Normalize(new Vector3(x, y, 2f));
     }
 
     private static void DrawSunAndMoon_DrawMeteors(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
     {
         orig(self, sceneArea, moonColor, sunColor, tempMushroomInfluence);
-
-        showerPosition = Vector3.Normalize(new Vector3(0.6f, -0.4f, 1.7f));
 
         var sb = Main.spriteBatch;
 
@@ -89,7 +168,7 @@ public static class MeteorShower
 
             var rotation = new Vector2(meteor.Velocity.X, meteor.Velocity.Y).ToRotation();
 
-            DrawTrail(position, color, scale, Angle.FromRadians(rotation));
+            DrawTrail(position, color, scale, Angle.FromRadians(rotation), ratio);
             DrawFlicker(position, color, scale);
         }
 
@@ -97,7 +176,7 @@ public static class MeteorShower
 
         return;
 
-        void DrawTrail(Vector3 position, Color color, float scale, Angle rotation)
+        void DrawTrail(Vector3 position, Color color, float scale, Angle rotation, float ratio)
         {
             const float trail_scale = 0.1f;
             const float trail_stretch = 10.72f;
@@ -110,6 +189,8 @@ public static class MeteorShower
             scale *= trail_scale;
 
             stretch *= trail_stretch;
+
+            stretch *= 1 - MathF.Pow(1 - Utils.Remap(ratio, 0.55f, 0.92f, 1f, 0f), 3);
 
             color *= trail_opacity;
 
@@ -178,12 +259,12 @@ public static class MeteorShower
             }
         }
 
-        if (WorldGen.meteorShowerCount <= 0)
+        if (!Active)
         {
-            // return;
+            return;
         }
 
-        if (!Main.rand.NextBool(spawn_chance))
+        if (!Main.rand.NextBool((int)(spawn_chance * spawnMultiplier)))
         {
             return;
         }
