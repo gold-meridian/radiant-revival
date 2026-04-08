@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Terraria;
 using Terraria.Graphics.Light;
-using VanillaEngine = Terraria.Graphics.Light.LightingEngine;
 
 namespace RadiantRevival.Common;
 
@@ -40,22 +39,6 @@ public interface ILightingEngineConverter
 /// </summary>
 partial class LightingEngine
 {
-    private readonly struct LegacyLightingAdvanced(LegacyLighting engine) : IAdvancedLightingEngine
-    {
-        public LightingEngineExport GetExport()
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    private readonly struct LightingEngineAdvanced(VanillaEngine engine) : IAdvancedLightingEngine
-    {
-        public LightingEngineExport GetExport()
-        {
-            return new LightingEngineExport(engine._activeLightMap, engine._activeProcessedArea);
-        }
-    }
-
     private sealed class DefaultLightingEngineConverter<T>(Func<T, IAdvancedLightingEngine> converter) : ILightingEngineConverter
         where T : ILightingEngine
     {
@@ -76,12 +59,6 @@ partial class LightingEngine
     }
 
     private static readonly Dictionary<Type, ILightingEngineConverter> engine_converters = [];
-
-    static LightingEngine()
-    {
-        RegisterAdvancedEngineConverter<LegacyLighting>(static engine => new LegacyLightingAdvanced(engine));
-        RegisterAdvancedEngineConverter<VanillaEngine>(static engine => new LightingEngineAdvanced(engine));
-    }
 
     /// <summary>
     ///     Attempts to interpret the currently active lighting engine as an
