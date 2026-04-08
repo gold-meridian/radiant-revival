@@ -7,15 +7,7 @@ namespace RadiantRevival.Common;
 
 partial class LightingEngine
 {
-    private sealed class OverrideMapScope(VanillaEngine engine, LightMap activeMap) : IDisposable
-    {
-        public void Dispose()
-        {
-            engine._activeLightMap = activeMap;
-        }
-    }
-
-    private readonly struct LightingEngineAdvanced(VanillaEngine engine) : IAdvancedLightingEngine
+    private sealed class LightingEngineAdvanced(VanillaEngine engine) : IAdvancedLightingEngine
     {
         public LightingEngineExport GetExport()
         {
@@ -28,7 +20,11 @@ partial class LightingEngine
             {
                 engine._activeLightMap = lightMap;
             }
-            return new OverrideMapScope(engine, activeLightMap);
+
+            return DisposableBuilder
+                  .Create()
+                  .AddAction(() => engine._activeLightMap = activeLightMap)
+                  .Build();
         }
 
         public IDisposable OverrideMapFullbright()

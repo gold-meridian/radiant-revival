@@ -6,15 +6,6 @@ namespace RadiantRevival.Common;
 
 internal static class FullbrightLightMap
 {
-    private sealed class LightMapScope(LightMap lightMap, Vector3[] colors, LightMaskMode[] masks) : IDisposable
-    {
-        public void Dispose()
-        {
-            lightMap._colors = colors;
-            lightMap._mask = masks;
-        }
-    }
-
     private static Vector3[] colors = [];
     private static LightMaskMode[] masks = [];
 
@@ -47,7 +38,16 @@ internal static class FullbrightLightMap
         lightMap._colors = colors;
         lightMap._mask = masks;
 
-        return new LightMapScope(lightMap, oldColors, oldMasks);
+        return DisposableBuilder
+              .Create()
+              .AddAction(
+                   () =>
+                   {
+                       lightMap._colors = oldColors;
+                       lightMap._mask = oldMasks;
+                   }
+               )
+              .Build();
     }
 
     private static void EnsureSize(int size)
@@ -76,6 +76,7 @@ internal static class FullbrightLightMap
 
         EnsureSize(length1, length2);
 
+        var oldStates = states;
         states = outerStateArray;
     }
 
