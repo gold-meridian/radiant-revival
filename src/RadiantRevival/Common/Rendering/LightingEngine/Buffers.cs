@@ -16,25 +16,25 @@ public static partial class LightingEngine
 {
     private sealed class Buffers : IStatic<Buffers>
     {
-        public required RenderTargetLease TotalLightingBuffer { get; init; }
+        public required RenderTargetLease TileSpaceBuffer { get; init; }
 
-        public required RenderTargetLease ScreenSizeLightingBuffer { get; init; }
+        public required RenderTargetLease ScreenSpaceBuffer { get; init; }
 
         public static Buffers LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
                 () => new Buffers
                 {
-                    TotalLightingBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBufferSize),
-                    ScreenSizeLightingBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
+                    TileSpaceBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBufferSize),
+                    ScreenSpaceBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
                 }
             ).GetAwaiter().GetResult();
 
             static (int, int) GetBufferSize(int width, int height)
             {
                 return (
-                    (int)Math.Ceiling(width / 16f) + lighting_buffer_offscreen_range_tiles * 2,
-                    (int)Math.Ceiling(height / 16f) + lighting_buffer_offscreen_range_tiles * 2
+                    (int)Math.Ceiling(width / 16f) + BufferOffscreenTileRange * 2,
+                    (int)Math.Ceiling(height / 16f) + BufferOffscreenTileRange * 2
                 );
             }
         }
@@ -44,25 +44,44 @@ public static partial class LightingEngine
             Main.RunOnMainThread(
                 () =>
                 {
-                    data.TotalLightingBuffer.Dispose();
-                    data.ScreenSizeLightingBuffer.Dispose();
+                    data.TileSpaceBuffer.Dispose();
+                    data.ScreenSpaceBuffer.Dispose();
                 }
             );
         }
     }
 
-    private const int lighting_buffer_offscreen_range_tiles = 1;
+    /// <summary>
+    ///     The number of additional tiles to include offscreen on each side of
+    ///     the 2-dimensional <see cref="TileSpaceBuffer"/>.
+    ///     <br />
+    ///     This is to help with rendering of partially-offscreen entities.
+    /// </summary>
+    public static int BufferOffscreenTileRange => 1;
+
+    /// <summary>
+    ///     The light map buffer in tile-space.  This is the canonical buffer,
+    ///     where each tile corresponds to a single pixel in a 2-dimensional
+    ///     grid.
+    /// </summary>
+    public static RenderTargetLease TileSpaceBuffer => Buffers.Instance.TileSpaceBuffer;
+
+    /// <summary>
+    ///     The light map buffer in screen-space.  This is derived from
+    ///     <see cref="TileSpaceBuffer"/>.  TODO: Make public?
+    /// </summary>
+    private static RenderTargetLease ScreenSpaceBuffer => Buffers.Instance.ScreenSpaceBuffer;
 
     private static Color[] colorBuffer = [];
     private static bool debugLightMap;
 
-    public static RenderTargetLease TotalLightingBuffer => Buffers.Instance.TotalLightingBuffer;
-
-    public static RenderTargetLease ScreenSizeLightingBuffer => Buffers.Instance.ScreenSizeLightingBuffer;
-
     [OnLoad]
-    private static void ApplyHooks()
+    private static void ApplyBufferHooks()
     {
+        // This target is selected because it's right after lighting updates and
+        // before anything else is drawn.  We need to be rather early since the
+        // light map is sampled for early rendering operations such as
+        // background rendering.
         IL_Main.DoDraw += il =>
         {
             var c = new ILCursor(il);
@@ -87,7 +106,7 @@ public static partial class LightingEngine
 
     private static unsafe void PopulateBuffers()
     {
-        var lightingBuffer = TotalLightingBuffer.Target;
+        var lightingBuffer = TileSpaceBuffer.Target;
 
         var bufferSize = lightingBuffer.Width * lightingBuffer.Height;
         if (colorBuffer.Length < bufferSize)
@@ -95,8 +114,8 @@ public static partial class LightingEngine
             Array.Resize(ref colorBuffer, bufferSize);
         }
 
-        var startX = (int)(Main.screenPosition.X / 16) - lighting_buffer_offscreen_range_tiles;
-        var startY = (int)(Main.screenPosition.Y / 16) - lighting_buffer_offscreen_range_tiles;
+        var startX = (int)(Main.screenPosition.X / 16) - BufferOffscreenTileRange;
+        var startY = (int)(Main.screenPosition.Y / 16) - BufferOffscreenTileRange;
         Parallel.For(
             0,
             lightingBuffer.Width,
@@ -121,10 +140,11 @@ public static partial class LightingEngine
 
     private static void TransferBuffers()
     {
-        using (Main.spriteBatch.Scope())
-        using (ScreenSizeLightingBuffer.Scope())
+        var sb = Main.spriteBatch;
+        using (sb.Scope())
+        using (ScreenSpaceBuffer.Scope())
         {
-            Main.spriteBatch.Begin(
+            sb.Begin(
                 SpriteSortMode.Immediate,
                 BlendState.AlphaBlend,
                 SamplerState.PointClamp,
@@ -135,9 +155,9 @@ public static partial class LightingEngine
             );
 
             var offset = new Vector2(Main.screenPosition.X % 16, Main.screenPosition.Y % 16);
-            Main.spriteBatch.Draw(
-                TotalLightingBuffer.Target,
-                new Vector2(-lighting_buffer_offscreen_range_tiles * 16) - offset,
+            sb.Draw(
+                TileSpaceBuffer.Target,
+                new Vector2(-BufferOffscreenTileRange * 16) - offset,
                 null,
                 Color.White,
                 0,
@@ -147,7 +167,7 @@ public static partial class LightingEngine
                 0
             );
 
-            Main.spriteBatch.End();
+            sb.End();
         }
     }
 
@@ -180,7 +200,7 @@ public static partial class LightingEngine
                 RasterizerState.CullNone
             );
 
-            sb.Draw(ScreenSizeLightingBuffer.Target, Vector2.Zero, Color.White);
+            sb.Draw(ScreenSpaceBuffer.Target, Vector2.Zero, Color.White);
 
             sb.End();
         }

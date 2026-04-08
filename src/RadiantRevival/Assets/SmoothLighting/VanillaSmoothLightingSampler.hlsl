@@ -15,6 +15,8 @@ float2 screen_position SCREEN_POSITION;
 float screen_size_x SCREEN_SIZE_X;
 float screen_size_y SCREEN_SIZE_Y;
 
+float offscreen_tiles;
+
 // For cases where manual adjustment is needed.
 float2 draw_offset;
 float draw_zoom;
