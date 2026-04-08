@@ -101,7 +101,7 @@ public static class SmoothLightingRenderer
                 effect.Parameters.light_map = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,
-                    Texture = LightingBuffers.Instance.TotalLightingBuffer.Target,
+                    Texture = LightingEngine.TotalLightingBuffer.Target,
                 };
 
                 effect.Apply();

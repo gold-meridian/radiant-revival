@@ -12,46 +12,53 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
-public sealed class LightingBuffers : IStatic<LightingBuffers>
+public static partial class LightingEngine
 {
+    private sealed class Buffers : IStatic<Buffers>
+    {
+        public required RenderTargetLease TotalLightingBuffer { get; init; }
+
+        public required RenderTargetLease ScreenSizeLightingBuffer { get; init; }
+
+        public static Buffers LoadData(Mod mod)
+        {
+            return Main.RunOnMainThread(
+                () => new Buffers
+                {
+                    TotalLightingBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBufferSize),
+                    ScreenSizeLightingBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
+                }
+            ).GetAwaiter().GetResult();
+
+            static (int, int) GetBufferSize(int width, int height)
+            {
+                return (
+                    (int)Math.Ceiling(width / 16f) + lighting_buffer_offscreen_range_tiles * 2,
+                    (int)Math.Ceiling(height / 16f) + lighting_buffer_offscreen_range_tiles * 2
+                );
+            }
+        }
+
+        public static void UnloadData(Buffers data)
+        {
+            Main.RunOnMainThread(
+                () =>
+                {
+                    data.TotalLightingBuffer.Dispose();
+                    data.ScreenSizeLightingBuffer.Dispose();
+                }
+            );
+        }
+    }
+
     private const int lighting_buffer_offscreen_range_tiles = 1;
 
     private static Color[] colorBuffer = [];
     private static bool debugLightMap;
 
-    public required RenderTargetLease TotalLightingBuffer { get; init; }
+    public static RenderTargetLease TotalLightingBuffer => Buffers.Instance.TotalLightingBuffer;
 
-    public required RenderTargetLease ScreenSizeLightingBuffer { get; init; }
-
-    public static LightingBuffers LoadData(Mod mod)
-    {
-        return Main.RunOnMainThread(
-            () => new LightingBuffers
-            {
-                TotalLightingBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBufferSize),
-                ScreenSizeLightingBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
-            }
-        ).GetAwaiter().GetResult();
-
-        static (int, int) GetBufferSize(int width, int height)
-        {
-            return (
-                (int)Math.Ceiling(width / 16f) + lighting_buffer_offscreen_range_tiles * 2,
-                (int)Math.Ceiling(height / 16f) + lighting_buffer_offscreen_range_tiles * 2
-            );
-        }
-    }
-
-    public static void UnloadData(LightingBuffers data)
-    {
-        Main.RunOnMainThread(
-            () =>
-            {
-                data.TotalLightingBuffer.Dispose();
-                data.ScreenSizeLightingBuffer.Dispose();
-            }
-        );
-    }
+    public static RenderTargetLease ScreenSizeLightingBuffer => Buffers.Instance.ScreenSizeLightingBuffer;
 
     [OnLoad]
     private static void ApplyHooks()
@@ -80,7 +87,7 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
 
     private static unsafe void PopulateBuffers()
     {
-        var lightingBuffer = LightingBuffers.Instance.TotalLightingBuffer.Target;
+        var lightingBuffer = TotalLightingBuffer.Target;
 
         var bufferSize = lightingBuffer.Width * lightingBuffer.Height;
         if (colorBuffer.Length < bufferSize)
@@ -115,7 +122,7 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
     private static void TransferBuffers()
     {
         using (Main.spriteBatch.Scope())
-        using (LightingBuffers.Instance.ScreenSizeLightingBuffer.Scope())
+        using (ScreenSizeLightingBuffer.Scope())
         {
             Main.spriteBatch.Begin(
                 SpriteSortMode.Immediate,
@@ -129,7 +136,7 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
 
             var offset = new Vector2(Main.screenPosition.X % 16, Main.screenPosition.Y % 16);
             Main.spriteBatch.Draw(
-                LightingBuffers.Instance.TotalLightingBuffer.Target,
+                TotalLightingBuffer.Target,
                 new Vector2(-lighting_buffer_offscreen_range_tiles * 16) - offset,
                 null,
                 Color.White,
@@ -173,7 +180,7 @@ public sealed class LightingBuffers : IStatic<LightingBuffers>
                 RasterizerState.CullNone
             );
 
-            sb.Draw(LightingBuffers.Instance.ScreenSizeLightingBuffer.Target, Vector2.Zero, Color.White);
+            sb.Draw(ScreenSizeLightingBuffer.Target, Vector2.Zero, Color.White);
 
             sb.End();
         }
