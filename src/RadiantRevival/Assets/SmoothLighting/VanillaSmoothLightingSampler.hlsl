@@ -15,6 +15,7 @@ float screen_size_x SCREEN_SIZE_X;
 float screen_size_y SCREEN_SIZE_Y;
 
 float offscreen_tiles;
+float global_brightness;
 
 // For cases where manual adjustment is needed.
 float2 draw_offset;
@@ -69,6 +70,7 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     light_uv += 0.5;
     
     float3 light = tex2D(light_map, light_uv).rgb;
+    light *= global_brightness;
     
 #if DOGSHIT_SLOP
     float3 normal = compute_normal(uv);

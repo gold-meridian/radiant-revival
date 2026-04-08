@@ -97,6 +97,7 @@ public static class SmoothLightingRenderer
             var effect = Data.Instance.EntityLightingShader;
             {
                 effect.Parameters.offscreen_tiles = LightingEngine.BufferOffscreenTileRange;
+                effect.Parameters.global_brightness = Lighting.GlobalBrightness;
                 effect.Parameters.draw_offset = state.DrawOffset;
                 effect.Parameters.draw_zoom = state.DrawZoom;
                 effect.Parameters.light_map = new HlslSampler2D
