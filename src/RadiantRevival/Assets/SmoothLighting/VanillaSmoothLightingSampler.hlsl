@@ -4,9 +4,8 @@
 sampler2D tex : register(s0);
 sampler2D light_map : register(s1);
 
-#define OFFSCREEN_TILES (1.0)
 #define TILE_SIZE (16.0)
-#define OFFSCREEN_PADDING (OFFSCREEN_TILES * TILE_SIZE)
+#define OFFSCREEN_PADDING (offscreen_tiles * TILE_SIZE)
 
 #define DOGSHIT_SLOP false
 
@@ -14,6 +13,9 @@ float2 lighting_buffer_size TEXTURE_SIZE(1);
 float2 screen_position SCREEN_POSITION;
 float screen_size_x SCREEN_SIZE_X;
 float screen_size_y SCREEN_SIZE_Y;
+
+float offscreen_tiles;
+float global_brightness;
 
 // For cases where manual adjustment is needed.
 float2 draw_offset;
@@ -59,7 +61,7 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     float4 albedo = tex2D(tex, uv) * color;
     
     float2 screen_pos_tiles = (pos + draw_offset / draw_zoom) / TILE_SIZE;
-    screen_pos_tiles += OFFSCREEN_TILES;
+    screen_pos_tiles += offscreen_tiles;
     float2 light_uv = screen_pos_tiles / lighting_buffer_size;
 
     // Center and apply zoom.
@@ -68,6 +70,7 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     light_uv += 0.5;
     
     float3 light = tex2D(light_map, light_uv).rgb;
+    light *= global_brightness;
     
 #if DOGSHIT_SLOP
     float3 normal = compute_normal(uv);
