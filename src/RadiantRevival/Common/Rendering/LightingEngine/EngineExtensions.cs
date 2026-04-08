@@ -15,6 +15,25 @@ public interface IAdvancedLightingEngine
     ///     Retrieves the export for this engine.
     /// </summary>
     LightingEngineExport GetExport();
+    
+    /// <summary>
+    ///     Overrides the presented lightmap for a frame.
+    /// </summary>
+    /// <remarks>
+    ///     An object that, when disposed, undoes the map override.
+    /// </remarks>
+    IDisposable OverrideMap(LightMap lightMap);
+
+    /// <summary>
+    ///     A special case of <see cref="OverrideMap"/> which overrides the
+    ///     lightmap to be an all-white (fullbright) map.  This API is provided
+    ///     separately for scenarios where the engine may provide optimized
+    ///     support for it.
+    /// </summary>
+    /// <remarks>
+    ///     An object that, when disposed, undoes the map override.
+    /// </remarks>
+    IDisposable OverrideMapFullbright();
 }
 
 /// <summary>
