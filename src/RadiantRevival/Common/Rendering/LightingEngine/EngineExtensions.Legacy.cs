@@ -16,7 +16,7 @@ partial class LightingEngine
         public required LightMap ExposedLightMap { get; set; }
     }
 
-    private readonly struct LegacyLightingAdvanced(LegacyLighting engine) : IAdvancedLightingEngine
+    private sealed class LegacyLightingAdvanced(LegacyLighting engine) : IAdvancedLightingEngine
     {
         public LightingEngineExport GetExport()
         {
@@ -34,6 +34,53 @@ partial class LightingEngine
                     engine._expandedRectBottom - engine._expandedRectTop
                 )
             );
+        }
+
+        public IDisposable OverrideLightMap(LightMap lightMap)
+        {
+            if (engine.Data is not { } data)
+            {
+                engine.Data = data = new LegacyLightingData { ExposedLightMap = new LightMap() };
+                data.ExposedLightMap.SetSize(engine._lightMap.Width, engine._lightMap.Height);
+            }
+
+            var oldMap = data.ExposedLightMap;
+            data.ExposedLightMap = lightMap;
+
+            // TODO: Support overriding underlying buffer (see
+            //       OverrideMapFullbright).
+
+            return DisposableBuilder
+                  .Create()
+                  .AddAction(() => data.ExposedLightMap = oldMap)
+                  .Build();
+        }
+
+        public IDisposable OverrideLightMapFullbright()
+        {
+            if (engine.Data is not { } data)
+            {
+                engine.Data = data = new LegacyLightingData { ExposedLightMap = new LightMap() };
+                data.ExposedLightMap.SetSize(engine._lightMap.Width, engine._lightMap.Height);
+            }
+
+            var fbMap = FullbrightLightMap.GetLightMap(data.ExposedLightMap.Width, data.ExposedLightMap.Height);
+            var oldMap = data.ExposedLightMap;
+            data.ExposedLightMap = oldMap;
+
+            var oldStates = engine._states;
+            engine._states = FullbrightLightMap.GetLegacyStates(oldStates);
+
+            return DisposableBuilder
+                  .Create()
+                  .AddAction(
+                       () =>
+                       {
+                           data.ExposedLightMap = oldMap;
+                           engine._states = oldStates;
+                       }
+                   )
+                  .Build();
         }
     }
 

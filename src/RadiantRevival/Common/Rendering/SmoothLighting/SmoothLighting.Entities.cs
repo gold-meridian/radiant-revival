@@ -76,8 +76,7 @@ internal static class CommonEntitySmoothLighting
 
     private static void Scope(Action callback, bool begin = true)
     {
-        using var _ = new ScopeStateCapture<bool>(ref Main.gameMenu);
-        Main.gameMenu = true;
+        using var _ = LightingEngine.OverrideLightMapFullbright();
 
         if (begin)
         {
