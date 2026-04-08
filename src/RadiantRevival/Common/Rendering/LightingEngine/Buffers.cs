@@ -116,21 +116,53 @@ partial class LightingEngine
 
         var startX = (int)(Main.screenPosition.X / 16) - BufferOffscreenTileRange;
         var startY = (int)(Main.screenPosition.Y / 16) - BufferOffscreenTileRange;
-        Parallel.For(
-            0,
-            lightingBuffer.Width,
-            x =>
-            {
-                var tileX = startX + x;
-
-                for (var y = 0; y < lightingBuffer.Height; y++)
+        if (TryGetCurrentEngine(out var engine))
+        {
+            var export = engine.GetExport();
+            Parallel.For(
+                0,
+                lightingBuffer.Width,
+                x =>
                 {
-                    var tileY = startY + y;
+                    var tileX = startX + x;
 
-                    colorBuffer[y * lightingBuffer.Width + x] = Lighting.GetColor(tileX, tileY);
+                    for (var y = 0; y < lightingBuffer.Height; y++)
+                    {
+                        var tileY = startY + y;
+
+                        var color = export.GetColor(tileX, tileY);
+                        colorBuffer[y * lightingBuffer.Width + x] = new Color(color.X, color.Y, color.Z, 1f);
+                    }
                 }
+            );
+        }
+        else
+        {
+            var oldBrightness = Lighting.GlobalBrightness;
+            Lighting.GlobalBrightness = 1f;
+            try
+            {
+                Parallel.For(
+                    0,
+                    lightingBuffer.Width,
+                    x =>
+                    {
+                        var tileX = startX + x;
+
+                        for (var y = 0; y < lightingBuffer.Height; y++)
+                        {
+                            var tileY = startY + y;
+
+                            colorBuffer[y * lightingBuffer.Width + x] = Lighting.GetColor(tileX, tileY);
+                        }
+                    }
+                );
             }
-        );
+            finally
+            {
+                Lighting.GlobalBrightness = oldBrightness;
+            }
+        }
 
         fixed (Color* pColorBuffer = &colorBuffer[0])
         {
