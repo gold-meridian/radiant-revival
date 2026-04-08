@@ -191,39 +191,5 @@ public sealed class MidnightLighting
 
             c.EmitLdcI4(0);
         }
-
-
-        void ReplaceAddition(float value, int loops)
-        {
-            for (var i = 0; i < loops; i++)
-            {
-                c.GotoNext(
-                    MoveType.Before,
-                    i => i.MatchLdcR4(value),
-                    i => i.MatchAdd()
-                );
-
-                c.Index++;
-
-                c.EmitPop();
-
-                c.EmitLdcR4(0);
-            }
-        }
-
-        void ReplaceValue(int value, int loops)
-        {
-            for (var i = 0; i < loops; i++)
-            {
-                c.GotoNext(
-                    MoveType.After,
-                    i => i.MatchLdcI4(value)
-                );
-
-                c.EmitPop();
-
-                c.EmitLdcI4(0);
-            }
-        }
     }
 }
