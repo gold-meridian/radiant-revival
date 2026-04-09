@@ -1,6 +1,4 @@
-#include "../../tmlbuild.h"
-#include "../../expressions.h"
-
+#include "../../common.h"
 
 sampler2D tex : register(s0);
 
@@ -86,12 +84,8 @@ float4 main(float2 coords : SV_POSITION, float2 tex_coords : TEXCOORD0, float4 b
     return base_color * map.a;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass PanelShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(PanelShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

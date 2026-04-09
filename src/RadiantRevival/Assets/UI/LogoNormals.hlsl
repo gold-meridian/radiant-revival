@@ -1,4 +1,4 @@
-#include "../tmlbuild.h"
+#include "../common.h"
 #include "../spheres.h"
 
 sampler2D tex : register(s0);
@@ -34,12 +34,8 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     return light;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass LogoNormalsShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(LogoNormalsShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

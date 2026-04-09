@@ -1,5 +1,4 @@
-#include "../tmlbuild.h"
-#include "../expressions.h"
+#include "../common.h"
 
 sampler2D wall_tex : register(s0);
 sampler2D tile_tex : register(s1);
@@ -24,12 +23,8 @@ float4 main_mask(float2 uv : TEXCOORD0) : COLOR0
     return color;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass MaskShader
-    {
-        PixelShader = compile ps_2_0 main_mask();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(MaskShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

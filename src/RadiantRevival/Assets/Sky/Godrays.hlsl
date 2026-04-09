@@ -1,4 +1,4 @@
-#include "../tmlbuild.h"
+#include "../common.h"
 
 sampler2D tex : register(s0);
 sampler2D lights : register(s1);
@@ -70,12 +70,8 @@ float4 main(float2 uv : TEXCOORD0, float4 color : COLOR0) : COLOR0
     return color;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass GodraysShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(GodraysShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE
