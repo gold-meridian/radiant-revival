@@ -1,4 +1,4 @@
-#include "../tmlbuild.h"
+#include "../common.h"
 
 sampler2D tex : register(s0);
 
@@ -40,12 +40,8 @@ float4 main(float2 uv : TEXCOORD0) : COLOR0
     return color;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass RadialBlurShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(RadialBlurShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

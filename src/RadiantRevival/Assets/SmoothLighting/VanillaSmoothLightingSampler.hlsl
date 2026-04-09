@@ -1,5 +1,4 @@
-﻿#include "../tmlbuild.h"
-#include "../expressions.h"
+﻿#include "../common.h"
 
 sampler2D tex : register(s0);
 sampler2D light_map : register(s1);
@@ -92,12 +91,8 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     return float4(albedo.rgb * light, albedo.a);
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass SmoothLightingShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(SmoothLightingShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

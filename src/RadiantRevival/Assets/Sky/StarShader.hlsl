@@ -1,3 +1,5 @@
+#include "../common.h"
+
 sampler uImage0 : register(s0);
 
 float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
@@ -15,12 +17,8 @@ float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
     return col;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass StarShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(StarShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

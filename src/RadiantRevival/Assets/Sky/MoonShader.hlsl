@@ -1,3 +1,4 @@
+#include "../common.h"
 #include "../spheres.h"
 #include "../colors.h"
 
@@ -75,12 +76,8 @@ float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
     }
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass MoonShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(MoonShader)
+        PIXEL_SHADER(compile ps_3_0 main())
+    END_PASS
+END_TECHNIQUE

@@ -1,5 +1,4 @@
-#include "../tmlbuild.h"
-#include "../expressions.h"
+#include "../common.h"
 #include "../spheres.h"
 
 sampler2D uImage0 : register(s0);
@@ -54,16 +53,11 @@ float4 main_vertical(float2 uv : TEXCOORD0) : COLOR0
     return color;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass HorizontalShader
-    {
-        PixelShader = compile ps_3_0 main_horizontal();
-    }
-    pass VerticalShader
-    {
-        PixelShader = compile ps_3_0 main_vertical();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(HorizontalShader)
+        PIXEL_SHADER(compile ps_3_0 main_horizontal())
+    END_PASS
+    BEGIN_PASS(VerticalShader)
+        PIXEL_SHADER(compile ps_3_0 main_vertical())
+    END_PASS
+END_TECHNIQUE
