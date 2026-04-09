@@ -25,6 +25,6 @@ float4 main_mask(float2 uv : TEXCOORD0) : COLOR0
 
 BEGIN_TECHNIQUE(Technique1)
     BEGIN_PASS(MaskShader)
-        PIXEL_SHADER(compile ps_3_0 main())
+        PIXEL_SHADER(compile ps_3_0 main_mask())
     END_PASS
 END_TECHNIQUE
