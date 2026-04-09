@@ -3,10 +3,11 @@
 
 #include "syntax.h"
 
-#define GLOBAL_TIME CS_EXPR(global::Terraria.Main.GlobalTimeWrappedHourly)
+#define GLOBAL_TIME(name) CS_VAR(float, name, global::Terraria.Main.GlobalTimeWrappedHourly)
 
-#define SCREEN_SIZE_X CS_EXPR(global::Terraria.Main.screenWidth)
-#define SCREEN_SIZE_Y CS_EXPR(global::Terraria.Main.screenHeight)
-#define SCREEN_POSITION CS_EXPR(global::Terraria.Main.screenPosition)
+#define SCREEN_SIZE_X(name) CS_VAR(float, name, global::Terraria.Main.screenWidth)
+#define SCREEN_SIZE_Y(name) CS_VAR(float, name, global::Terraria.Main.screenHeight)
+#define SCREEN_SIZE(name) CS_VAR(float2, name, new global::Microsoft.Xna.Framework.Vector2(global::Terraria.Main.screenWidth, global::Terraria.Main.screenHeight))
+#define SCREEN_POSITION(name) CS_VAR(float2, name, global::Terraria.Main.screenPosition)
 
 #endif // TMLBUILD_HLSL

@@ -90,4 +90,8 @@
 // SRGBTexture bool
 #define SRGB_TEXTURE(value) _SAMPLER_VALUE(SRGBTexture, value)
 
+// Helpers for composing expressions.
+#define _CS_VAR(type, name, expr) type name expr;
+#define CS_VAR(type, name, expr) _CS_VAR(type, name, CS_EXPR(expr));
+
 #endif

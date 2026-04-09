@@ -1,47 +1,36 @@
 #include "../common.h"
 
-sampler2D tex : register(s0);
+sampler2D Texture : register(s0);
 
-float screen_size_x SCREEN_SIZE_X;
-float screen_size_y SCREEN_SIZE_Y;
+SCREEN_SIZE(ScreenSize);
 
-float2 light_position;
+float2 LightPosition;
+float BlurStrength;
+int SampleCount;
 
-float blur_strength;
-
-int sample_count;
-
-float4 main(float2 uv : TEXCOORD0) : COLOR0
+float4 RadialBlurShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
 {
-    float2 screenSize = float2(screen_size_x, screen_size_y);
-    
-    float2 light = light_position / screenSize;
-    
-    int samples = max(sample_count, 4);
-    
-    float2 dir = (light - uv);
-    
-    float2 dtc = dir * (1.0 / samples) * blur_strength;
-    
+    float2 light = LightPosition / ScreenSize;
+    int samples = max(SampleCount, 4);
+    float2 dir = light - textureUv;
+    float2 dtc = dir * (1.0 / samples) * BlurStrength;
     float4 color = 0;
     
-    uv -= dtc * samples * 0.5;
+    textureUv -= dtc * samples * 0.5;
     
     [unroll(32)]
     for (int i = 0; i < samples; i++)
     {
-        uv += dtc;
-        
-        color += tex2D(tex, uv);
+        textureUv += dtc;
+        color += tex2D(Texture, textureUv);
     }
     
     color /= samples;
-    
     return color;
 }
 
 BEGIN_TECHNIQUE(Technique1)
     BEGIN_PASS(RadialBlurShader)
-        PIXEL_SHADER(compile ps_3_0 main())
+        PIXEL_SHADER(compile ps_3_0 RadialBlurShaderFragment())
     END_PASS
 END_TECHNIQUE

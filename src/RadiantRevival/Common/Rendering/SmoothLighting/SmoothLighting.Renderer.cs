@@ -96,11 +96,11 @@ public static class SmoothLightingRenderer
         {
             var effect = Data.Instance.EntityLightingShader;
             {
-                effect.Parameters.offscreen_tiles = LightingEngine.BufferOffscreenTileRange;
-                effect.Parameters.global_brightness = Lighting.GlobalBrightness;
-                effect.Parameters.draw_offset = state.DrawOffset;
-                effect.Parameters.draw_zoom = state.DrawZoom;
-                effect.Parameters.light_map = new HlslSampler2D
+                effect.Parameters.OffscreenTiles = LightingEngine.BufferOffscreenTileRange;
+                effect.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
+                effect.Parameters.DrawOffset = state.DrawOffset;
+                effect.Parameters.DrawZoom = state.DrawZoom;
+                effect.Parameters.LightMap = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,
                     Texture = LightingEngine.TileSpaceBuffer.Target,
