@@ -1,6 +1,7 @@
 ﻿using Daybreak.Common.Features.Authorship;
 using Daybreak.Common.Features.ModPanel;
 using RadiantRevival.Common;
+using ReLogic.Content.Sources;
 
 namespace RadiantRevival;
 
@@ -12,6 +13,13 @@ partial class ModImpl : IHasCustomAuthorMessage
     {
         // Handled by the asset generator.
         MusicAutoloadingEnabled = false;
+    }
+
+    public override IContentSource CreateDefaultContentSource()
+    {
+        AddContent(new ObjModelReader());
+
+        return base.CreateDefaultContentSource();
     }
 
     public override object Call(params object[] args)
