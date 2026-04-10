@@ -150,24 +150,7 @@ public static class MoonStyles
 
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
-        if (SpecialStyleDrawing.TryGetValue(Main.moonType, out var action)
-         && !action.Invoke(sb, device, position, color, rotation, scale))
-        {
-            return true;
-        }
-
-        if (!moonTextures.TryGetValue(Main.moonType, out var asset))
-        {
-            return false;
-        }
-
-        sb.End(out var ss);
-        sb.Begin(ss with { SortMode = SpriteSortMode.Immediate });
-
-        DrawBody(sb, asset.Value, position, color, rotation, scale);
-
-        sb.Restart(in ss);
-
+        var _ = Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
         return true;
     }
 }

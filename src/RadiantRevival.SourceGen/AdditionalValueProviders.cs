@@ -1,0 +1,44 @@
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
+using System;
+using System.Threading;
+
+namespace RadiantRevival.Core.SourceGen;
+
+/// <summary>
+///     Provides more APIs for creating useful value providers.
+/// </summary>
+public static class AdditionalValueProviders
+{
+    /// <summary>
+    ///     Gets the root namespace of a project, or the assembly name if the
+    ///     root namespace cannot be resolved.
+    /// </summary>
+    public static IncrementalValueProvider<string> GetRootNamespaceOrAssemblyName(
+        IncrementalValueProvider<AnalyzerConfigOptionsProvider> configProvider,
+        IncrementalValueProvider<Compilation> compilationProvider
+    )
+    {
+        return configProvider
+              .Select(GetRootNamespace)
+              .Combine(compilationProvider)
+              .Select(GetAssemblyNameFallback);
+
+        static string? GetRootNamespace(
+            AnalyzerConfigOptionsProvider config,
+            CancellationToken _
+        )
+        {
+            return config.GlobalOptions.TryGetValue("build_property.RootNamespace", out var @namespace) ? @namespace : null;
+        }
+
+        static string GetAssemblyNameFallback(
+            (string? Left, Compilation Right) tuple,
+            CancellationToken _
+        )
+        {
+            var (rootNamespace, compilation) = tuple;
+            return rootNamespace ?? compilation.AssemblyName ?? throw new InvalidOperationException("Could not get root namespace (or AssemblyName fallback) for compilation");
+        }
+    }
+}
