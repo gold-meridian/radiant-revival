@@ -150,7 +150,7 @@ public static class MoonStyles
 
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
-        var _ = Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
+        var _ = TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
         return true;
     }
 }

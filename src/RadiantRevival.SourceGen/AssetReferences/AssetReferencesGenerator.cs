@@ -70,7 +70,7 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
                 var root = CreateAssetTree(generators, files, projectDir, ctx.CancellationToken);
 
                 ctx.AddSource(
-                    "AssetReferences.g.cs",
+                    "TempAssetReferences.g.cs",
                     GenerateAssetFile(generators, rootNamespace, assemblyName, root, ctx.CancellationToken)
                 );
             }
@@ -170,7 +170,7 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
               #nullable enable
               #pragma warning disable CS8981
 
-              global using static {{rootNamespace}}.Core.AssetReferences;
+              // global using static {{rootNamespace}}.Core.AssetReferences;
 
               namespace {{rootNamespace}}.Core;
 
@@ -178,7 +178,7 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
               {{string.Join("\n", generators.Select(x => $"// - {x.GetType().FullName}"))}}
 
               // ReSharper disable InconsistentNaming
-              internal static partial class AssetReferences
+              internal static partial class TempAssetReferences
               {
               {{GenerateTextFromPathNode(assemblyName, root, token)}}
               }
@@ -203,7 +203,7 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
             var sb = new StringBuilder();
 
             var nodeTypeName = depth == 0
-                ? "AssetReferences"
+                ? "TempAssetReferences"
                 : NameSanitizer.MakeUniqueIdentifier(root.Name, pathSegments, usedNames, ancestors);
 
             if (depth != 0)
