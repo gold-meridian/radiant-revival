@@ -20,9 +20,15 @@ namespace RadiantRevival.Common;
 // TODO: Config
 public static class MoonStyles
 {
+    private const int target_size = 300;
+
     private sealed class Data : IStatic<Data>
     {
         public required WrapperShaderData<Assets.Sky.MoonShader.Parameters> MoonShader { get; init; }
+
+        public required RenderTargetLease MoonTarget { get; init; }
+
+        public required RenderTargetLease MoonLightMapTarget { get; init; }
 
         public static Data LoadData(Mod mod)
         {
@@ -30,6 +36,8 @@ public static class MoonStyles
                 () => new Data
                 {
                     MoonShader = Assets.Sky.MoonShader.CreateMoonShader(),
+                    MoonTarget = RenderTargetPool.Shared.Rent(Main.instance.GraphicsDevice, target_size, target_size, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 }),
+                    MoonLightMapTarget = RenderTargetPool.Shared.Rent(Main.instance.GraphicsDevice, target_size, target_size, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 }),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -170,16 +178,17 @@ public static class MoonStyles
         var model = TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
         var shader = Data.Instance.MoonShader;
 
-        using var lease = RenderTargetPool.Shared.Rent(device, 300, 300, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 });
+        var moonLease = Data.Instance.MoonTarget;
+        var moonLightMapLease = Data.Instance.MoonLightMapTarget;
 
         using (sb.Scope())
-        using (lease.Scope(clearColor: Color.Transparent))
+        using (moonLease.Scope(clearColor: Color.Transparent))
         {
             device.RasterizerState = RasterizerState.CullCounterClockwise;
 
             var cameraPositon = new Vector3(0.5f, 0, 0.5f);
 
-            var transform = Matrix.CreateLookAt(new Vector3(1, 0, 0.2f), Vector3.Zero, -Vector3.UnitY)
+            var transform = Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
                           * Matrix.CreateOrthographicOffCenter(-1, 1, 1, -1, -1, 1);
 
             var inverse = Matrix.Transpose(transform);
@@ -190,7 +199,12 @@ public static class MoonStyles
 
             shader.Parameters.Texture = new HlslSampler
             {
-                Texture = Assets.Sky.CelestialBodies.Moon0.Asset.Value,
+                Texture = Assets.Sky.CelestialBodies.Moon0Diffuse.Asset.Value,
+                Sampler = SamplerState.LinearClamp,
+            };
+            shader.Parameters.NormalTexture = new HlslSampler
+            {
+                Texture = Assets.Sky.CelestialBodies.Moon0Normal.Asset.Value,
                 Sampler = SamplerState.LinearClamp,
             };
 
@@ -201,11 +215,11 @@ public static class MoonStyles
             model.Draw(device, 2);
         }
 
-        var origin = lease.Target.Size() * 0.5f;
+        var origin = moonLease.Target.Size() * 0.5f;
 
-        var size = new Vector2(62 * scale) / lease.Target.Size();
+        var size = new Vector2(62 * scale) / moonLease.Target.Size();
 
-        sb.Draw(lease.Target, position, null, color, rotation, origin, size, SpriteEffects.None, 0f);
+        sb.Draw(moonLease.Target, position, null, color, rotation, origin, size, SpriteEffects.None, 0f);
 
         return true;
     }

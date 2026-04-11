@@ -13,13 +13,17 @@ struct VSInput
 {
     float4 Position : POSITION0;
     float3 Normal : NORMAL0;
+    float3 Binormal : BINORMAL0;
+    float3 Tangent : TANGENT0;
     float3 TextureCoordinates : TEXCOORD0;
 };
 
 struct PSInput
 {
-    float4 Position : SV_POSITION;
+    float4 Position : SV_POSITION0;
     float3 Normal : NORMAL0;
+    float3 Binormal : BINORMAL0;
+    float3 Tangent : TANGENT0;
     float3 TextureCoordinates : TEXCOORD0;
 };
 
@@ -31,6 +35,8 @@ PSInput MoonShaderVertex(in VSInput input)
     output.Position = pos;
     
     output.Normal = normalize(mul(input.Normal, ProjectionInverse));
+    output.Binormal = normalize(mul(input.Binormal, ProjectionInverse));
+    output.Tangent = normalize(mul(input.Tangent, ProjectionInverse));
     output.TextureCoordinates = input.TextureCoordinates;
 
     return output;
@@ -42,7 +48,16 @@ float4 MoonShaderFragment(in PSInput input) : COLOR0
     
     float2 lightDir = normalize(LightPosition - input.Position.xyz);
     
-    color.rgb *= dot(input.Normal, LightPosition);
+    float3 normal = tex2D(NormalTexture, input.TextureCoordinates.xy).rgb;
+    
+    normal -= 0.5;
+    normal *= 2;
+    
+    normal = (normal.x * input.Tangent) + (normal.y * input.Binormal) + (normal.z * input.Normal);
+    
+    normal = normalize(normal);
+    
+    color.rgb *= dot(normal, LightPosition);
 
     return color;
 }
