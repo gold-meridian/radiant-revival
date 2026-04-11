@@ -22,11 +22,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AdditionalFiles Include="**/*.obj"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Include="../BlockarozToolkit/**/*.cs"/>
+        <Compile Include="../BlockarozToolkit/**/*.cs">
+            <Link>Common/Development/AssetReloading/%(FileName)%(Extension)</Link>
+        </Compile>
     </ItemGroup>
 
 </Project>

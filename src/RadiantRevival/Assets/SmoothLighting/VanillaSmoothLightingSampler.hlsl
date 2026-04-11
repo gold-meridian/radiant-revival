@@ -1,25 +1,23 @@
-﻿#include "../tmlbuild.h"
-#include "../expressions.h"
+﻿#include "../common.h"
 
-sampler2D tex : register(s0);
-sampler2D light_map : register(s1);
+sampler2D Texture : register(s0);
+sampler2D LightMap : register(s1);
 
 #define TILE_SIZE (16.0)
 #define OFFSCREEN_PADDING (offscreen_tiles * TILE_SIZE)
 
-#define DOGSHIT_SLOP false
+#define DOGSHIT_SLOP 0
 
-float2 lighting_buffer_size TEXTURE_SIZE(1);
-float2 screen_position SCREEN_POSITION;
-float screen_size_x SCREEN_SIZE_X;
-float screen_size_y SCREEN_SIZE_Y;
+TEXTURE_SIZE(LightingBufferSize, 1);
+SCREEN_SIZE(ScreenSize);
+SCREEN_POSITION(ScreenPosition);
 
-float offscreen_tiles;
-float global_brightness;
+float OffscreenTiles;
+float GlobalBrightness;
 
 // For cases where manual adjustment is needed.
-float2 draw_offset;
-float draw_zoom;
+float2 DrawOffset;
+float DrawZoom;
 
 #if DOGSHIT_SLOP
 float luminance(float3 c)
@@ -56,24 +54,25 @@ float3 compute_normal(float2 uv)
 }
 #endif
 
-float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLOR0) : COLOR0
+float4 SmoothLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv : TEXCOORD0, float4 color : COLOR0) : COLOR0
 {
-    float4 albedo = tex2D(tex, uv) * color;
+    float4 albedo = tex2D(Texture, textureUv) * color;
     
-    float2 screen_pos_tiles = (pos + draw_offset / draw_zoom) / TILE_SIZE;
-    screen_pos_tiles += offscreen_tiles;
-    float2 light_uv = screen_pos_tiles / lighting_buffer_size;
-
-    // Center and apply zoom.
-    light_uv -= 0.5;
-    light_uv *= draw_zoom;
-    light_uv += 0.5;
+    float2 screenPosTiles = (svPos + DrawOffset / DrawZoom) / TILE_SIZE;
+    screenPosTiles += OffscreenTiles;
+    float2 lightUv = screenPosTiles / LightingBufferSize;
+    {
+        // Center and apply zoom.
+        lightUv -= 0.5;
+        lightUv *= DrawZoom;
+        lightUv += 0.5;
+    }
     
-    float3 light = tex2D(light_map, light_uv).rgb;
-    light = saturate(light * global_brightness);
+    float3 light = tex2D(LightMap, lightUv).rgb;
+    light = saturate(light * GlobalBrightness);
     
 #if DOGSHIT_SLOP
-    float3 normal = compute_normal(uv);
+    float3 normal = compute_normal(textureUv);
     float3 light_dir = normalize(float3(0.4, -0.6, 1.0));
     float n_dot_l = saturate(dot(normal, light_dir));
     float3 diffuse = saturate(n_dot_l * 0.7 + 0.3);
@@ -92,12 +91,8 @@ float4 main(float2 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLO
     return float4(albedo.rgb * light, albedo.a);
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass SmoothLightingShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(SmoothLightingShader)
+        PIXEL_SHADER(compile ps_3_0 SmoothLightingShaderFragment())
+    END_PASS
+END_TECHNIQUE

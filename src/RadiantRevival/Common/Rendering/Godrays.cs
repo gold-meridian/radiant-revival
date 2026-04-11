@@ -103,11 +103,11 @@ public static class Godrays
         {
             sb.Begin(SpriteSortMode.Immediate, BlendState.Additive, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
 
-            godraysShaderData.Parameters.light_position = lightPosition;
-            godraysShaderData.Parameters.sample_count = godrays_samples;
-            godraysShaderData.Parameters.decay_mult = 0.92f;
+            godraysShaderData.Parameters.LightPosition = lightPosition;
+            godraysShaderData.Parameters.SampleCount = godrays_samples;
+            godraysShaderData.Parameters.DecayMult = 0.92f;
 
-            godraysShaderData.Parameters.lights = new HlslSampler2D
+            godraysShaderData.Parameters.LightsTexture = new HlslSampler2D
             {
                 Texture = celestialBodyLease.Target,
                 Sampler = SamplerState.LinearClamp,
@@ -121,9 +121,9 @@ public static class Godrays
 
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
 
-        blurShaderData.Parameters.light_position = lightPosition;
-        blurShaderData.Parameters.sample_count = radial_blur_samples;
-        blurShaderData.Parameters.blur_strength = radial_blur_strength;
+        blurShaderData.Parameters.LightPosition = lightPosition;
+        blurShaderData.Parameters.SampleCount = radial_blur_samples;
+        blurShaderData.Parameters.BlurStrength = radial_blur_strength;
 
         blurShaderData.Apply();
 

@@ -1,86 +1,64 @@
+#include "../common.h"
 #include "../spheres.h"
 #include "../colors.h"
 
-sampler uImage0 : register(s0);
+sampler MoonTexture : register(s0);
 
-float shadowRotation;
+float ShadowRotation;
+float4 ShadowColor;
+float4 AtmoColor;
+float4 AtmoShadowColor;
+float Radius;
 
-float4 shadowColor;
-
-float4 atmoColor;
-float4 atmoShadowColor;
-
-float radius;
-
-float map(float value, float start1, float stop1, float start2, float stop2)
+float Map(float value, float start1, float stop1, float start2, float stop2)
 {
     value = clamp(value, start1, stop1);
     return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
 }
 
-float4 planet(float dist, float3 sp)
+float4 Planet(float dist, float3 sp)
 {
     float2 pt = lonlat(sp);
-    
-    float falloff = step(dist, radius);
-    
-    float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + shadowRotation)));
-    
-    light = 1 - pow(1 - map(light, -0.03, 0.4, 0, 1), 3.2);
-    
-    return lerp(shadowColor, tex2D(uImage0, pt), light) * falloff;
+    float falloff = step(dist, Radius);
+    float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + ShadowRotation)));
+    light = 1 - pow(1 - Map(light, -0.03, 0.4, 0, 1), 3.2);
+    return lerp(ShadowColor, tex2D(MoonTexture, pt), light) * falloff;
 }
 
-float4 atmo(float dist, float3 sp)
+float4 Atmo(float dist, float3 sp)
 {
-    float atmo = pow(map(dist, radius, 1, 1, 0), 2.5) * step(radius, dist);
-	
-    float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + shadowRotation)));
-    
-    light = 1 - pow(1 - map(light, -0.09, 0.34, 0, 1), 2);
-    
-    float4 col = oklabLerp(atmoShadowColor, atmoColor * tex2D(uImage0, 0.5), light);
-	
+    float atmo = pow(Map(dist, Radius, 1, 1, 0), 2.5) * step(Radius, dist);
+    float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + ShadowRotation)));
+    light = 1 - pow(1 - Map(light, -0.09, 0.34, 0, 1), 2);
+    float4 col = oklabLerp(AtmoShadowColor, AtmoColor * tex2D(MoonTexture, 0.5), light);
     return col * atmo;
 }
 
-float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
+float4 MoonShaderFragment(float2 moonUv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
 {
-    uv -= 0.5;
-    uv *= 2;
+    moonUv -= 0.5;
+    moonUv *= 2;
     
-    float dist = length(uv);
+    float dist = length(moonUv);
     
     clip(1 - dist);
     
-    if (dist > radius)
+    if (dist > Radius)
     {
-        float3 sp = sphere(uv, dist, radius);
-		
-        float4 color = atmo(dist, sp);
-        
+        float3 sp = sphere(moonUv, dist, Radius);
+        float4 color = Atmo(dist, sp);
         color *= color.a;
-        
         color.a = 0;
-        
         return color * baseColor;
     }
-    else
-    {
-        float3 sp = sphere(uv, dist, radius);
-		
-        float4 color = planet(dist, sp);
-		
-        return color * color.a * baseColor;
-    }
+    
+    float3 sp = sphere(moonUv, dist, Radius);
+    float4 color = Planet(dist, sp);
+    return color * color.a * baseColor;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass MoonShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(MoonShader)
+        PIXEL_SHADER(compile ps_3_0 MoonShaderFragment())
+    END_PASS
+END_TECHNIQUE

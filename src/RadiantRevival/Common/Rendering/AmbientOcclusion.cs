@@ -96,8 +96,8 @@ public static class AmbientOcclusion
 
         using (BlurTargetSwap.Scope(clearColor: Color.Transparent))
         {
-            horizShader.Parameters.sample_count = sample_count;
-            horizShader.Parameters.blur_size = blurSize;
+            horizShader.Parameters.SampleCount = sample_count;
+            horizShader.Parameters.BlurSize = blurSize;
 
             horizShader.Apply();
 
@@ -110,8 +110,8 @@ public static class AmbientOcclusion
 
         using (BlurTarget.Scope(clearColor: Color.Transparent))
         {
-            vertShader.Parameters.sample_count = sample_count;
-            vertShader.Parameters.blur_size = blurSize;
+            vertShader.Parameters.SampleCount = sample_count;
+            vertShader.Parameters.BlurSize = blurSize;
 
             vertShader.Apply();
 
@@ -137,9 +137,9 @@ public static class AmbientOcclusion
 
             var color = Color.Black * 0.36f;
             var maskShader = Data.Instance.MaskShader;
-            maskShader.Parameters.occlusion_color = color.ToVector4();
-            maskShader.Parameters.tex_pixel_offset = tileOffset;
-            maskShader.Parameters.tile_tex = new HlslSampler2D
+            maskShader.Parameters.OcclusionColor = color.ToVector4();
+            maskShader.Parameters.TilePixelOffset = tileOffset;
+            maskShader.Parameters.TileTexture = new HlslSampler2D
             {
                 Texture = BlurTarget.Target,
                 Sampler = SamplerState.PointClamp,
