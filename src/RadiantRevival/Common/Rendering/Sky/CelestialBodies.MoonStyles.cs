@@ -1,18 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
-using ReLogic.Content;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Terraria;
 using Terraria.GameContent;
-using Terraria.GameContent.Drawing;
 using Terraria.ModLoader;
 
 // ReSharper disable PossiblyImpureMethodCallOnReadonlyVariable
@@ -22,6 +20,24 @@ namespace RadiantRevival.Common;
 // TODO: Config
 public static class MoonStyles
 {
+    private sealed class Data : IStatic<Data>
+    {
+        public required WrapperShaderData<Assets.Sky.MoonShader.Parameters> MoonShader { get; init; }
+
+        public static Data LoadData(Mod mod)
+        {
+            return Main.RunOnMainThread(
+                () => new Data
+                {
+                    MoonShader = Assets.Sky.MoonShader.CreateMoonShader(),
+                }
+            ).GetAwaiter().GetResult();
+        }
+
+        public static void UnloadData(Data data)
+        { }
+    }
+
 #pragma warning disable CA2255
     [ModuleInitializer]
     public static void Init()
@@ -150,7 +166,47 @@ public static class MoonStyles
 
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
-        var _ = TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
+        TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Wait();
+        var model = TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
+        var shader = Data.Instance.MoonShader;
+
+        using var lease = RenderTargetPool.Shared.Rent(device, 300, 300, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 });
+
+        using (sb.Scope())
+        using (lease.Scope(clearColor: Color.Transparent))
+        {
+            device.RasterizerState = RasterizerState.CullCounterClockwise;
+
+            var cameraPositon = new Vector3(0.5f, 0, 0.5f);
+
+            var transform = Matrix.CreateLookAt(new Vector3(1, 0, 0.2f), Vector3.Zero, -Vector3.UnitY)
+                          * Matrix.CreateOrthographicOffCenter(-1, 1, 1, -1, -1, 1);
+
+            var inverse = Matrix.Transpose(transform);
+
+            shader.Parameters.LightPosition = new Vector3(MathF.Sin(Main.GlobalTimeWrappedHourly), 0f, MathF.Cos(Main.GlobalTimeWrappedHourly));
+            shader.Parameters.Projection = transform;
+            shader.Parameters.ProjectionInverse = inverse;
+
+            shader.Parameters.Texture = new HlslSampler
+            {
+                Texture = Assets.Sky.CelestialBodies.Moon0.Asset.Value,
+                Sampler = SamplerState.LinearClamp,
+            };
+
+            shader.Apply();
+
+            model.Draw(device, 0);
+            model.Draw(device, 1);
+            model.Draw(device, 2);
+        }
+
+        var origin = lease.Target.Size() * 0.5f;
+
+        var size = new Vector2(62 * scale) / lease.Target.Size();
+
+        sb.Draw(lease.Target, position, null, color, rotation, origin, size, SpriteEffects.None, 0f);
+
         return true;
     }
 }

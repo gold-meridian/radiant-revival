@@ -1,64 +1,55 @@
-#include "../common.h"
+﻿#include "../common.h"
 #include "../spheres.h"
-#include "../colors.h"
 
-sampler MoonTexture : register(s0);
+sampler Texture : register(s0);
+sampler NormalTexture : register(s1);
 
-float ShadowRotation;
-float4 ShadowColor;
-float4 AtmoColor;
-float4 AtmoShadowColor;
-float Radius;
+matrix Projection;
+matrix ProjectionInverse;
 
-float Map(float value, float start1, float stop1, float start2, float stop2)
+float3 LightPosition;
+
+struct VSInput
 {
-    value = clamp(value, start1, stop1);
-    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+    float4 Position : POSITION0;
+    float3 Normal : NORMAL0;
+    float3 TextureCoordinates : TEXCOORD0;
+};
+
+struct PSInput
+{
+    float4 Position : SV_POSITION;
+    float3 Normal : NORMAL0;
+    float3 TextureCoordinates : TEXCOORD0;
+};
+
+PSInput MoonShaderVertex(in VSInput input)
+{
+    PSInput output = (PSInput)0;
+    
+    float4 pos = mul(input.Position, Projection);
+    output.Position = pos;
+    
+    output.Normal = normalize(mul(input.Normal, ProjectionInverse));
+    output.TextureCoordinates = input.TextureCoordinates;
+
+    return output;
 }
 
-float4 Planet(float dist, float3 sp)
+float4 MoonShaderFragment(in PSInput input) : COLOR0
 {
-    float2 pt = lonlat(sp);
-    float falloff = step(dist, Radius);
-    float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + ShadowRotation)));
-    light = 1 - pow(1 - Map(light, -0.03, 0.4, 0, 1), 3.2);
-    return lerp(ShadowColor, tex2D(MoonTexture, pt), light) * falloff;
-}
+    float4 color = tex2D(Texture, input.TextureCoordinates.xy);
+    
+    float2 lightDir = normalize(LightPosition - input.Position.xyz);
+    
+    color.rgb *= dot(input.Normal, LightPosition);
 
-float4 Atmo(float dist, float3 sp)
-{
-    float atmo = pow(Map(dist, Radius, 1, 1, 0), 2.5) * step(Radius, dist);
-    float light = dot(sp, mul(float3(0, 1, 0), rotateZ(TAU - PIOVER2 + ShadowRotation)));
-    light = 1 - pow(1 - Map(light, -0.09, 0.34, 0, 1), 2);
-    float4 col = oklabLerp(AtmoShadowColor, AtmoColor * tex2D(MoonTexture, 0.5), light);
-    return col * atmo;
-}
-
-float4 MoonShaderFragment(float2 moonUv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
-{
-    moonUv -= 0.5;
-    moonUv *= 2;
-    
-    float dist = length(moonUv);
-    
-    clip(1 - dist);
-    
-    if (dist > Radius)
-    {
-        float3 sp = sphere(moonUv, dist, Radius);
-        float4 color = Atmo(dist, sp);
-        color *= color.a;
-        color.a = 0;
-        return color * baseColor;
-    }
-    
-    float3 sp = sphere(moonUv, dist, Radius);
-    float4 color = Planet(dist, sp);
-    return color * color.a * baseColor;
+    return color;
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(MoonShader)
+    BEGIN_PASS(MoonShader) 
+        VERTEX_SHADER(compile vs_3_0 MoonShaderVertex()) 
         PIXEL_SHADER(compile ps_3_0 MoonShaderFragment())
     END_PASS
 END_TECHNIQUE
