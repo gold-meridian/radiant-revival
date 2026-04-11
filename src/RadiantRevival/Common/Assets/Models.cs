@@ -5,6 +5,7 @@ using ReLogic.Content.Readers;
 using ReLogic.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Terraria;
@@ -14,10 +15,15 @@ namespace RadiantRevival.Common;
 
 internal sealed class ObjModel : IDisposable
 {
+    public VertexBuffer? Vertices;
+
     private Mesh[] meshes = [];
 
     public void Dispose()
     {
+        Vertices?.Dispose();
+        Vertices = null;
+
         for (var i = 0; i < meshes.Length; i++)
         {
             meshes[i].Dispose();
@@ -41,7 +47,6 @@ internal sealed class ObjModel : IDisposable
         var indices = new List<int>();
 
         var meshName = string.Empty;
-        var verticesStart = 0;
         var indicesStart = 0;
 
         using var reader = new StreamReader(stream);
@@ -96,6 +101,9 @@ internal sealed class ObjModel : IDisposable
             throw new InvalidDataException($"{nameof(ObjModel)}: Model did not contain a mesh!");
         }
 
+        model.Vertices = new VertexBuffer(device, typeof(VertexPositionNormalTexture), vertices.Count, BufferUsage.None);
+        model.Vertices.SetData(vertices.ToArray(), 0, vertices.Count);
+
         return model;
 
         void AddMesh()
@@ -105,13 +113,10 @@ internal sealed class ObjModel : IDisposable
                 return;
             }
 
-            var vBuffer = new VertexBuffer(device, typeof(VertexPositionNormalTexture), vertices.Count - verticesStart, BufferUsage.None);
-            vBuffer.SetData(vertices.ToArray(), verticesStart, vertices.Count - verticesStart);
-
             var iBuffer = new IndexBuffer(device, typeof(int), indices.Count - indicesStart, BufferUsage.None);
             iBuffer.SetData(indices.ToArray(), indicesStart, indices.Count - indicesStart);
 
-            meshes.Add(new Mesh(meshName, vBuffer, iBuffer));
+            meshes.Add(new Mesh(meshName, iBuffer));
         }
 
         void ParseObject(string[] segments)
@@ -124,7 +129,6 @@ internal sealed class ObjModel : IDisposable
             AddMesh();
 
             meshName = segments[1];
-            verticesStart = vertices.Count;
             indicesStart = indices.Count;
         }
 
@@ -216,8 +220,8 @@ internal sealed class ObjModel : IDisposable
                 {
                     indices.AddRange(
                         [
-                            start, start + 2, start + 1,
-                            start + 2, start + 3, start + 1,
+                            start, start + 1, start + 3,
+                            start + 3, start + 1, start + 2,
                         ]
                     );
                     break;
@@ -238,20 +242,21 @@ internal sealed class ObjModel : IDisposable
 
     public void Draw(GraphicsDevice device, int i = 0)
     {
+        Debug.Assert(Vertices is not null);
+
         var mesh = meshes[i];
 
         device.Indices = mesh.Indices;
-        device.SetVertexBuffer(mesh.Vertices);
-        device.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, mesh.Vertices.VertexCount, 0, mesh.Indices.IndexCount / 3);
+        device.SetVertexBuffer(Vertices);
+        device.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, Vertices.VertexCount, 0, mesh.Indices.IndexCount / 3);
         device.SetVertexBuffer(null);
         device.Indices = null;
     }
 
-    private readonly record struct Mesh(string Name, VertexBuffer Vertices, IndexBuffer Indices) : IDisposable
+    public readonly record struct Mesh(string Name, IndexBuffer Indices) : IDisposable
     {
         public void Dispose()
         {
-            Vertices.Dispose();
             Indices.Dispose();
         }
     }
