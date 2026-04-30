@@ -2,9 +2,8 @@
 
     <PropertyGroup>
         <TmlBuildUseDefaultModImpl>true</TmlBuildUseDefaultModImpl>
+        <TargetFramework>net10.0</TargetFramework>
         <TmlVersion>dev</TmlVersion>
-
-        <TmlBuildBootstrapFeatures>tomat.environmentmodlist;tomat.enablemod;lolxd87.splashskip</TmlBuildBootstrapFeatures>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,12 +22,6 @@
 
     <ItemGroup>
         <AdditionalFiles Include="**/*.obj"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Include="../BlockarozToolkit/**/*.cs">
-            <Link>Common/Development/AssetReloading/%(FileName)%(Extension)</Link>
-        </Compile>
     </ItemGroup>
 
 </Project>
