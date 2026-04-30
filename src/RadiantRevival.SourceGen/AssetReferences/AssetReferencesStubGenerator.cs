@@ -19,7 +19,7 @@ public sealed class AssetReferencesStubGenerator : IIncrementalGenerator
             (ctx, rootNamespace) =>
             {
                 ctx.AddSource(
-                    "TempAssetReferences.g.cs",
+                    "AssetReferences.g.cs",
                     GenerateStub(rootNamespace)
                 );
             }
@@ -38,8 +38,8 @@ public sealed class AssetReferencesStubGenerator : IIncrementalGenerator
              namespace {rootNamespace}.Core;
 
              // ReSharper disable InconsistentNaming
-             [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]
-             internal static partial class TempAssetReferences;
+             // [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]
+             internal static partial class AssetReferences;
              """;
     }
 }

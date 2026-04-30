@@ -174,8 +174,8 @@ public static class MoonStyles
 
     private static bool Draw(SpriteBatch sb, GraphicsDevice device, Vector2 position, Color color, float rotation, float scale)
     {
-        TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Wait();
-        var model = TempAssetReferences.Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
+        Assets.Sky.CelestialBodies.MoonTest.Asset.Wait();
+        var model = Assets.Sky.CelestialBodies.MoonTest.Asset.Value;
         var shader = Data.Instance.MoonShader;
 
         var moonLease = Data.Instance.MoonTarget;

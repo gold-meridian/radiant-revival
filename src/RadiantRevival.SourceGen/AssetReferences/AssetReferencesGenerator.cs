@@ -70,7 +70,7 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
                 var root = CreateAssetTree(generators, files, projectDir, ctx.CancellationToken);
 
                 ctx.AddSource(
-                    "TempAssetReferences.g.cs",
+                    "AssetReferences.g.cs",
                     GenerateAssetFile(generators, rootNamespace, assemblyName, root, ctx.CancellationToken)
                 );
             }
@@ -178,7 +178,7 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
               {{string.Join("\n", generators.Select(x => $"// - {x.GetType().FullName}"))}}
 
               // ReSharper disable InconsistentNaming
-              internal static partial class TempAssetReferences
+              internal static partial class AssetReferences
               {
               {{GenerateTextFromPathNode(assemblyName, root, token)}}
               }
@@ -203,13 +203,13 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
             var sb = new StringBuilder();
 
             var nodeTypeName = depth == 0
-                ? "TempAssetReferences"
+                ? "AssetReferences"
                 : NameSanitizer.MakeUniqueIdentifier(root.Name, pathSegments, usedNames, ancestors);
 
             if (depth != 0)
             {
-                sb.AppendLine($"{indent}[global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]");
-                sb.AppendLine($"{indent}public static class {NameSanitizer.ToValidIdentifier(root.Name)}");
+                sb.AppendLine($"{indent}// [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]");
+                sb.AppendLine($"{indent}public static partial class {NameSanitizer.ToValidIdentifier(root.Name)}");
                 sb.AppendLine($"{indent}{{");
             }
 
@@ -258,8 +258,8 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
                                 newAncestors
                             );
 
-                            sb.AppendLine($"{indent}    [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]");
-                            sb.AppendLine($"{indent}    public static class {uniqueVariantName}");
+                            sb.AppendLine($"{indent}    // [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]");
+                            sb.AppendLine($"{indent}    public static partial class {uniqueVariantName}");
                             sb.AppendLine($"{indent}    {{");
 
                             sb.AppendLine(variantFile.Generator.GenerateCode(assemblyName, variantFile, $"{indent}        "));
@@ -270,8 +270,8 @@ public abstract class AssetReferencesGenerator : IIncrementalGenerator
                     }
                 }
 
-                sb.AppendLine($"{indent}    [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]");
-                sb.AppendLine($"{indent}    public static class {fileTypeName}");
+                sb.AppendLine($"{indent}    // [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute]");
+                sb.AppendLine($"{indent}    public static partial class {fileTypeName}");
                 sb.AppendLine($"{indent}    {{");
 
                 sb.AppendLine(file.Generator.GenerateCode(assemblyName, file, $"{indent}        "));
