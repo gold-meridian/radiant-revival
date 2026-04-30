@@ -2,9 +2,8 @@
 
     <PropertyGroup>
         <TmlBuildUseDefaultModImpl>true</TmlBuildUseDefaultModImpl>
+        <TargetFramework>net10.0</TargetFramework>
         <TmlVersion>dev</TmlVersion>
-
-        <TmlBuildBootstrapFeatures>tomat.environmentmodlist;tomat.enablemod;lolxd87.splashskip</TmlBuildBootstrapFeatures>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,12 +16,6 @@
         <ProjectReference Include="..\daybreak-mod\src\Daybreak.SourceGen\Daybreak.SourceGen.csproj" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
 
         <PackageReference Include="GoldMeridian.KeyGen" Version="1.0.1" PrivateAssets="All" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Include="../BlockarozToolkit/**/*.cs">
-            <Link>Common/Development/AssetReloading/%(FileName)%(Extension)</Link>
-        </Compile>
     </ItemGroup>
 
 </Project>
