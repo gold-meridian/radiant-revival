@@ -14,7 +14,7 @@ using Terraria.Graphics.Renderers;
 using Terraria.ModLoader;
 using Terraria.Testing;
 
-namespace RadiantRevival.Common;
+namespace RenderReprise.Common;
 
 public static class RetroLighting
 {
