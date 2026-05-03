@@ -31,6 +31,8 @@ internal static class WidescreenSupport
             c.GotoNext(MoveType.After, x => x.MatchStsfld<Main>(nameof(Main._renderTargetMaxSize)));
             c.EmitDelegate(ForceOptions);
         };
+
+        Main.QueueMainThreadAction(Main.instance.InitTargets);
     }
 
     private static void ForceOptions()
