@@ -11,7 +11,7 @@ namespace RenderReprise.Common;
 ///     for rendering content that would normally exceed the limits of the
 ///     screen buffer.
 /// </summary>
-public static class TiledRenderingManager
+internal static class TargetChunkManager
 {
     private sealed class TileInfo
     {
