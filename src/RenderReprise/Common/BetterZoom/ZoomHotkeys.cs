@@ -50,10 +50,14 @@ internal static class ZoomHotkeys
             switch (zoomType)
             {
                 case ZoomType.Game:
+                    zoomAmount *= Main.GameZoomTarget;
+
                     Main.GameZoomTarget = Utils.Clamp(Main.GameZoomTarget + zoomAmount, 0.5f, 2f);
                     break;
 
                 case ZoomType.Interface:
+                    zoomAmount *= Main.UIScale;
+
                     Main.UIScale = Utils.Clamp(Main.UIScale + zoomAmount, 0.5f, 2f);
                     Main.temporaryGUIScaleSlider = Main.UIScale;
                     break;
