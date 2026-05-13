@@ -1,98 +1,73 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using Daybreak.Common.CIL;
 using Daybreak.Common.Features.Hooks;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
+using System.Diagnostics;
+using System.Reflection;
+using Mono.Cecil.Rocks;
+using Newtonsoft.Json.Schema;
 using Terraria;
-using Terraria.GameContent.Animations;
 using Terraria.GameContent.Drawing;
-using Terraria.GameContent.UI.Elements;
+using Terraria.GameContent.Liquid;
 using Terraria.Graphics.Capture;
-using Terraria.Graphics.Effects;
-using Terraria.Graphics.Renderers;
 using Terraria.ModLoader;
-using Terraria.Testing;
 
 namespace RenderReprise.Common;
 
+// TODO: Failsafe in-case the game fails to create the needed targets repeatedly? (vanilla issue)
+// TODO: Config
 public static class RetroLighting
 {
-    private static bool targetsReady;
-
-#pragma warning disable CA2255
-    [ModuleInitializer]
-    public static void Init()
-    {
-        MonoModHooks.Modify(
-            typeof(Main).GetProperty(
-                nameof(Main.DefaultSamplerState),
-                BindingFlags.Public | BindingFlags.Static
-            )!.GetMethod,
-            get_DefaultSamplerState_RetPointClamp
-        );
-
-        IL_Main.DrawProjectiles += _ => { };
-        IL_Main.DrawNPCDirect_Inner += _ => { };
-        IL_Main.DrawNPCDirect_HallowBoss += _ => { };
-        IL_Main.DrawProj_LightsBane += _ => { };
-        IL_Main.PrepareDrawnEntityDrawing += _ => { };
-        IL_Main.DrawCachedProjs += _ => { };
-        IL_Main.DrawSuperSpecialProjectiles += _ => { };
-        IL_Main.DrawWallOfStars += _ => { };
-        IL_Main.DrawSmartCursor += _ => { };
-        IL_Main.DrawBlack += _ => { };
-        IL_Main.DoDraw_WallsTilesNPCs += _ => { };
-        IL_Main.DoDraw_Tiles_Solid += _ => { };
-        IL_Main.DoDraw_Tiles_NonSolid += _ => { };
-        IL_Main.DoDraw_DrawNPCsOverTiles += _ => { };
-        IL_Main.DoDraw_DrawNPCsBehindTiles += _ => { };
-        IL_Main.DoDraw_WallsAndBlacks += _ => { };
-        IL_DebugLineDraw.Draw += _ => { };
-        IL_UIBestiaryEntryIcon.ctor += _ => { };
-        // TODO
-        // IL_LiquidEdgeRenderer.DrawTileMask += _ => { };
-        IL_TileDrawing.PostDrawTiles += _ => { };
-        IL_TileDrawing.DrawEntities_DisplayDolls += _ => { };
-        IL_TileDrawing.DrawEntities_HatRacks += _ => { };
-        IL_TileDrawing.DrawCustom += _ => { };
-        IL_TileDrawingBase.Begin += _ => { };
-        IL_Segments.SpriteSegment.MaskedFadeEffect.AfterDrawing += _ => { };
-
-        IL_LegacyPlayerRenderer.DrawPlayerFull += _ => { };
-        IL_ReturnGatePlayerRenderer.DrawReturnGateInWorld += _ => { };
-    }
-#pragma warning restore CA2255
-
     [OnLoad]
     private static void Load()
     {
-        IL_Main.DoDraw += DoDraw_DontCaptureMenu;
+        MonoModHooks.Modify(
+            typeof(Main).GetProperty(
+                nameof(Main.RenderTargetsRequired),
+                BindingFlags.Public | BindingFlags.Static
+            )!.GetMethod,
+            get_RenderTargetsRequired_ForceCapture
+        );
 
+        MonoModHooks.Modify(
+            typeof(Lighting).GetProperty(
+                nameof(Lighting.UpdateEveryFrame),
+                BindingFlags.Public | BindingFlags.Static
+            )!.GetMethod,
+            _ => { }
+        );
+
+        IL_Main.DoDraw += DoDraw_DontCaptureMenuUI;
         IL_Main.DoDraw += DoDraw_CaptureRetroLighting;
-        IL_FilterManager.EndCapture_RenderTarget2D_RenderTarget2D_RenderTarget2D_Vector2_Vector2_Vector2 += EndCapture_RetroColoration;
 
         IL_CaptureCamera.EndDrawCapture += EndDrawCapture_AllowCapturing;
         IL_Main.DrawCapture += _ => { };
 
-        On_FilterManager.BeginCapture += BeginCapture_Safety;
+        MonoModHooks.Modify(
+            typeof(LiquidEdgeRenderer).GetProperty(
+                nameof(LiquidEdgeRenderer.Active),
+                BindingFlags.Public | BindingFlags.Static
+            )!.GetMethod,
+            get_Active_AllowLiquidEdges
+        );
+
+        IL_Main.DrawWaters += _ => { };
+        IL_Main.DrawLiquid += _ => { };
+        IL_Main.DrawBlack += _ => { };
+        IL_LiquidRenderer.InternalPrepareDraw += _ => { };
+        IL_TileDrawing.Draw += _ => { };
+
+        IL_Main.oldDrawWater += oldDrawWater_UseLiquidCache;
     }
 
-    private static void get_DefaultSamplerState_RetPointClamp(ILContext il)
+    private static void get_RenderTargetsRequired_ForceCapture(ILContext il)
     {
         var c = new ILCursor(il);
 
-        c.GotoNext(
-            MoveType.After,
-            i => i.MatchLdsfld<Main>(nameof(Main.drawToScreen))
-        );
-
-        c.EmitPop();
-
-        c.EmitLdcI4(0);
+        c.EmitLdcI4(1);
+        c.EmitRet();
     }
 
-    private static void DoDraw_DontCaptureMenu(ILContext il)
+    private static void DoDraw_DontCaptureMenuUI(ILContext il)
     {
         var c = new ILCursor(il);
 
@@ -136,42 +111,7 @@ public static class RetroLighting
     {
         var c = new ILCursor(il);
 
-        var jumpInitTargets = c.DefineLabel();
-
-        c.GotoNext(
-            MoveType.Before,
-            i => i.MatchCall<Lighting>($"get_{nameof(Lighting.UpdateEveryFrame)}"),
-            i => i.MatchBrfalse(out _)
-        );
-
-        c.MoveAfterLabels();
-
-        c.EmitDelegate(LoadSpecificTargets);
-
-        c.EmitBrtrue(jumpInitTargets);
-
-        c.GotoNext(
-            MoveType.Before,
-            i => i.MatchLdsfld<Main>(nameof(Main.fpsCount))
-        );
-
-        c.MoveAfterLabels();
-
-        c.MarkLabel(jumpInitTargets);
-
-        for (var j = 0; j < 2; j++)
-        {
-            c.GotoNext(i => i.MatchLdstr("Sepia"));
-        }
-
-        c.GotoNext(
-            MoveType.After,
-            i => i.MatchLdsfld<Main>(nameof(Main.drawToScreen))
-        );
-
-        c.EmitPop();
-
-        c.EmitLdcI4(0);
+        c.GotoNext(i => i.MatchLdstr("Sepia"));
 
         c.GotoNext(
             MoveType.After,
@@ -179,30 +119,7 @@ public static class RetroLighting
         );
 
         c.EmitPop();
-
-        // Add our own condition, (This is just to be extra safe, if the targets were null the game may attempt to draw a null target in EndCapture).
-        c.EmitDelegate(
-            () =>
-                Main.screenTarget is not null &&
-                Main.screenTargetSwap is not null &&
-                Main.skyTarget is not null &&
-                !Main.screenTarget.IsContentLost &&
-                !Main.screenTargetSwap.IsContentLost &&
-                !Main.skyTarget.IsContentLost
-        );
-    }
-
-    private static void EndCapture_RetroColoration(ILContext il)
-    {
-        var c = new ILCursor(il);
-
-        while (c.TryGotoNext(
-                   MoveType.After,
-                   i => i.MatchLdsfld<Main>(nameof(Main.ColorOfTheSkies))
-               ))
-        {
-            c.EmitDelegate(static (Color sky) => Lighting.UpdateEveryFrame ? Color.White : sky);
-        }
+        c.EmitDelegate(static () => Main.targetSet);
     }
 
     private static void EndDrawCapture_AllowCapturing(ILContext il)
@@ -215,77 +132,206 @@ public static class RetroLighting
         );
 
         c.EmitPop();
-
         c.EmitLdcI4(1);
     }
 
-    private static void BeginCapture_Safety(On_FilterManager.orig_BeginCapture orig, FilterManager self, RenderTarget2D screenTarget1)
+    private static void get_Active_AllowLiquidEdges(ILContext il)
     {
-        if (Lighting.UpdateEveryFrame && !targetsReady)
-        {
-            return;
-        }
+        var c = new ILCursor(il);
 
-        orig(self, screenTarget1);
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchLdsfld(typeof(LiquidEdgeRenderer), nameof(LiquidEdgeRenderer.Enabled))
+        );
+
+        c.EmitRet();
     }
 
-    private static bool LoadSpecificTargets()
+    // Don't do this.
+    private static void oldDrawWater_UseLiquidCache(ILContext il)
     {
-        if (!Lighting.UpdateEveryFrame)
-        {
-            return false;
-        }
+        var c = new ILCursor(il);
 
-        if (Main.targetSet)
-        {
-            FauxReleaseTargets();
-        }
+        var cachePtrIndex = c.AddVariable(il.Import(typeof(LiquidRenderer.LiquidDrawCache*)).MakePinnedType());
+        var cachePtr2Index = c.AddVariable(il.Import(typeof(LiquidRenderer.LiquidDrawCache*)));
 
-        Main.targetSet = false;
+        var skipLoopEscape = c.DefineLabel();
 
-        var device = Main.graphics.GraphicsDevice;
+        var skipOldLoopStartTarget = c.DefineLabel();
+        var skipOldLoopEndTarget = c.DefineLabel();
 
-        var width = device.PresentationParameters.BackBufferWidth;
-        var height = device.PresentationParameters.BackBufferHeight;
+        var loopXStartTarget = c.DefineLabel();
+        var loopYStartTarget = c.DefineLabel();
 
-        if (!ShouldRefreshTarget(Main.screenTarget)
-         && !ShouldRefreshTarget(Main.screenTargetSwap)
-         && !ShouldRefreshTarget(Main.skyTarget)
-         && targetsReady)
-        {
-            return true;
-        }
+        var loopXEndTarget = c.DefineLabel();
+        var loopYEndTarget = c.DefineLabel();
 
-        var format = device.PresentationParameters.BackBufferFormat;
+        ILLabel? oldLoopYEndTarget = null;
 
-        Main.screenTarget?.Dispose();
-        Main.screenTargetSwap?.Dispose();
-        Main.skyTarget?.Dispose();
+        // oldDrawWater loops over Y before X making this edit ~9x more difficult
+        var iIndex = -1; // Y, loc
+        var jIndex = -1; // X, loc
 
-        Main.screenTarget = new RenderTarget2D(device, width, height, false, format, DepthFormat.None);
-        Main.screenTargetSwap = new RenderTarget2D(device, width, height, false, format, DepthFormat.None);
-        Main.skyTarget = new RenderTarget2D(device, width, height, false, format, DepthFormat.None);
+        c.GotoNext(
+            MoveType.Before,
+            i => i.MatchLdsflda<Main>(nameof(Main.tile))
+        );
 
-        targetsReady = true;
+        c.MoveAfterLabels();
 
-        return true;
+        c.FindPrev(
+            out _,
+            i => i.MatchStloc(out iIndex),
+            i => i.MatchBr(out _),
+            i => i.MatchStloc(out jIndex)
+        );
 
-        bool ShouldRefreshTarget(RenderTarget2D? target)
-        {
-            return target is null || target.IsContentLost || target.Width != width || target.Height != height;
-        }
-    }
+        c.MarkLabel(skipOldLoopStartTarget);
 
-    private static void FauxReleaseTargets()
-    {
-        Main.drawToScreen = true;
-        Main.offScreenRange = 0;
+        c.EmitLdfld(
+            il.Import(
+                typeof(LiquidRenderer).GetField(
+                    nameof(LiquidRenderer._drawCache),
+                    BindingFlags.NonPublic | BindingFlags.Instance
+                )!
+            )
+        );
+        c.EmitLdcI4(0);
+        c.EmitLdelema(typeof(LiquidRenderer.LiquidDrawCache));
+        c.EmitStloc(cachePtrIndex);
 
-        Main.waterTarget?.Dispose();
-        Main.backWaterTarget.Dispose();
-        Main.tileTarget?.Dispose();
-        Main.tile2Target?.Dispose();
-        Main.wallTarget?.Dispose();
-        Main.backgroundTarget?.Dispose();
+        c.EmitLdloc(cachePtrIndex);
+        c.EmitConvU();
+        c.EmitStloc(cachePtr2Index);
+
+        c.EmitLdloca(jIndex);
+        c.EmitDelegate(
+            static (ref int x) =>
+            {
+                x = LiquidRenderer.Instance._drawArea.X;
+            }
+        );
+
+        c.EmitBr(loopXEndTarget);
+
+        c.MarkLabel(loopXStartTarget);
+
+        c.EmitLdloca(iIndex);
+        c.EmitDelegate(
+            static (ref int y) =>
+            {
+                y = LiquidRenderer.Instance._drawArea.Y;
+            }
+        );
+
+        c.EmitBr(loopYEndTarget);
+
+        c.MarkLabel(loopYStartTarget);
+
+        c.GotoPrev(
+            MoveType.Before,
+            i => i.MatchLdloc(out _),
+            i => i.MatchStloc(iIndex),
+            i => i.MatchBr(out oldLoopYEndTarget)
+        );
+
+        Debug.Assert(oldLoopYEndTarget is not null);
+
+        c.EmitBr(skipOldLoopStartTarget);
+
+        // LOOP ESCAPE
+
+        c.GotoNext(
+            MoveType.Before,
+            i => i.MatchCall<Tile>($"get_{nameof(Tile.liquid)}")
+        );
+
+        c.GotoPrev(
+            MoveType.Before,
+            i => i.MatchLdsflda<Main>(nameof(Main.tile))
+        );
+
+        c.EmitBr(skipLoopEscape);
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchLdarg(out _),
+            i => i.MatchOr(),
+            i => i.MatchBrfalse(out _)
+        );
+
+        c.MarkLabel(skipLoopEscape);
+
+        c.EmitLdloc(cachePtr2Index);
+
+        c.EmitLdfld(
+            il.Import(
+                typeof(LiquidRenderer.LiquidDrawCache).GetField(
+                    nameof(LiquidRenderer.LiquidDrawCache.IsVisible),
+                    BindingFlags.Public | BindingFlags.Instance
+                )!
+            )
+        );
+
+        c.EmitBrfalse(oldLoopYEndTarget);
+
+        // LOOP END
+
+        c.GotoLabel(oldLoopYEndTarget);
+
+        c.GotoPrev(
+            MoveType.Before,
+            i => i.MatchLdloc(jIndex),
+            i => i.MatchLdcI4(1),
+            i => i.MatchAdd()
+        );
+
+        c.MoveAfterLabels();
+
+        c.EmitLdloc(cachePtr2Index);
+        c.EmitSizeof(typeof(LiquidRenderer.LiquidDrawCache));
+        c.EmitAdd();
+        c.EmitStloc(cachePtr2Index);
+
+        c.MarkLabel(loopYEndTarget);
+
+        c.EmitLdloca(iIndex);
+        c.EmitDelegate(
+            static (ref int y) =>
+            {
+                var drawArea = LiquidRenderer.Instance._drawArea;
+
+                y++;
+                return y < drawArea.Y + drawArea.Height;
+            }
+        );
+
+        c.EmitBrtrue(loopYStartTarget);
+
+        c.MarkLabel(loopXEndTarget);
+
+        c.EmitLdloca(jIndex);
+        c.EmitDelegate(
+            static (ref int x) =>
+            {
+                var drawArea = LiquidRenderer.Instance._drawArea;
+
+                x++;
+                return x < drawArea.X + drawArea.Width;
+            }
+        );
+
+        c.EmitBrtrue(loopXStartTarget);
+
+        c.EmitBr(skipOldLoopEndTarget);
+
+        c.GotoNext(
+            MoveType.Before,
+            i => i.MatchLdsfld<Main>(nameof(Main.drewLava))
+        );
+
+        c.MarkLabel(skipOldLoopEndTarget);
+
+        MonoModHooks.DumpIL(ModContent.GetInstance<ModImpl>(), il);
     }
 }
