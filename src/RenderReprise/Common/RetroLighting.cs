@@ -44,6 +44,8 @@ public static class RetroLighting
         IL_CaptureCamera.EndDrawCapture += EndDrawCapture_AllowCapturing;
         IL_Main.DrawCapture += _ => { };
 
+        IL_Main.DrawLiquid += DrawLiquid_UseNewRendering;
+
         /*
         if (!LiquidEdgeRenderer.Enabled)
         {
@@ -143,6 +145,20 @@ public static class RetroLighting
         c.EmitPop();
         c.EmitLdcI4(1);
     }
+
+    private static void DrawLiquid_UseNewRendering(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchCall<Lighting>($"get_{nameof(Lighting.NotRetro)}")
+        );
+
+        c.EmitPop();
+        c.EmitLdcI4(1);
+    }
+
 
     private static void get_Active_AllowLiquidEdges(ILContext il)
     {
