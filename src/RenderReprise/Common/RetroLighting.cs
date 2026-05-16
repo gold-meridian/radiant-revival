@@ -3,9 +3,10 @@ using Daybreak.Common.Features.Hooks;
 using MonoMod.Cil;
 using System.Diagnostics;
 using System.Reflection;
+using Microsoft.Xna.Framework;
 using Mono.Cecil.Rocks;
-using Newtonsoft.Json.Schema;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
 using Terraria.GameContent.Liquid;
 using Terraria.Graphics.Capture;
@@ -15,6 +16,7 @@ namespace RenderReprise.Common;
 
 // TODO: Failsafe in-case the game fails to create the needed targets repeatedly? (vanilla issue)
 // TODO: Config
+// TODO: Fix DrawCapture in general as it doesn't use any targets for rendering
 public static class RetroLighting
 {
     [OnLoad]
@@ -42,6 +44,12 @@ public static class RetroLighting
         IL_CaptureCamera.EndDrawCapture += EndDrawCapture_AllowCapturing;
         IL_Main.DrawCapture += _ => { };
 
+        /*
+        if (!LiquidEdgeRenderer.Enabled)
+        {
+            return;
+        }
+
         MonoModHooks.Modify(
             typeof(LiquidEdgeRenderer).GetProperty(
                 nameof(LiquidEdgeRenderer.Active),
@@ -57,6 +65,7 @@ public static class RetroLighting
         IL_TileDrawing.Draw += _ => { };
 
         IL_Main.oldDrawWater += oldDrawWater_UseLiquidCache;
+        */
     }
 
     private static void get_RenderTargetsRequired_ForceCapture(ILContext il)
@@ -148,7 +157,7 @@ public static class RetroLighting
     }
 
     // Don't do this.
-    private static void oldDrawWater_UseLiquidCache(ILContext il)
+    private static unsafe void oldDrawWater_UseLiquidCache(ILContext il)
     {
         var c = new ILCursor(il);
 
@@ -166,172 +175,279 @@ public static class RetroLighting
         var loopXEndTarget = c.DefineLabel();
         var loopYEndTarget = c.DefineLabel();
 
+        var skipFramingTarget = c.DefineLabel();
+
         ILLabel? oldLoopYEndTarget = null;
 
         // oldDrawWater loops over Y before X making this edit ~9x more difficult
         var iIndex = -1; // Y, loc
         var jIndex = -1; // X, loc
 
-        c.GotoNext(
-            MoveType.Before,
-            i => i.MatchLdsflda<Main>(nameof(Main.tile))
-        );
+        var positionIndex = -1;
+        var sourceRectangleIndex = -1;
 
-        c.MoveAfterLabels();
+        var liquidTypeIndex = -1;
 
-        c.FindPrev(
-            out _,
-            i => i.MatchStloc(out iIndex),
-            i => i.MatchBr(out _),
-            i => i.MatchStloc(out jIndex)
-        );
+        // Loop start
+        {
+            c.GotoNext(
+                MoveType.Before,
+                i => i.MatchLdsflda<Main>(nameof(Main.tile))
+            );
 
-        c.MarkLabel(skipOldLoopStartTarget);
+            c.MoveAfterLabels();
 
-        c.EmitLdfld(
-            il.Import(
-                typeof(LiquidRenderer).GetField(
-                    nameof(LiquidRenderer._drawCache),
-                    BindingFlags.NonPublic | BindingFlags.Instance
-                )!
-            )
-        );
-        c.EmitLdcI4(0);
-        c.EmitLdelema(typeof(LiquidRenderer.LiquidDrawCache));
-        c.EmitStloc(cachePtrIndex);
+            c.FindPrev(
+                out _,
+                i => i.MatchStloc(out iIndex),
+                i => i.MatchBr(out _),
+                i => i.MatchStloc(out jIndex)
+            );
 
-        c.EmitLdloc(cachePtrIndex);
-        c.EmitConvU();
-        c.EmitStloc(cachePtr2Index);
+            c.MarkLabel(skipOldLoopStartTarget);
 
-        c.EmitLdloca(jIndex);
-        c.EmitDelegate(
-            static (ref int x) =>
+            c.EmitLdsfld(
+                il.Import(
+                    typeof(LiquidRenderer).GetField(
+                        nameof(LiquidRenderer.Instance),
+                        BindingFlags.Public | BindingFlags.Static
+                    )!
+                )
+            );
+            c.EmitLdfld(
+                il.Import(
+                    typeof(LiquidRenderer).GetField(
+                        nameof(LiquidRenderer._drawCache),
+                        BindingFlags.NonPublic | BindingFlags.Instance
+                    )!
+                )
+            );
+            c.EmitLdcI4(0);
+            c.EmitLdelema(typeof(LiquidRenderer.LiquidDrawCache));
+            c.EmitStloc(cachePtrIndex);
+
+            c.EmitLdloc(cachePtrIndex);
+            c.EmitConvU();
+            c.EmitStloc(cachePtr2Index);
+
+            c.EmitLdloca(jIndex);
+            c.EmitDelegate(
+                static (ref int x) =>
+                {
+                    x = LiquidRenderer.Instance._drawArea.X;
+                }
+            );
+
+            c.EmitBr(loopXEndTarget);
+
+            c.MarkLabel(loopXStartTarget);
+
+            c.EmitLdloca(iIndex);
+            c.EmitDelegate(
+                static (ref int y) =>
+                {
+                    y = LiquidRenderer.Instance._drawArea.Y;
+                }
+            );
+
+            c.EmitBr(loopYEndTarget);
+
+            c.MarkLabel(loopYStartTarget);
+
+            c.GotoPrev(
+                MoveType.Before,
+                i => i.MatchLdloc(out _),
+                i => i.MatchStloc(iIndex),
+                i => i.MatchBr(out oldLoopYEndTarget)
+            );
+
+            Debug.Assert(oldLoopYEndTarget is not null);
+
+            c.EmitBr(skipOldLoopStartTarget);
+        }
+
+        // Skip drawing
+        {
+            c.GotoNext(
+                MoveType.Before,
+                i => i.MatchCall<Tile>($"get_{nameof(Tile.liquid)}")
+            );
+
+            c.GotoPrev(
+                MoveType.Before,
+                i => i.MatchLdsflda<Main>(nameof(Main.tile))
+            );
+
+            c.EmitBr(skipLoopEscape);
+
+            c.GotoNext(
+                MoveType.After,
+                i => i.MatchLdarg(out _),
+                i => i.MatchOr(),
+                i => i.MatchBrfalse(out _)
+            );
+
+            c.MarkLabel(skipLoopEscape);
+
+            c.EmitLdloc(cachePtr2Index);
+
+            c.EmitLdfld(
+                il.Import(
+                    typeof(LiquidRenderer.LiquidDrawCache).GetField(
+                        nameof(LiquidRenderer.LiquidDrawCache.IsVisible),
+                        BindingFlags.Public | BindingFlags.Instance
+                    )!
+                )
+            );
+
+            c.EmitBrfalse(loopYEndTarget);
+        }
+
+        // Framing
+        {
+            c.GotoNext(
+                MoveType.After,
+                i => i.MatchCall<Main>(nameof(Main.DrawTileInWater))
+            );
+
+            c.FindPrev(
+                out _,
+                i => i.MatchLdloc(out liquidTypeIndex),
+                i => i.MatchBeq(out _)
+            );
+
+            c.FindNext(
+                out _,
+                i => i.MatchLdloca(out positionIndex),
+                i => i.MatchLdloca(out sourceRectangleIndex)
+            );
+
+            c.GotoNext(
+                MoveType.After,
+                i => i.MatchLdcI4(1),
+                i => i.MatchStloc(out _)
+            );
+
+            c.EmitLdloc(cachePtr2Index);
+
+            c.EmitLdloca(positionIndex);
+            c.EmitLdloca(sourceRectangleIndex);
+
+            c.EmitLdloc(jIndex);
+            c.EmitLdloc(iIndex);
+
+            c.EmitLdloca(liquidTypeIndex);
+
+            c.EmitDelegate(
+                static (LiquidRenderer.LiquidDrawCache* ptr, ref Vector2 position, ref Rectangle source, int x, int y, ref int type) =>
+                {
+                    type = ptr->Type;
+
+                    source = ptr->SourceRectangle;
+
+                    // Hack, TODO: Remove the logic proper at a later date
+                    Main.wFrame = 0;
+
+                    if (ptr->IsSurfaceLiquid)
+                    {
+                        source.Y = 1280;
+                    }
+                    else if (source.X == 16)
+                    {
+                        source.Y += LiquidRenderer.Instance._waterfallAnimationFrame * 80;
+                    }
+                    else
+                    {
+                        source.Y += LiquidRenderer.Instance._animationFrame * 80;
+                    }
+
+                    position = new Vector2(x << 4, y << 4) + ptr->LiquidOffset;
+                }
+            );
+
+            c.EmitBr(skipFramingTarget);
+
+            c.GotoNext(
+                MoveType.Before,
+                i => i.MatchLdloca(out _),
+                i => i.MatchCall<Color>($"get_{nameof(Color.R)}")
+            );
+
+            c.MarkLabel(skipFramingTarget);
+        }
+
+        // Textures
+        {
+            var c2 = c.Clone();
+
+            // Should we be messing with the textures retro water uses? Are we tarnishing the 'retro look'?
+            while (c2.TryGotoNext(
+                       MoveType.After,
+                       i => i.MatchLdsfld(typeof(TextureAssets), nameof(TextureAssets.Liquid))
+                   ))
             {
-                x = LiquidRenderer.Instance._drawArea.X;
+                c2.EmitPop();
+
+                c2.EmitDelegate(static () => LiquidRenderer.Instance._liquidTextures);
             }
-        );
+        }
 
-        c.EmitBr(loopXEndTarget);
+        // Loop end
+        {
+            c.GotoLabel(oldLoopYEndTarget);
 
-        c.MarkLabel(loopXStartTarget);
+            c.GotoPrev(
+                MoveType.Before,
+                i => i.MatchLdloc(jIndex),
+                i => i.MatchLdcI4(1),
+                i => i.MatchAdd()
+            );
 
-        c.EmitLdloca(iIndex);
-        c.EmitDelegate(
-            static (ref int y) =>
-            {
-                y = LiquidRenderer.Instance._drawArea.Y;
-            }
-        );
+            c.MoveAfterLabels();
 
-        c.EmitBr(loopYEndTarget);
+            c.MarkLabel(loopYEndTarget);
 
-        c.MarkLabel(loopYStartTarget);
+            c.EmitLdloc(cachePtr2Index);
+            c.EmitSizeof(typeof(LiquidRenderer.LiquidDrawCache));
+            c.EmitAdd();
+            c.EmitStloc(cachePtr2Index);
 
-        c.GotoPrev(
-            MoveType.Before,
-            i => i.MatchLdloc(out _),
-            i => i.MatchStloc(iIndex),
-            i => i.MatchBr(out oldLoopYEndTarget)
-        );
+            c.EmitLdloca(iIndex);
+            c.EmitDelegate(
+                static (ref int y) =>
+                {
+                    var drawArea = LiquidRenderer.Instance._drawArea;
 
-        Debug.Assert(oldLoopYEndTarget is not null);
+                    y++;
+                    return y < drawArea.Y + drawArea.Height;
+                }
+            );
 
-        c.EmitBr(skipOldLoopStartTarget);
+            c.EmitBrtrue(loopYStartTarget);
 
-        // LOOP ESCAPE
+            c.MarkLabel(loopXEndTarget);
 
-        c.GotoNext(
-            MoveType.Before,
-            i => i.MatchCall<Tile>($"get_{nameof(Tile.liquid)}")
-        );
+            c.EmitLdloca(jIndex);
+            c.EmitDelegate(
+                static (ref int x) =>
+                {
+                    var drawArea = LiquidRenderer.Instance._drawArea;
 
-        c.GotoPrev(
-            MoveType.Before,
-            i => i.MatchLdsflda<Main>(nameof(Main.tile))
-        );
+                    x++;
+                    return x < drawArea.X + drawArea.Width;
+                }
+            );
 
-        c.EmitBr(skipLoopEscape);
+            c.EmitBrtrue(loopXStartTarget);
 
-        c.GotoNext(
-            MoveType.After,
-            i => i.MatchLdarg(out _),
-            i => i.MatchOr(),
-            i => i.MatchBrfalse(out _)
-        );
+            c.EmitBr(skipOldLoopEndTarget);
 
-        c.MarkLabel(skipLoopEscape);
+            c.GotoNext(
+                MoveType.Before,
+                i => i.MatchLdsfld<Main>(nameof(Main.drewLava))
+            );
 
-        c.EmitLdloc(cachePtr2Index);
-
-        c.EmitLdfld(
-            il.Import(
-                typeof(LiquidRenderer.LiquidDrawCache).GetField(
-                    nameof(LiquidRenderer.LiquidDrawCache.IsVisible),
-                    BindingFlags.Public | BindingFlags.Instance
-                )!
-            )
-        );
-
-        c.EmitBrfalse(oldLoopYEndTarget);
-
-        // LOOP END
-
-        c.GotoLabel(oldLoopYEndTarget);
-
-        c.GotoPrev(
-            MoveType.Before,
-            i => i.MatchLdloc(jIndex),
-            i => i.MatchLdcI4(1),
-            i => i.MatchAdd()
-        );
-
-        c.MoveAfterLabels();
-
-        c.EmitLdloc(cachePtr2Index);
-        c.EmitSizeof(typeof(LiquidRenderer.LiquidDrawCache));
-        c.EmitAdd();
-        c.EmitStloc(cachePtr2Index);
-
-        c.MarkLabel(loopYEndTarget);
-
-        c.EmitLdloca(iIndex);
-        c.EmitDelegate(
-            static (ref int y) =>
-            {
-                var drawArea = LiquidRenderer.Instance._drawArea;
-
-                y++;
-                return y < drawArea.Y + drawArea.Height;
-            }
-        );
-
-        c.EmitBrtrue(loopYStartTarget);
-
-        c.MarkLabel(loopXEndTarget);
-
-        c.EmitLdloca(jIndex);
-        c.EmitDelegate(
-            static (ref int x) =>
-            {
-                var drawArea = LiquidRenderer.Instance._drawArea;
-
-                x++;
-                return x < drawArea.X + drawArea.Width;
-            }
-        );
-
-        c.EmitBrtrue(loopXStartTarget);
-
-        c.EmitBr(skipOldLoopEndTarget);
-
-        c.GotoNext(
-            MoveType.Before,
-            i => i.MatchLdsfld<Main>(nameof(Main.drewLava))
-        );
-
-        c.MarkLabel(skipOldLoopEndTarget);
-
-        MonoModHooks.DumpIL(ModContent.GetInstance<ModImpl>(), il);
+            c.MarkLabel(skipOldLoopEndTarget);
+        }
     }
 }
