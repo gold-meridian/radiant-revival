@@ -60,6 +60,16 @@ public static class Rain
         }
     }
 
+    public sealed class RainRenderer : IScreenFilterStep
+    {
+        public EffectPriority Priority => EffectPriority.Low;
+
+        public bool Apply(in ScreenFilterRendererContext ctx)
+        {
+            return ApplyShader(ctx.ScreenTarget, ctx.ScreenTargetSwap, ctx.Color);
+        }
+    }
+
     private static RenderTargetLease MaskTarget => Data.Instance.MaskTarget;
 
     private static RenderTargetLease MaskTargetSwap => Data.Instance.MaskTargetSwap;
@@ -78,9 +88,6 @@ public static class Rain
         On_Main.DrawRain += DrawRain_Disable;
 
         On_Main.RenderTiles += RenderTiles_MaskTarget;
-        IL_FilterManager.EndCapture_RenderTarget2D_RenderTarget2D_RenderTarget2D_Vector2_Vector2_Vector2 += EndCapture_RainShader;
-        On_FilterManager.CanCapture += CanCapture_AllowRain;
-        IL_Main.DoDraw += _ => { };
     }
 
     private static void MakeRain_Disable(On_Rain.orig_MakeRain orig)
@@ -162,83 +169,53 @@ public static class Rain
         }
     }
 
-    private static void EndCapture_RainShader(ILContext il)
+    private static bool ApplyShader(RenderTarget2D screen, RenderTarget2D screenSwap, Color color)
     {
-        var c = new ILCursor(il);
+        if (!Active || Main.drawToScreen)
+        {
+            return false;
+        }
 
-        var tIndex = -1;  // loc
-        var t2Index = -1; // loc
+        var distortionShader = Data.Instance.DistortionShader;
 
-        c.GotoNext(
-            MoveType.After,
-            i => i.MatchLdloca(out t2Index),
-            i => i.MatchLdloca(out tIndex),
-            i => i.MatchCall(typeof(Utils), nameof(Utils.Swap))
-        );
+        var sb = Main.spriteBatch;
+        var device = Main.graphics.GraphicsDevice;
 
-        c.EmitLdloca(tIndex);
-        c.EmitLdloca(t2Index);
+        device.SetRenderTarget(screenSwap);
+        device.Clear(Color.Transparent);
 
-        c.EmitDelegate(
-            static (ref RenderTarget2D target, ref RenderTarget2D target2) =>
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+        {
+            var tilePos = Main.tileTarget.Position;
+            var tileOffset = new Vector2(
+                IsIntegerOdd(tilePos.X) ? -0.5f : 0,
+                IsIntegerOdd(tilePos.Y) ? -0.5f : 0
+            );
+
+            distortionShader.Parameters.Time = (float)Main.timeForVisualEffects;
+
+            distortionShader.Parameters.DrawOffset = Main.tileTarget.Position - Main.screenPosition;
+            distortionShader.Parameters.TilePixelOffset = tileOffset;
+
+            distortionShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
+
+            distortionShader.Parameters.MaskTexture = new HlslSampler2D
             {
-                // TODO: Should rlf use tileTarget ?
-                if (!Active || Main.drawToScreen)
-                {
-                    return;
-                }
+                Texture = MaskTarget.Target,
+                Sampler = SamplerState.PointClamp,
+            };
 
-                var distortionShader = Data.Instance.DistortionShader;
+            distortionShader.Apply();
 
-                var sb = Main.spriteBatch;
-                var device = Main.graphics.GraphicsDevice;
+            sb.Draw(screen, Vector2.Zero, color);
+        }
+        sb.End();
 
-                device.SetRenderTarget(target2);
-                device.Clear(Color.Transparent);
-
-                sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
-                {
-                    var tilePos = Main.tileTarget.Position;
-                    var tileOffset = new Vector2(
-                        IsIntegerOdd(tilePos.X) ? -0.5f : 0,
-                        IsIntegerOdd(tilePos.Y) ? -0.5f : 0
-                    );
-
-                    var color = Lighting.UpdateEveryFrame ? Color.White : Main.ColorOfTheSkies;
-
-                    distortionShader.Parameters.Time = (float)Main.timeForVisualEffects;
-
-                    distortionShader.Parameters.DrawOffset = Main.tileTarget.Position - Main.screenPosition;
-                    distortionShader.Parameters.TilePixelOffset = tileOffset;
-
-                    distortionShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
-
-                    distortionShader.Parameters.MaskTexture = new HlslSampler2D
-                    {
-                        Texture = MaskTarget.Target,
-                        Sampler = SamplerState.PointClamp,
-                    };
-
-                    distortionShader.Apply();
-
-                    sb.Draw(target, Vector2.Zero, color);
-                }
-                sb.End();
-
-                Utils.Swap(ref target2, ref target);
-            }
-        );
-
-        return;
+        return true;
 
         static bool IsIntegerOdd(float f)
         {
             return (int)f % 2 == 1;
         }
-    }
-
-    private static bool CanCapture_AllowRain(On_FilterManager.orig_CanCapture orig, FilterManager self)
-    {
-        return Active || orig(self);
     }
 }
