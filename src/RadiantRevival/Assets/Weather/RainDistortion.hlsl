@@ -6,7 +6,7 @@ sampler2D LightMap : register(s2);
 sampler2D Noise : register(s3);
 
 #define TILE_SIZE (16.0)
-#define TIME_SPEED (0.2)
+#define TIME_SPEED (0.001)
 
 TEXTURE_SIZE(ScreenTextureSize, 0);
 TEXTURE_SIZE(MaskTextureSize, 1);
@@ -59,23 +59,25 @@ float4 RainDistortionShaderFragment(float2 svPos : SV_POSITION, float4 baseColor
     float2 rainUv = uv;
     rainUv += ScreenPosition;
     rainUv /= max(ScreenTextureSize.x, ScreenTextureSize.y);
-    rainUv.y *= 0.3;
     
-    rainUv += Time * TIME_SPEED;
-    rainUv.x += rainUv.y * Direction.x;
+    rainUv.x += rainUv.y * -Direction.x;
+    rainUv.x *= 3;
+    rainUv.y *= 0.015;
     
-    float noise = tex2D(Noise, rainUv).x * tex2D(Noise, rainUv * 0.32f).y;
-    float rain = saturate(pow(abs(noise) - (1 - Intensity), 5.) * 10.0);
+    rainUv.y -= Time * TIME_SPEED * max(Intensity, 0.4);
     
-    float2 offset = Direction * 0.03 * (1 - pow(1 - rain, 3));
+    float noise = tex2D(Noise, rainUv).x;
+    float strength = 3.4 * (1 - pow(1 - Intensity, 12));
+    float rain = saturate(pow(abs(noise * strength) - (1 - pow(Intensity, 2)), 5));
     
-    float4 color = tex2D(ScreenTexture, uv / ScreenTextureSize + offset);
+    float offsetSize = 32 * Intensity / max(ScreenTextureSize.x, ScreenTextureSize.y);
+    float2 offset = -Direction * offsetSize * (1 - pow(1 - rain, 5)) * (1 - mask);
     
-    color += rain * (1 - mask);
+    float4 color = tex2D(ScreenTexture, (uv / ScreenTextureSize) + offset);
     
-    color.rgb *= light * GlobalBrightness;
+    color.rgb += (rain * (1 - mask)) * 0.1 * (1 - Intensity) * light * GlobalBrightness;
     
-    return color * baseColor;
+    return color;
 }
 
 BEGIN_TECHNIQUE(Technique1)

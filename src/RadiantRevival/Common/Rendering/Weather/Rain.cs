@@ -204,7 +204,7 @@ public static class Rain
 
             distortionShader.Parameters.Time = (float)Main.timeForVisualEffects;
             distortionShader.Parameters.Direction = direction;
-            distortionShader.Parameters.Intensity = Main.cloudAlpha;
+            distortionShader.Parameters.Intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
 
             distortionShader.Parameters.TilePixelOffset = tileOffset;
 
