@@ -74,17 +74,26 @@ public static class ScreenFilterRenderer
                     return;
                 }
 
-                prior = nextFilter.Priority;
-
                 var color = Lighting.UpdateEveryFrame ? Color.White : Main.ColorOfTheSkies;
 
-                foreach (var step in filters_by_priority[prior.Value])
+                prior ??= EffectPriority.VeryLow;
+
+                for (var p = prior.Value; p <= nextFilter.Priority; p++)
                 {
-                    if (step.Apply(new ScreenFilterRendererContext(target, target2, color)))
+                    if (!filters_by_priority.TryGetValue(p, out var steps))
                     {
-                        Utils.Swap(ref target2, ref target);
+                        continue;
+                    }
+
+                    foreach (var step in steps)
+                    {
+                        if (step.Apply(new ScreenFilterRendererContext(target, target2, color)))
+                        {
+                            Utils.Swap(ref target2, ref target);
+                        }
                     }
                 }
+                prior = nextFilter.Priority;
             }
         );
     }
