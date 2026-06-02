@@ -117,7 +117,7 @@ public static class SmoothLightingRenderer
     private static bool ShouldInterceptEffect(SpriteBatch sb, [NotNullWhen(returnValue: true)] out ApplicationState? state)
     {
         state = null;
-
+        
         if (!IsCurrentlyApplied)
         {
             return false;

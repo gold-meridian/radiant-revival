@@ -62,7 +62,7 @@ public static class Rain
 
     public sealed class RainRenderer : IScreenFilterStep
     {
-        public EffectPriority Priority => EffectPriority.Low;
+        public EffectPriority Priority => EffectPriority.Medium;
 
         public bool Apply(in ScreenFilterRendererContext ctx)
         {
@@ -134,14 +134,22 @@ public static class Rain
                     IsIntegerOdd(tilePos.Y) ? -0.5f : 0
                 );
 
+                var waterPos = Main.waterTarget.Position;
+                var waterOffset = new Vector2(
+                    IsIntegerOdd(waterPos.X) ? -0.5f : 0,
+                    IsIntegerOdd(waterPos.Y) ? -0.5f : 0
+                );
+
                 var stepCount = Math.Min(Main.tileTarget.Texture.Width / (direction.X + float.Epsilon), Main.tileTarget.Texture.Height / direction.Y);
                 stepCount = Math.Abs(stepCount);
 
                 for (var i = 0; i <= stepCount; i++)
                 {
-                    var position = tileOffset + (direction * i);
+                    var tilePosition = tileOffset + (direction * i);
+                    var waterPosition = waterOffset + (direction * i);
 
-                    sb.Draw(Main.tileTarget.Texture, position, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                    sb.Draw(Main.tileTarget.Texture, tilePosition, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                    sb.Draw(Main.waterTarget.Texture, waterPosition, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
                 }
             }
             sb.End();
@@ -191,18 +199,39 @@ public static class Rain
                 IsIntegerOdd(tilePos.X) ? -0.5f : 0,
                 IsIntegerOdd(tilePos.Y) ? -0.5f : 0
             );
+            var screenPosition = Main.screenPosition;
+            var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
 
             distortionShader.Parameters.Time = (float)Main.timeForVisualEffects;
+            distortionShader.Parameters.Direction = direction;
+            distortionShader.Parameters.Intensity = Main.cloudAlpha;
 
-            distortionShader.Parameters.DrawOffset = Main.tileTarget.Position - Main.screenPosition;
             distortionShader.Parameters.TilePixelOffset = tileOffset;
 
             distortionShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
 
+            distortionShader.Parameters.MaskOffset = Main.tileTarget.Position - screenPosition;
             distortionShader.Parameters.MaskTexture = new HlslSampler2D
             {
-                Texture = MaskTarget.Target,
                 Sampler = SamplerState.PointClamp,
+                Texture = MaskTarget.Target,
+            };
+
+            distortionShader.Parameters.LightOffset = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
+
+            distortionShader.Parameters.OffscreenTiles = LightingEngine.BufferOffscreenTileRange;
+            distortionShader.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
+
+            distortionShader.Parameters.LightMap = new HlslSampler2D
+            {
+                Sampler = SamplerState.LinearClamp,
+                Texture = LightingEngine.TileSpaceBuffer.Target,
+            };
+
+            distortionShader.Parameters.Noise = new HlslSampler2D
+            {
+                Sampler = SamplerState.LinearWrap,
+                Texture = Assets.Weather.RainNoise.Asset.Value,
             };
 
             distortionShader.Apply();
