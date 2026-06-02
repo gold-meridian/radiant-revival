@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.Graphics;
 using Terraria.Graphics.Effects;
 using Terraria.ID;
@@ -139,6 +140,7 @@ public static class Rain
                     IsIntegerOdd(waterPos.X) ? -0.5f : 0,
                     IsIntegerOdd(waterPos.Y) ? -0.5f : 0
                 );
+                waterOffset += (waterPos - tilePos) * 0.5f;
 
                 var stepCount = Math.Min(Main.tileTarget.Texture.Width / (direction.X + float.Epsilon), Main.tileTarget.Texture.Height / direction.Y);
                 stepCount = Math.Abs(stepCount);
@@ -207,7 +209,6 @@ public static class Rain
             distortionShader.Parameters.Intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
 
             distortionShader.Parameters.TilePixelOffset = tileOffset;
-
             distortionShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
 
             distortionShader.Parameters.MaskOffset = Main.tileTarget.Position - screenPosition;
@@ -218,10 +219,8 @@ public static class Rain
             };
 
             distortionShader.Parameters.LightOffset = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
-
             distortionShader.Parameters.OffscreenTiles = LightingEngine.BufferOffscreenTileRange;
             distortionShader.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
-
             distortionShader.Parameters.LightMap = new HlslSampler2D
             {
                 Sampler = SamplerState.LinearClamp,
@@ -232,6 +231,22 @@ public static class Rain
             {
                 Sampler = SamplerState.LinearWrap,
                 Texture = Assets.Weather.RainNoise.Asset.Value,
+            };
+
+            var rainTexture = TextureAssets.Rain.Value;
+            var rainPosition = new Vector2(Main.waterStyle * 4 * 3 + 0.5f, 0f);
+
+            if (Main.waterStyle >= 15)
+            {
+                rainTexture = LoaderManager.Get<WaterStylesLoader>().Get(Main.waterStyle).GetRainTexture().Value;
+                rainPosition = new Vector2(0.5f, 0);
+            }
+
+            distortionShader.Parameters.RainPosition = rainPosition; 
+            distortionShader.Parameters.RainTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointClamp,
+                Texture = rainTexture,
             };
 
             distortionShader.Apply();
