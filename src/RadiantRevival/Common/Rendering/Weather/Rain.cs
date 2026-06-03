@@ -435,6 +435,8 @@ public static class Rain
                 var scale = new Vector2(droplet.Scale);
                 scale.Y *= 1 + (6.5f * intensity);
 
+                scale.X = MathF.Min(scale.X, 0.32f);
+
                 sb.Draw(
                     new DrawParameters(dropletTexture)
                     {
