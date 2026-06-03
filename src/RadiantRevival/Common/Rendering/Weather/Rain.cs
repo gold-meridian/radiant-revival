@@ -30,19 +30,33 @@ public static class Rain
 
     private sealed class Data : IStatic<Data>
     {
+        public required WrapperShaderData<Assets.Weather.RainBlur.Parameters> DirectionalBlurShader { get; init; }
+
         public required WrapperShaderData<Assets.Weather.RainDistortion.Parameters> DistortionShader { get; init; }
 
         public required RenderTargetLease RainTarget { get; init; }
+
+        public required RenderTargetLease MaskTarget { get; init; }
+
+        public required RenderTargetLease MaskTargetSwap { get; init; }
 
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
                 () => new Data
                 {
+                    DirectionalBlurShader = Assets.Weather.RainBlur.CreateRainBlurShader(),
                     DistortionShader = Assets.Weather.RainDistortion.CreateRainDistortionShader(),
                     RainTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
+                    MaskTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    MaskTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                 }
             ).GetAwaiter().GetResult();
+
+            static (int w, int h) GetMaskTargetSize(int width, int height, int targetWidth, int targetHeight)
+            {
+                return (targetWidth / 2, targetHeight / 2);
+            }
         }
 
         public static void UnloadData(Data data)
@@ -70,6 +84,10 @@ public static class Rain
 
     private static RenderTargetLease RainTarget => Data.Instance.RainTarget;
 
+    private static RenderTargetLease MaskTarget => Data.Instance.MaskTarget;
+
+    private static RenderTargetLease MaskTargetSwap => Data.Instance.MaskTargetSwap;
+
     private static bool Active =>
         Main.cloudAlpha > 0f
      && !Main.dedServ
@@ -82,6 +100,8 @@ public static class Rain
     {
         On_Rain.MakeRain += MakeRain_Spawn;
         On_Main.DrawRain += DrawRain_Update;
+
+        On_Main.RenderTiles += RenderTiles_MaskTarget;
     }
 
     [ModSystemHooks.ResizeArrays]
@@ -123,6 +143,78 @@ public static class Rain
         ).GetAwaiter().GetResult();
     }
 
+    private static void RenderTiles_MaskTarget(On_Main.orig_RenderTiles orig, Main self)
+    {
+        orig(self);
+
+        if (!Active)
+        {
+            return;
+        }
+
+        var blurShader = Data.Instance.DirectionalBlurShader;
+
+        var sb = Main.spriteBatch;
+        var device = Main.graphics.GraphicsDevice;
+
+        var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
+
+        direction *= 8;
+
+        using (MaskTargetSwap.Scope(clearColor: Color.Transparent))
+        {
+            sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+            {
+                var tilePos = Main.tileTarget.Position;
+                var tileOffset = new Vector2(
+                    IsIntegerOdd(tilePos.X) ? -0.5f : 0,
+                    IsIntegerOdd(tilePos.Y) ? -0.5f : 0
+                );
+
+                var waterPos = Main.waterTarget.Position;
+                var waterOffset = new Vector2(
+                    IsIntegerOdd(waterPos.X) ? -0.5f : 0,
+                    IsIntegerOdd(waterPos.Y) ? -0.5f : 0
+                );
+                waterOffset += (waterPos - tilePos) * 0.5f;
+
+                var stepCount = Math.Min(Main.tileTarget.Texture.Width / (direction.X + float.Epsilon), Main.tileTarget.Texture.Height / direction.Y);
+                stepCount = Math.Abs(stepCount);
+
+                for (var i = 0; i <= stepCount; i++)
+                {
+                    var tilePosition = tileOffset + (direction * i);
+                    var waterPosition = waterOffset + (direction * i);
+
+                    sb.Draw(Main.tileTarget.Texture, tilePosition, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                    sb.Draw(Main.waterTarget.Texture, waterPosition, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                }
+            }
+            sb.End();
+        }
+
+        using (MaskTarget.Scope(clearColor: Color.Transparent))
+        {
+            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+            {
+                blurShader.Parameters.BlurSize = -direction;
+                blurShader.Parameters.SampleCount = 8;
+
+                blurShader.Apply();
+
+                sb.Draw(MaskTargetSwap.Target, Vector2.Zero, Color.White);
+            }
+            sb.End();
+        }
+
+        return;
+
+        static bool IsIntegerOdd(float f)
+        {
+            return (int)f % 2 == 1;
+        }
+    }
+
     private static void MakeRain_Spawn(On_Rain.orig_MakeRain orig)
     {
         if (!Active || !FocusHelper.AllowRain)
@@ -136,7 +228,7 @@ public static class Rain
 
         if (chance <= 1)
         {
-            var count = (int)MathHelper.Lerp(0, 18, intensity);
+            var count = (int)MathHelper.Lerp(0, 20, intensity);
 
             for (var i = 0; i <= count; i++)
             {
@@ -178,14 +270,14 @@ public static class Rain
 
             rain.Active = false;
 
-            if (Main.rand.NextBool(4))
+            if (Main.rand.NextBool(3))
             {
                 var splashVelocity = rain.Velocity;
                 splashVelocity.X *= 0.3f;
                 splashVelocity.Y *= 0.8f;
                 splashVelocity *= Main.rand.NextFloat(0.07f, 0.2f);
 
-                splashVelocity = splashVelocity.RotatedByRandom(0.2f);
+                splashVelocity = splashVelocity.RotatedByRandom(0.24f);
 
                 SpawnSplash(rain.EndPosition, splashVelocity, rain.Color);
             }
@@ -224,16 +316,16 @@ public static class Rain
         }
 
         const float min_velocity = 40f;
-        const float max_velocity = 130f;
+        const float max_velocity = 90f;
 
         const float min_scale = 0.14f;
-        const float max_scale = 0.73f;
+        const float max_scale = 0.7f;
 
-        const float top = 300f;
+        const float top = 310f;
 
         var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
 
-        var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity()).RotatedByRandom(0.1f);
+        var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity()).RotatedByRandom(0.03f);
 
         var height = (Main.screenHeight + top);
 
@@ -256,22 +348,40 @@ public static class Rain
             return;
         }
 
-        var samples = new float[3];
-        Collision.LaserScan(position, direction, 0, height * 2f, samples);
-
-        var length = samples[1];
+        var length = RayCast(height * 2f);
 
         var velocity = direction * MathHelper.Lerp(min_velocity, max_velocity, intensity);
 
         var endPosition = position + direction * length;
 
-        var scale = Main.rand.NextFloat(min_scale, max_scale) * MathF.Max(intensity, 0.45f);
+        var scale = Main.rand.NextFloat(min_scale, max_scale) * MathF.Max(intensity, 0.4f);
 
         var lifetime = 1 - ((length / velocity.Length()) * lifetime_increment);
 
         var color = rainColors[Main.waterStyle];
 
         droplets[index] = new Droplet(position, endPosition, velocity, color, scale, lifetime, true);
+
+        return;
+
+        float RayCast(float maxDistance)
+        {
+            var step = direction * 8f;
+
+            for (var i = 0; i < maxDistance / step.Length(); i++)
+            {
+                var tilePosition = (position + step * i).ToTileCoordinates();
+
+                var tile = Main.tile[tilePosition];
+
+                if (WorldGen.SolidTile(tile) || tile.LiquidAmount >= 1)
+                {
+                    return (step * i).Length();
+                }
+            }
+
+            return maxDistance;
+        }
     }
 
     private static void SpawnSplash(Vector2 position, Vector2 velocity, Color color)
@@ -370,6 +480,7 @@ public static class Rain
             var screenPosition = Main.screenPosition;
             var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
 
+            distortionShader.Parameters.Time = (float)Main.timeForVisualEffects;
             distortionShader.Parameters.Direction = direction;
             distortionShader.Parameters.Intensity = intensity;
 
@@ -380,7 +491,7 @@ public static class Rain
             distortionShader.Parameters.MaskTexture = new HlslSampler2D
             {
                 Sampler = SamplerState.PointClamp,
-                Texture = Main.tileTarget.Texture,
+                Texture = MaskTarget.Target,
             };
 
             distortionShader.Parameters.LightOffset = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
@@ -396,6 +507,13 @@ public static class Rain
             {
                 Sampler = SamplerState.LinearClamp,
                 Texture = RainTarget.Target,
+            };
+
+
+            distortionShader.Parameters.NoiseTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.LinearWrap,
+                Texture = Assets.Weather.Noise.Asset.Value,
             };
 
             distortionShader.Apply();
