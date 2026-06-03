@@ -3,22 +3,14 @@ using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MonoMod.Cil;
-using Newtonsoft.Json.Linq;
 using RadiantRevival.Core;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.Metrics;
 using System.Linq;
-using System.Text;
 using Daybreak.Common.Mathematics;
 using Terraria;
 using Terraria.GameContent;
-using Terraria.Graphics;
 using Terraria.Graphics.Effects;
-using Terraria.ID;
 using Terraria.ModLoader;
-using static Terraria.GameContent.Skies.SolarSky;
 
 namespace RadiantRevival.Common;
 
@@ -74,6 +66,8 @@ public static class Rain
         }
     }
 
+    private static Color[] rainColors = [];
+
     private static RenderTargetLease RainTarget => Data.Instance.RainTarget;
 
     private static bool Active =>
@@ -90,6 +84,45 @@ public static class Rain
         On_Main.DrawRain += DrawRain_Update;
     }
 
+    [ModSystemHooks.ResizeArrays]
+    private static void ResizeArrays()
+    {
+        Main.RunOnMainThread(
+            static () =>
+            {
+                var waterStyles = LoaderManager.Get<WaterStylesLoader>();
+
+                rainColors = new Color[waterStyles.TotalCount];
+
+                // Vanilla
+                {
+                    var rain = TextureAssets.Rain.Value;
+                    var colors = new Color[rain.Width * rain.Height];
+
+                    rain.GetData(colors);
+
+                    for (var i = 0; i < waterStyles.VanillaCount; i++)
+                    {
+                        rainColors[i] = colors[i * 4 * 3];
+                    }
+                }
+
+                // Modded
+                {
+                    for (var i = waterStyles.VanillaCount; i < waterStyles.TotalCount; i++)
+                    {
+                        var rain = waterStyles.Get(i).GetRainTexture().Value;
+                        var colors = new Color[rain.Width * rain.Height];
+
+                        rain.GetData(colors);
+
+                        rainColors[i] = colors[0];
+                    }
+                }
+            }
+        ).GetAwaiter().GetResult();
+    }
+
     private static void MakeRain_Spawn(On_Rain.orig_MakeRain orig)
     {
         if (!Active || !FocusHelper.AllowRain)
@@ -99,11 +132,11 @@ public static class Rain
 
         var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
 
-        var chance = (int)MathHelper.Lerp(5, -2, intensity);
+        var chance = (int)MathHelper.Lerp(2, -2, intensity);
 
         if (chance <= 1)
         {
-            var count = (int)MathHelper.Lerp(0, 4, intensity);
+            var count = (int)MathHelper.Lerp(0, 18, intensity);
 
             for (var i = 0; i <= count; i++)
             {
@@ -147,7 +180,14 @@ public static class Rain
 
             if (Main.rand.NextBool(4))
             {
-                SpawnSplash(rain.EndPosition, rain.Velocity * 0.4f, rain.Color);
+                var splashVelocity = rain.Velocity;
+                splashVelocity.X *= 0.3f;
+                splashVelocity.Y *= 0.8f;
+                splashVelocity *= Main.rand.NextFloat(0.07f, 0.2f);
+
+                splashVelocity = splashVelocity.RotatedByRandom(0.2f);
+
+                SpawnSplash(rain.EndPosition, splashVelocity, rain.Color);
             }
         }
 
@@ -160,14 +200,14 @@ public static class Rain
                 continue;
             }
 
-            const float gravity = 0.2f;
+            const float gravity = 1f;
 
             splash.Position += splash.Velocity;
             splash.Velocity += new Vector2(0, gravity);
 
             splash.Lifetime += lifetime_increment;
 
-            if (splash.Lifetime > 1f || Collision.SolidCollision(splash.Position, 2, 2))
+            if (splash.Lifetime > 1f || (Collision.SolidCollision(splash.Position, 1, 1) && splash.Velocity.Y >= 0))
             {
                 splash.Active = false;
             }
@@ -184,10 +224,10 @@ public static class Rain
         }
 
         const float min_velocity = 40f;
-        const float max_velocity = 110f;
+        const float max_velocity = 130f;
 
-        const float min_scale = 0.1f;
-        const float max_scale = 0.6f;
+        const float min_scale = 0.14f;
+        const float max_scale = 0.73f;
 
         const float top = 300f;
 
@@ -225,11 +265,13 @@ public static class Rain
 
         var endPosition = position + direction * length;
 
-        var scale = Main.rand.NextFloat(min_scale, max_scale) * MathF.Max(intensity, 0.3f);
+        var scale = Main.rand.NextFloat(min_scale, max_scale) * MathF.Max(intensity, 0.45f);
 
         var lifetime = 1 - ((length / velocity.Length()) * lifetime_increment);
 
-        droplets[index] = new Droplet(position, endPosition, velocity, Color.White, scale, lifetime, true);
+        var color = rainColors[Main.waterStyle];
+
+        droplets[index] = new Droplet(position, endPosition, velocity, color, scale, lifetime, true);
     }
 
     private static void SpawnSplash(Vector2 position, Vector2 velocity, Color color)
@@ -255,6 +297,8 @@ public static class Rain
 
         var distortionShader = Data.Instance.DistortionShader;
 
+        var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+
         var sb = Main.spriteBatch;
         var device = Main.graphics.GraphicsDevice;
 
@@ -266,7 +310,8 @@ public static class Rain
             var dropletTexture = Assets.Weather.Rain.Asset.Value;
             var dropletOrigin = new Vector2(11, 138);
 
-            var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+            var splashTexture = Assets.Weather.Splash.Asset.Value;
+            var splashOrigin = splashTexture.Size() * 0.5f;
 
             foreach (var droplet in droplets)
             {
@@ -291,6 +336,24 @@ public static class Rain
                     }
                 );
             }
+
+            foreach (var splash in splashes)
+            {
+                if (!splash.Active)
+                {
+                    continue;
+                }
+
+                sb.Draw(
+                    new DrawParameters(splashTexture)
+                    {
+                        Position = splash.Position - Main.screenPosition,
+                        Color = splash.Color,
+                        Scale = new Vector2(0.4f),
+                        Origin = splashOrigin,
+                    }
+                );
+            }
         }
         sb.End();
 
@@ -299,7 +362,6 @@ public static class Rain
 
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
         {
-            /*
             var tilePos = Main.tileTarget.Position;
             var tileOffset = new Vector2(
                 IsIntegerOdd(tilePos.X) ? -0.5f : 0,
@@ -308,9 +370,8 @@ public static class Rain
             var screenPosition = Main.screenPosition;
             var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
 
-            distortionShader.Parameters.Time = (float)Main.timeForVisualEffects;
             distortionShader.Parameters.Direction = direction;
-            distortionShader.Parameters.Intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+            distortionShader.Parameters.Intensity = intensity;
 
             distortionShader.Parameters.TilePixelOffset = tileOffset;
             distortionShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
@@ -319,7 +380,7 @@ public static class Rain
             distortionShader.Parameters.MaskTexture = new HlslSampler2D
             {
                 Sampler = SamplerState.PointClamp,
-                Texture = RainTarget.Target,
+                Texture = Main.tileTarget.Texture,
             };
 
             distortionShader.Parameters.LightOffset = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
@@ -331,36 +392,23 @@ public static class Rain
                 Texture = LightingEngine.TileSpaceBuffer.Target,
             };
 
-            distortionShader.Parameters.Noise = new HlslSampler2D
-            {
-                Sampler = SamplerState.LinearWrap,
-                Texture = Assets.Weather.RainNoise.Asset.Value,
-            };
-
-            var rainTexture = TextureAssets.Rain.Value;
-            var rainPosition = new Vector2(Main.waterStyle * 4 * 3 + 0.5f, 0f);
-
-            if (Main.waterStyle >= 15)
-            {
-                rainTexture = LoaderManager.Get<WaterStylesLoader>().Get(Main.waterStyle).GetRainTexture().Value;
-                rainPosition = new Vector2(0.5f, 0);
-            }
-
-            distortionShader.Parameters.RainPosition = rainPosition; 
             distortionShader.Parameters.RainTexture = new HlslSampler2D
             {
-                Sampler = SamplerState.PointClamp,
-                Texture = rainTexture,
+                Sampler = SamplerState.LinearClamp,
+                Texture = RainTarget.Target,
             };
 
             distortionShader.Apply();
-            */
 
-            sb.Draw(screen, Vector2.Zero, Color.White); // color
-            sb.Draw(RainTarget.Target, Vector2.Zero, Color.White);
+            sb.Draw(screen, Vector2.Zero, color);
         }
         sb.End();
 
         return true;
+
+        static bool IsIntegerOdd(float f)
+        {
+            return (int)f % 2 == 1;
+        }
     }
 }
