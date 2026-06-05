@@ -29,12 +29,6 @@ float Intensity;
 
 float2 RainPosition;
 
-float Map(float value, float start1, float stop1, float start2, float stop2)
-{
-    value = clamp(value, start1, stop1);
-    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
-}
-
 float4 RainDistortionShaderFragment(float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
 {
     float2 uv = svPos;
@@ -81,7 +75,7 @@ float4 RainDistortionShaderFragment(float2 svPos : SV_POSITION, float4 baseColor
     
     float noise = pow(tex2D(NoiseTexture, noiseUv).r, 3) * 4;
     
-    float offsetSize = 16 * (Intensity + noise) / max(ScreenSize.x, ScreenSize.y);
+    float offsetSize = 8 * (Intensity + noise) / max(ScreenSize.x, ScreenSize.y);
     float2 offset = -Direction * offsetSize * (1 - pow(1 - rain.a, 5)) * (1 - mask);
     
     float4 color = tex2D(ScreenTexture, (uv) + offset);
