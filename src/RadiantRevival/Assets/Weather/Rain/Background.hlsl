@@ -1,4 +1,4 @@
-﻿#include "../common.h"
+﻿#include "../../common.h"
 
 sampler2D RainTexture : register(s0);
 sampler2D LightMap : register(s1);
@@ -15,7 +15,7 @@ float GlobalBrightness;
 
 float Intensity;
 
-float4 RainBackgroundShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
+float4 BackgroundShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
 {
     float2 screenPosTiles = (svPos + LightOffset) / TILE_SIZE;
     screenPosTiles += OffscreenTiles;
@@ -35,7 +35,7 @@ float4 RainBackgroundShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POS
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(RainBackgroundShader)   
-        PIXEL_SHADER(compile ps_3_0 RainBackgroundShaderFragment())  
+    BEGIN_PASS(BackgroundShader)   
+        PIXEL_SHADER(compile ps_3_0 BackgroundShaderFragment())  
     END_PASS
 END_TECHNIQUE

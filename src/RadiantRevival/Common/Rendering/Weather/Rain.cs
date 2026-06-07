@@ -15,7 +15,7 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
-// TODO: Config, Screen Flipping, Retro Lighting, DrawCapture, Main Menu
+// TODO: Config, Retro Lighting, DrawCapture, Main Menu
 public static class Rain
 {
     private record struct Droplet(Vector2 Position, Vector2 EndPosition, Vector2 Velocity, Color Color, float Scale, float Lifetime, bool Active);
@@ -33,11 +33,11 @@ public static class Rain
 
     private sealed class Data : IStatic<Data>
     {
-        public required WrapperShaderData<Assets.Weather.RainBlur.Parameters> DirectionalBlurShader { get; init; }
+        public required WrapperShaderData<Assets.Weather.Rain.TileMaskBlur.Parameters> DirectionalBlurShader { get; init; }
 
-        public required WrapperShaderData<Assets.Weather.RainDistortion.Parameters> DistortionShader { get; init; }
+        public required WrapperShaderData<Assets.Weather.Rain.Distortion.Parameters> DistortionShader { get; init; }
 
-        public required WrapperShaderData<Assets.Weather.RainBackground.Parameters> BackgroundShader { get; init; }
+        public required WrapperShaderData<Assets.Weather.Rain.Background.Parameters> BackgroundShader { get; init; }
 
         public required RenderTargetLease RainTarget { get; init; }
 
@@ -50,9 +50,9 @@ public static class Rain
             return Main.RunOnMainThread(
                 () => new Data
                 {
-                    DirectionalBlurShader = Assets.Weather.RainBlur.CreateRainBlurShader(),
-                    DistortionShader = Assets.Weather.RainDistortion.CreateRainDistortionShader(),
-                    BackgroundShader = Assets.Weather.RainBackground.CreateRainBackgroundShader(),
+                    DirectionalBlurShader = Assets.Weather.Rain.TileMaskBlur.CreateTileMaskBlurShader(),
+                    DistortionShader = Assets.Weather.Rain.Distortion.CreateDistortionShader(),
+                    BackgroundShader = Assets.Weather.Rain.Background.CreateBackgroundShader(),
                     RainTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
                     MaskTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                     MaskTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
@@ -92,7 +92,7 @@ public static class Rain
 
     private static RenderTargetLease RainTarget => Data.Instance.RainTarget;
 
-    private static RenderTargetLease MaskTarget => Data.Instance.MaskTarget;
+    public static RenderTargetLease MaskTarget => Data.Instance.MaskTarget;
 
     private static RenderTargetLease MaskTargetSwap => Data.Instance.MaskTargetSwap;
 
@@ -156,7 +156,7 @@ public static class Rain
 
                     sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearWrap, DepthStencilState.None, Main.Rasterizer, backgroundShader.Shader, Main.Transform);
                     {
-                        var dropletTexture = Assets.Weather.Rain.Asset.Value;
+                        var dropletTexture = Assets.Weather.Rain.Droplet.Asset.Value;
                         var dropletOrigin = new Vector2(11, 138);
 
                         foreach (var droplet in background_droplets)
@@ -592,10 +592,10 @@ public static class Rain
 
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         {
-            var dropletTexture = Assets.Weather.Rain.Asset.Value;
+            var dropletTexture = Assets.Weather.Rain.Droplet.Asset.Value;
             var dropletOrigin = new Vector2(11, 138);
 
-            var splashTexture = Assets.Weather.Splash.Asset.Value;
+            var splashTexture = Assets.Weather.Rain.Splash.Asset.Value;
             var splashOrigin = splashTexture.Size() * 0.5f;
 
             foreach (var droplet in droplets)
@@ -692,7 +692,7 @@ public static class Rain
             distortionShader.Parameters.NoiseTexture = new HlslSampler2D
             {
                 Sampler = SamplerState.LinearWrap,
-                Texture = Assets.Weather.Noise.Asset.Value,
+                Texture = Assets.Weather.Rain.Noise.Asset.Value,
             };
 
             distortionShader.Apply();

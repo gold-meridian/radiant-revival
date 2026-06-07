@@ -1,5 +1,4 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
+﻿using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -15,9 +14,10 @@ public static class RainReflections
 {
     private sealed class Data : IStatic<Data>
     {
-        public required WrapperShaderData<Assets.Weather.RainReflections.Parameters> ReflectionsShader { get; init; }
+        public required WrapperShaderData<Assets.Weather.Rain.Reflection.Parameters> ReflectionsShader { get; init; }
 
-        public required WrapperShaderData<Assets.Weather.RainDistance.Parameters> DistanceShader { get; init; }
+        public required WrapperShaderData<Assets.Weather.Rain.DistanceMap.Parameters> DistanceProcessorShader { get; init; }
+        public required WrapperShaderData<Assets.Weather.Rain.DistanceMap.Parameters> DistanceMapShader { get; init; }
 
         // public required RenderTargetLease ReflectionTarget { get; init; }
 
@@ -28,8 +28,9 @@ public static class RainReflections
             return Main.RunOnMainThread(
                 () => new Data
                 {
-                    ReflectionsShader = Assets.Weather.RainReflections.CreateRainReflectionsShader(),
-                    DistanceShader = Assets.Weather.RainDistance.CreateRainDistanceShader(),
+                    ReflectionsShader = Assets.Weather.Rain.Reflection.CreateReflectionShader(),
+                    DistanceProcessorShader = Assets.Weather.Rain.DistanceMap.CreateDistanceMapProcessingShader(),
+                    DistanceMapShader = Assets.Weather.Rain.DistanceMap.CreateDistanceMapShader(),
                     DistanceMap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with { Format = SurfaceFormat.HalfVector2 }),
                 }
             ).GetAwaiter().GetResult();
@@ -61,6 +62,9 @@ public static class RainReflections
 
     private const int max_reflection_length = 16;
 
+    private static float priorZoom;
+    private static Vector2 priorScreenPosition;
+
     private static bool ApplyShader(RenderTarget2D screen, RenderTarget2D screenSwap, Color color)
     {
         if (!Rain.Active)
@@ -68,7 +72,8 @@ public static class RainReflections
             return false;
         }
 
-        var distanceShader = Data.Instance.DistanceShader;
+        var processorShader = Data.Instance.DistanceProcessorShader;
+        var distanceShader = Data.Instance.DistanceMapShader;
         var reflectionsShader = Data.Instance.ReflectionsShader;
 
         var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
@@ -82,9 +87,31 @@ public static class RainReflections
         device.Clear(Color.Transparent);
 
         // Draw tileTarget to a screen target to make the UVs a little nicer for the distance shader
-        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
         {
             var tilePosition = Main.tileTarget.Position - screenPosition;
+
+            var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
+
+            direction *= 16 / direction.Y;
+
+            processorShader.Parameters.RainMaskOffset = direction;
+            processorShader.Parameters.RainMask = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointClamp,
+                Texture = Rain.MaskTarget.Target,
+            };
+
+            processorShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
+            processorShader.Parameters.ScreenPositionDifference = priorScreenPosition - Main.screenPosition;
+            processorShader.Parameters.ZoomDifference = ((priorZoom - Main.GameZoomTarget) + 1);
+            processorShader.Parameters.DistanceMap = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointClamp,
+                Texture = DistanceMap.Target,
+            };
+
+            processorShader.Apply();
 
             sb.Draw(Main.tileTarget.Texture, tilePosition, Color.White);
         }
@@ -99,7 +126,7 @@ public static class RainReflections
 
             distanceShader.Parameters.SampleCount = max_reflection_length;
             distanceShader.Parameters.SampleDistance = distance;
-            distanceShader.Parameters.DrawZoom = Main.GameZoomTarget;
+            distanceShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
 
             distanceShader.Apply();
 
@@ -125,6 +152,9 @@ public static class RainReflections
             sb.Draw(screen, Vector2.Zero, color);
         }
         sb.End();
+
+        priorZoom = Main.GameZoomTarget;
+        priorScreenPosition = Main.screenPosition;
 
         return true;
     }

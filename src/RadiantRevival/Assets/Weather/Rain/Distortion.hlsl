@@ -1,4 +1,4 @@
-﻿#include "../common.h"
+﻿#include "../../common.h"
 
 sampler2D ScreenTexture : register(s0);
 sampler2D MaskTexture : register(s1);
@@ -29,7 +29,7 @@ float Intensity;
 
 float2 RainPosition;
 
-float4 RainDistortionShaderFragment(float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
+float4 DistortionShaderFragment(float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
 {
     float2 uv = svPos;
     
@@ -86,7 +86,7 @@ float4 RainDistortionShaderFragment(float2 svPos : SV_POSITION, float4 baseColor
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(RainDistortionShader)  
-        PIXEL_SHADER(compile ps_3_0 RainDistortionShaderFragment()) 
+    BEGIN_PASS(DistortionShader)  
+        PIXEL_SHADER(compile ps_3_0 DistortionShaderFragment()) 
     END_PASS
 END_TECHNIQUE

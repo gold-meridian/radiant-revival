@@ -1,4 +1,4 @@
-﻿#include "../common.h"
+﻿#include "../../common.h"
 
 sampler2D TileTexture : register(s0);
 
@@ -7,7 +7,7 @@ TEXTURE_SIZE(TileTextureSize, 0);
 int SampleCount;
 float2 BlurSize;
 
-float4 RainBlurShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
+float4 TileMaskBlurShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
 {
     float2 dtc = BlurSize / TileTextureSize;
     
@@ -27,7 +27,7 @@ float4 RainBlurShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(RainBlurShader) 
-        PIXEL_SHADER(compile ps_3_0 RainBlurShaderFragment())
+    BEGIN_PASS(TileMaskBlurShader)  
+        PIXEL_SHADER(compile ps_3_0 TileMaskBlurShaderFragment()) 
     END_PASS
 END_TECHNIQUE

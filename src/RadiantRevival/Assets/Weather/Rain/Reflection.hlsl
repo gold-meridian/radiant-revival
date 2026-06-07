@@ -1,4 +1,4 @@
-﻿#include "../common.h"
+﻿#include "../../common.h"
 
 sampler2D ScreenTexture : register(s0);
 sampler2D DistanceMap : register(s1);
@@ -8,7 +8,7 @@ TEXTURE_SIZE(DistanceTextureSize, 1);
 
 float Intensity;
 
-float4 RainReflectionsShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
+float4 ReflectionShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POSITION, float4 baseColor : COLOR0) : COLOR0
 {
     float2 map = tex2D(DistanceMap, uv);
     
@@ -20,7 +20,7 @@ float4 RainReflectionsShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_PO
     reflectedUv.y = (reflectionLine * 2) - reflectedUv.y;
     
     // Arbitrary offset, looks nicer
-    reflectedUv.y += 5 / ScreenSize.y;
+    reflectedUv.y += 3 / ScreenSize.y;
     
     float4 color = lerp(tex2D(ScreenTexture, uv), tex2D(ScreenTexture, reflectedUv), alpha);
     
@@ -28,7 +28,7 @@ float4 RainReflectionsShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_PO
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(RainReflectionsShader)   
-        PIXEL_SHADER(compile ps_3_0 RainReflectionsShaderFragment())  
+    BEGIN_PASS(ReflectionShader)   
+        PIXEL_SHADER(compile ps_3_0 ReflectionShaderFragment())  
     END_PASS
 END_TECHNIQUE
