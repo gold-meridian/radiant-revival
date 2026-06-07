@@ -2,7 +2,6 @@
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Mathematics;
 using Daybreak.Common.Rendering;
-using log4net.Util;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
@@ -81,7 +80,7 @@ public static class Rain
 
     public sealed class RainRenderer : IScreenFilterStep
     {
-        public EffectPriority Priority => EffectPriority.Medium;
+        public EffectPriority Priority => EffectPriority.Low;
 
         public bool Apply(in ScreenFilterRendererContext ctx)
         {
@@ -97,7 +96,7 @@ public static class Rain
 
     private static RenderTargetLease MaskTargetSwap => Data.Instance.MaskTargetSwap;
 
-    private static bool Active =>
+    public static bool Active =>
         Main.cloudAlpha > 0f
      && !Main.dedServ
      && !Main.gameMenu // TODO: Allow on main menu when config is introduced
@@ -249,7 +248,7 @@ public static class Rain
     {
         orig(self);
 
-        if (!Active)
+        if (!droplets.Any(d => d.Active) && !splashes.Any(s => s.Active))
         {
             return;
         }
