@@ -78,20 +78,34 @@ public static class RainReflections
         var sb = Main.spriteBatch;
         var device = Main.graphics.GraphicsDevice;
 
-        using (DistanceMap.Scope(clearColor: Color.Transparent))
+        device.SetRenderTarget(screenSwap);
+        device.Clear(Color.Transparent);
+
+        // Draw tileTarget to a screen target to make the UVs a little nicer for the distance shader
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
         {
-            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
-            {
-                var tilePosition = Main.tileTarget.Position - screenPosition;
+            var tilePosition = Main.tileTarget.Position - screenPosition;
 
-                distanceShader.Parameters.SampleCount = max_reflection_length;
-
-                distanceShader.Apply();
-
-                sb.Draw(Main.tileTarget.Texture, tilePosition, Color.White);
-            }
-            sb.End();
+            sb.Draw(Main.tileTarget.Texture, tilePosition, Color.White);
         }
+        sb.End();
+
+        device.SetRenderTarget(DistanceMap.Target);
+        device.Clear(Color.Transparent);
+
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+        {
+            var distance = (-1f * Main.GameZoomTarget) / Main.screenHeight;
+
+            distanceShader.Parameters.SampleCount = max_reflection_length;
+            distanceShader.Parameters.SampleDistance = distance;
+            distanceShader.Parameters.DrawZoom = Main.GameZoomTarget;
+
+            distanceShader.Apply();
+
+            sb.Draw(screenSwap, Vector2.Zero, Color.White);
+        }
+        sb.End();
 
         device.SetRenderTarget(screenSwap);
         device.Clear(Color.Transparent);
@@ -104,7 +118,7 @@ public static class RainReflections
                 Texture = DistanceMap.Target,
             };
 
-            reflectionsShader.Parameters.ReflectionSize = intensity * max_reflection_length;
+            reflectionsShader.Parameters.Intensity = intensity;
 
             reflectionsShader.Apply();
 
@@ -113,10 +127,5 @@ public static class RainReflections
         sb.End();
 
         return true;
-
-        static bool IsIntegerOdd(float f)
-        {
-            return (int)f % 2 == 1;
-        }
     }
 }

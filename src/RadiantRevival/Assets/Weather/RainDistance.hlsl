@@ -2,19 +2,24 @@
 
 sampler2D Texture : register(s0);
 
-TEXTURE_SIZE(TextureSize, 0);
-
 int SampleCount;
+float SampleDistance;
+float DrawZoom;
 
 float4 RainDistanceShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
 {
-    float dtc = -2 / TextureSize.y;
+    float dtc = SampleDistance;
     
     float2 uv = textureUv;
     
-    float color = tex2D(Texture, uv).a;
+    float4 tiles = tex2D(Texture, uv);
+    
+    float color = tiles.a;
     
     clip(color - 0.001);
+    
+    color *= (tiles.r + tiles.g + tiles.b) * 0.333;
+    color = 1 - pow(1 - color, 5);
     
     [unroll(32)]
     for (int i = 0; i < SampleCount; i++)
@@ -23,10 +28,9 @@ float4 RainDistanceShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
         
         if (tex2D(Texture, uv).a == 0)
         {
-            float dist = distance(textureUv.y, uv.y) * SampleCount * 2;
-            float4 output = float4(uv.y, color * (1 - dist), 0, 0);
+            float dist = distance(textureUv.y, uv.y) * SampleCount / DrawZoom * 2;
+            float4 output = float4(uv.y, color * pow(1 - dist, 2), 0, 0);
             
-            // Last two components are ignored
             return output;
         }
     }
