@@ -19,10 +19,12 @@ float4 ReflectionShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POSITIO
     float2 reflectedUv = uv;
     reflectedUv.y = (reflectionLine * 2) - reflectedUv.y;
     
-    // Arbitrary offset, looks nicer
-    reflectedUv.y += 3 / ScreenSize.y;
+    float4 screen = tex2D(ScreenTexture, uv);
     
-    float4 color = lerp(tex2D(ScreenTexture, uv), tex2D(ScreenTexture, reflectedUv), alpha);
+    float4 reflectedScreen = tex2D(ScreenTexture, reflectedUv);
+    reflectedScreen = 1 - pow(1 - reflectedScreen, 1.2);
+    
+    float4 color = lerp(screen, reflectedScreen, alpha);
     
     return color;
 }

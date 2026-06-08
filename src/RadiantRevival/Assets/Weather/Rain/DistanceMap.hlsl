@@ -12,9 +12,11 @@ float SampleDistance;
 float DrawZoom;
 
 float2 RainMaskOffset;
-float ZoomDifference;
+float PriorZoom;
 
 float2 ScreenPositionDifference;
+
+float FadeSpeed;
 
 float4 DistanceMapProcessingShaderFragment(float2 textureUv : TEXCOORD0, float2 svPos : SV_POSITION) : COLOR0
 {
@@ -22,7 +24,9 @@ float4 DistanceMapProcessingShaderFragment(float2 textureUv : TEXCOORD0, float2 
     
     float4 tiles = tex2D(TileTexture, textureUv);
     
-    float alpha = tiles.a - tex2D(RainMask, maskUv);
+    float mask = tex2D(RainMask, maskUv);
+    
+    float alpha = tiles.a - mask;
     
     alpha *= (tiles.r + tiles.g + tiles.b) * 0.333;
     alpha = 1 - pow(1 - alpha, 5);
@@ -31,7 +35,7 @@ float4 DistanceMapProcessingShaderFragment(float2 textureUv : TEXCOORD0, float2 
     distUv -= (ScreenPositionDifference / ScreenSize) / DrawZoom;
     {
         distUv -= 0.5;
-        distUv *= ZoomDifference;
+        distUv *= PriorZoom;
         distUv += 0.5;
     }
     
@@ -52,6 +56,12 @@ float4 DistanceMapShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
     
     clip(tiles.r - 0.001);
     
+    // Tiles coming in from offscreen should appear have their reflections fade in instantly
+    float2 diffUv = uv;
+    diffUv -= (ScreenPositionDifference / ScreenSize) / DrawZoom;
+    diffUv -= 0.5;
+    float interpolator = max(abs(diffUv.x), abs(diffUv.y)) > 0.5 ? 1 : FadeSpeed;
+    
     [unroll(32)]
     for (int i = 0; i < SampleCount; i++)
     {
@@ -60,7 +70,9 @@ float4 DistanceMapShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
         if (tex2D(TileTexture, uv).r == 0)
         {
             float dist = distance(textureUv.y, uv.y) * SampleCount * DrawZoom * 4;
-            float alpha = lerp(tiles.b, tiles.g * pow(1 - dist, 2), 0.03) * tiles.r;
+            
+            float alpha = lerp(tiles.b, tiles.g * pow(1 - dist, 2), interpolator) * tiles.r;
+            
             float4 output = float4(uv.y, alpha, 0, 0);
             
             return output;

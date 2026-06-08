@@ -10,6 +10,7 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
+// TODO: Delta Time, Screen Flipping, Zoom
 public static class RainReflections
 {
     private sealed class Data : IStatic<Data>
@@ -80,6 +81,10 @@ public static class RainReflections
 
         var screenPosition = Main.screenPosition;
 
+        var deltaTime = 1f;
+
+        var fadeSpeed = 0.04f * deltaTime;
+
         var sb = Main.spriteBatch;
         var device = Main.graphics.GraphicsDevice;
 
@@ -93,7 +98,9 @@ public static class RainReflections
 
             var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
 
-            direction *= 16 / direction.Y;
+            direction *= max_reflection_length / direction.Y;
+
+            processorShader.Parameters.FadeSpeed = fadeSpeed;
 
             processorShader.Parameters.RainMaskOffset = direction;
             processorShader.Parameters.RainMask = new HlslSampler2D
@@ -103,8 +110,8 @@ public static class RainReflections
             };
 
             processorShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
+            processorShader.Parameters.PriorZoom = 1f / priorZoom;
             processorShader.Parameters.ScreenPositionDifference = priorScreenPosition - Main.screenPosition;
-            processorShader.Parameters.ZoomDifference = ((priorZoom - Main.GameZoomTarget) + 1);
             processorShader.Parameters.DistanceMap = new HlslSampler2D
             {
                 Sampler = SamplerState.PointClamp,
@@ -127,6 +134,8 @@ public static class RainReflections
             distanceShader.Parameters.SampleCount = max_reflection_length;
             distanceShader.Parameters.SampleDistance = distance;
             distanceShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
+            distanceShader.Parameters.ScreenPositionDifference = priorScreenPosition - Main.screenPosition;
+            distanceShader.Parameters.FadeSpeed = fadeSpeed;
 
             distanceShader.Apply();
 
