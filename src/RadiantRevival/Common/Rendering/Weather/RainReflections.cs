@@ -10,7 +10,7 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
-// TODO: Delta Time, Screen Flipping, Zoom
+// TODO: Delta Time? Zoom
 public static class RainReflections
 {
     private sealed class Data : IStatic<Data>
@@ -92,7 +92,7 @@ public static class RainReflections
         device.Clear(Color.Transparent);
 
         // Draw tileTarget to a screen target to make the UVs a little nicer for the distance shader
-        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.ZoomMatrix);
         {
             var tilePosition = Main.tileTarget.Position - screenPosition;
 

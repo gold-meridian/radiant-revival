@@ -26,7 +26,7 @@ float4 ReflectionShaderFragment(float2 uv : TEXCOORD0, float2 svPos : SV_POSITIO
     
     float4 color = lerp(screen, reflectedScreen, alpha);
     
-    return color;
+    return color + alpha;
 }
 
 BEGIN_TECHNIQUE(Technique1)
