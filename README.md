@@ -1,4 +1,4 @@
-> A rendevous, reprised; our...
+> A rendezvous, reprised; our...
 
 # Radiant Revival
 
@@ -61,14 +61,14 @@ Inspiration for lighting changes have been sourced from the most popular tModLoa
 - [Fancy Lighting](https://steamcommunity.com/sharedfiles/filedetails/?id=2822950837):
   - Our personal favorite in terms of pre-existing mods, the initial feature parity goal;
 - [Lights And Shadows](https://steamcommunity.com/sharedfiles/filedetails/?id=2670628346):
-  - Primitive godrays implentation as a post-processing filter, has many issues, mostly a parity goal.
+  - Primitive godrays implementation as a post-processing filter, has many issues, mostly a parity goal.
 - [Dynamic Lights](https://steamcommunity.com/sharedfiles/filedetails/?id=2679594765):
   - Main inspiration for well-defined directional lighting with tile geometry shadow casting.
  
 Inspiration for other visuals, sourced from various tModLoader mods:
 
 - [Realistic Sky](https://steamcommunity.com/sharedfiles/filedetails/?id=3172916251)
-  - Main inpiration for star rendering, as well as a possible baseline for atmosphere rendering.
+  - Main inspiration for star rendering, as well as a possible baseline for atmosphere rendering.
 
 The rough branding for the project is obviously inspired by [Radiant Revival feat. Hatsune Miku](https://www.youtube.com/watch?v=qHU3hf1b8NY) by Jamie Paige.
 
