@@ -191,7 +191,7 @@ public static class Stars
         var u = rand.NextFloat();
         var v = rand.NextFloat();
 
-        var theta = 2 * MathF.PI * u;
+        var theta = MathF.Tau * u;
         var phi = MathF.Acos(2 * v - 1);
 
         var x = MathF.Sin(phi) * MathF.Cos(theta);

@@ -1,8 +1,10 @@
-﻿using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.CIL;
+using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using MonoMod.Cil;
 using RadiantRevival.Core;
 using System;
 using Terraria;
@@ -50,34 +52,69 @@ public static class Godrays
     [OnLoad]
     private static void Load()
     {
-        On_Main.DrawSunAndMoon += DrawSunAndMoon_CaptureCelestialBodies;
-
+        IL_Main.DrawSunAndMoon += DrawSunAndMoon_CaptureCelestialBodies;
         On_Main.DrawLensFlare += DrawLensFlare_Godrays;
     }
 
-    private static void DrawSunAndMoon_CaptureCelestialBodies(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
+    private static void DrawSunAndMoon_CaptureCelestialBodies(ILContext il)
     {
-        // FIXME: Moon seems to render as an occluder?
-        if (!Main.dayTime || !Main.ForegroundSunlightEffects || Main.screenTarget is null)
+        var c = new ILCursor(il);
+
+        var scopeDef = il.AddVariable<RenderTargetScope?>();
+
+        c.EmitLdloca(scopeDef);
+
+        c.EmitDelegate(
+            static (ref RenderTargetScope? scope) =>
+            {
+                if (!Main.dayTime || !Main.ForegroundSunlightEffects || Main.screenTarget is null)
+                {
+                    return;
+                }
+
+                Main.spriteBatch.End(out var ss);
+
+                scope = CelestialBodyTarget.Scope(clearColor: Color.Transparent);
+
+                Main.spriteBatch.Begin(in ss);
+            }
+        );
+
+        while (c.TryGotoNext(
+                   MoveType.Before,
+                   i => i.MatchRet()
+               ))
         {
-            orig(self, sceneArea, moonColor, sunColor, tempMushroomInfluence);
-            return;
+            c.MoveAfterLabels();
+
+            c.EmitLdloca(scopeDef);
+
+            c.EmitDelegate(
+                static (ref RenderTargetScope? scope) =>
+                {
+                    if (scope is null)
+                    {
+                        return;
+                    }
+
+                    scope?.Dispose();
+
+                    var sb = Main.spriteBatch;
+                    using var _ = sb.Scope();
+
+                    sb.Begin();
+                    {
+                        sb.Draw(CelestialBodyTarget.Target, Vector2.Zero, Color.White);
+                    }
+                    sb.End();
+                }
+            );
+
+            c.GotoNext(
+                MoveType.After,
+                i => i.MatchRet()
+            );
         }
-
-        using (CelestialBodyTarget.Scope(clearColor: Color.Transparent))
-        {
-            orig(self, sceneArea, moonColor, sunColor, tempMushroomInfluence);
-        }
-
-        var sb = Main.spriteBatch;
-
-        using var _ = sb.Scope();
-
-        sb.Begin();
-        {
-            sb.Draw(CelestialBodyTarget.Target, Vector2.Zero, Color.White);
-        }
-        sb.End();
     }
 
     private static void DrawLensFlare_Godrays(On_Main.orig_DrawLensFlare orig)
@@ -164,6 +201,5 @@ public static class Godrays
             sb.Draw(lease.Target, device.Viewport.Bounds, Color.White);
         }
         sb.End();
-
     }
 }
