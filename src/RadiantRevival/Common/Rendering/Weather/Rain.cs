@@ -10,6 +10,7 @@ using System;
 using System.Linq;
 using Terraria;
 using Terraria.GameContent;
+using Terraria.GameContent.Shaders;
 using Terraria.Graphics.Effects;
 using Terraria.ModLoader;
 
@@ -371,17 +372,7 @@ public static class Rain
 
             rain.Active = false;
 
-            if (Main.rand.NextBool(3))
-            {
-                var splashVelocity = rain.Velocity;
-                splashVelocity.X *= 0.3f;
-                splashVelocity.Y *= 0.8f;
-                splashVelocity *= Main.rand.NextFloat(0.07f, 0.2f);
-
-                splashVelocity = splashVelocity.RotatedByRandom(0.24f);
-
-                SpawnSplash(rain.EndPosition, splashVelocity, rain.Color);
-            }
+            SplashEffect(rain);
         }
 
         for (var i = 0; i < background_droplets.Length; i++)
@@ -423,6 +414,38 @@ public static class Rain
             if (splash.Lifetime > 1f || (Collision.SolidCollision(splash.Position, 1, 1) && splash.Velocity.Y >= 0))
             {
                 splash.Active = false;
+            }
+        }
+
+        return;
+
+        static void SplashEffect(Droplet rain)
+        {
+            const int splash_spawn_chance = 3;
+            const int ripple_chance = 2;
+
+            var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+
+            if (Main.rand.NextBool(splash_spawn_chance))
+            {
+                var splashVelocity = rain.Velocity;
+                splashVelocity.X *= 0.3f;
+                splashVelocity.Y *= 0.8f;
+                splashVelocity *= Main.rand.NextFloat(0.07f, 0.2f);
+
+                splashVelocity = splashVelocity.RotatedByRandom(0.24f);
+
+                SpawnSplash(rain.EndPosition, splashVelocity, rain.Color);
+            }
+
+            if (Main.rand.NextBool(ripple_chance))
+            {
+                var strength = MathF.Min(rain.Scale * 2.3f, 0.6f);
+
+                var scale = 1 - MathF.Pow(1 - intensity, 6);
+                scale *= 14f;
+
+                WaterShaderData.QueueRipple(rain.EndPosition, strength, new Vector2(scale), RippleShape.Circle);
             }
         }
     }
