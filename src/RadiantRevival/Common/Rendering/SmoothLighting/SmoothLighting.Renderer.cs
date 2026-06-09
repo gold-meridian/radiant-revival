@@ -39,15 +39,16 @@ public static class SmoothLightingRenderer
     private sealed record ApplicationState(
         Vector2 DrawOffset,
         float DrawZoom,
+        bool FlipScreen,
         Texture[] Targets
     );
 
     private sealed class ApplicationScope : IDisposable
     {
-        public ApplicationScope(Vector2 drawOffset, float drawZoom)
+        public ApplicationScope(Vector2 drawOffset, float drawZoom, bool flipScreen)
         {
             var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
-            var state = new ApplicationState(drawOffset, drawZoom, targets);
+            var state = new ApplicationState(drawOffset, drawZoom, flipScreen, targets);
             currently_applied.Push(state);
         }
 
@@ -61,13 +62,14 @@ public static class SmoothLightingRenderer
 
     public static bool IsCurrentlyApplied => currently_applied.Count > 0;
 
-    public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null)
+    public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null, bool? flipScreen = null)
     {
         var screenPosition = Main.screenPosition;
-
         var off = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
 
-        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget);
+        var flip = Main.BackgroundViewMatrix.Effects.HasFlag(SpriteEffects.FlipVertically);
+
+        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget, flipScreen ?? flip);
     }
 
 #pragma warning disable CA2255
@@ -100,6 +102,7 @@ public static class SmoothLightingRenderer
                 effect.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
                 effect.Parameters.DrawOffset = state.DrawOffset;
                 effect.Parameters.DrawZoom = state.DrawZoom;
+                effect.Parameters.DrawFlipped = state.FlipScreen;
                 effect.Parameters.LightMap = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,
