@@ -155,7 +155,7 @@ public static class Stars
         const float day_length = 54000f;
 
         const float graveyard_alpha = 1.4f;
-        const float atmo_multiplier = 0.43f;
+        const float atmo_multiplier = 1.13f;
 
         var alpha = 1f;
 

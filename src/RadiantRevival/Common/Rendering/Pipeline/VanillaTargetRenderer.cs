@@ -2,11 +2,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.Features.Models;
+using Daybreak.Common.Rendering;
 using RadiantRevival.Common.SmoothLighting;
 using Terraria;
 using Terraria.Graphics;
+using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
+
+public readonly record struct VanillaTargetRendererContext(
+    RenderTargetLease WorldSceneTargetSwap
+);
 
 /// <summary>
 ///     Wraps vanilla rendering to track state changes within its targets.
@@ -16,6 +23,31 @@ namespace RadiantRevival.Common;
 /// </summary>
 public static class VanillaTargetRenderer
 {
+    private sealed class Data : IStatic<Data>
+    {
+        public required RenderTargetLease WorldSceneTargetSwap { get; set; }
+
+        public static Data LoadData(Mod mod)
+        {
+            return Main.RunOnMainThread(
+                () => new Data
+                {
+                    WorldSceneTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
+                }
+            ).GetAwaiter().GetResult();
+        }
+
+        public static void UnloadData(Data data)
+        {
+            Main.RunOnMainThread(
+                () =>
+                {
+                    data.WorldSceneTargetSwap.Dispose();
+                }
+            );
+        }
+    }
+
     private static readonly IVanillaPipelineStep[] steps =
     [
         new AmbientOcclusion.WallRenderer(),
@@ -63,6 +95,10 @@ public static class VanillaTargetRenderer
     {
         var mutatedSet = new HashSet<WorldSceneLayerTarget>(mutatedTargets ?? []);
 
+        var ctx = new VanillaTargetRendererContext(
+            Data.Instance.WorldSceneTargetSwap
+        );
+
         foreach (var step in steps)
         {
             if (!step.Inputs.Any(mutatedSet.Contains))
@@ -70,7 +106,7 @@ public static class VanillaTargetRenderer
                 continue;
             }
 
-            var mutatedNew = step.Apply();
+            var mutatedNew = step.Apply(in ctx);
             foreach (var mutated in mutatedNew)
             {
                 mutatedSet.Add(mutated);

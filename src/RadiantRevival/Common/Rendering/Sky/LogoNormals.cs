@@ -95,12 +95,12 @@ public class LogoNormals
 
         var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
 
-        logoNormalsShaderData.Parameters.rotation = logoRotation;
-        logoNormalsShaderData.Parameters.light_position = Main.LastCelestialBodyPosition * screenSize;
+        logoNormalsShaderData.Parameters.Rotation = logoRotation;
+        logoNormalsShaderData.Parameters.LightPosition = Main.LastCelestialBodyPosition * screenSize;
 
         logoNormalsShaderData.Apply();
 
-        var normal = Assets.UI.tMLLogoNormals.Asset.Value;
+        var normal = Assets.UI.LogoNormals_TML.Asset.Value;
         var normalOrigin = normal.Size() * 0.5f;
 
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var moonColor);

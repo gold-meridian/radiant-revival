@@ -240,14 +240,11 @@ public static class MoonStyles
 
         var skyColor = Main.ColorOfTheSkies.MultiplyRGB(moon_sky_color);
 
-        moonShaderData.Parameters.atmoColor = moon_atmosphere.ToVector4();
-        moonShaderData.Parameters.atmoShadowColor = moon_atmosphere_shadow.ToVector4();
-
-        moonShaderData.Parameters.shadowColor = skyColor.ToVector4();
-
-        moonShaderData.Parameters.shadowRotation = Main.moonPhase / 8f * MathHelper.TwoPi;
-
-        moonShaderData.Parameters.radius = atmoRatio;
+        moonShaderData.Parameters.AtmoColor = moon_atmosphere.ToVector4();
+        moonShaderData.Parameters.AtmoShadowColor = moon_atmosphere_shadow.ToVector4();
+        moonShaderData.Parameters.ShadowColor = skyColor.ToVector4();
+        moonShaderData.Parameters.ShadowRotation = Main.moonPhase / 8f * MathHelper.TwoPi;
+        moonShaderData.Parameters.Radius = atmoRatio;
 
         moonShaderData.Apply();
 
@@ -301,9 +298,8 @@ public static class MoonStyles
         {
             Debug.Assert(ringShaderData is not null);
 
-            ringShaderData.Parameters.shadowRotation = shadowRotation;
-
-            ringShaderData.Parameters.shadowColor = skyColor.ToVector4();
+            ringShaderData.Parameters.ShadowRotation = shadowRotation;
+            ringShaderData.Parameters.ShadowColor = skyColor.ToVector4();
 
             ringShaderData.Apply();
 

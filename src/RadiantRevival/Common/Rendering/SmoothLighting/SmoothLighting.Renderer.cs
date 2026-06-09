@@ -39,15 +39,16 @@ public static class SmoothLightingRenderer
     private sealed record ApplicationState(
         Vector2 DrawOffset,
         float DrawZoom,
+        bool FlipScreen,
         Texture[] Targets
     );
 
     private sealed class ApplicationScope : IDisposable
     {
-        public ApplicationScope(Vector2 drawOffset, float drawZoom)
+        public ApplicationScope(Vector2 drawOffset, float drawZoom, bool flipScreen)
         {
             var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
-            var state = new ApplicationState(drawOffset, drawZoom, targets);
+            var state = new ApplicationState(drawOffset, drawZoom, flipScreen, targets);
             currently_applied.Push(state);
         }
 
@@ -61,13 +62,14 @@ public static class SmoothLightingRenderer
 
     public static bool IsCurrentlyApplied => currently_applied.Count > 0;
 
-    public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null)
+    public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null, bool? flipScreen = null)
     {
         var screenPosition = Main.screenPosition;
-
         var off = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
 
-        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget);
+        var flip = Main.BackgroundViewMatrix.Effects.HasFlag(SpriteEffects.FlipVertically);
+
+        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget, flipScreen ?? flip);
     }
 
 #pragma warning disable CA2255
@@ -88,20 +90,23 @@ public static class SmoothLightingRenderer
         // ImmediateMode and shortly before rendering during a flush in any
         // other mode.  Both cases guarantee we can set customEffect before it's
         // used, which is what we need.
-        // I tried hooking SpriteBatch::.ctor but it seemingly wouldn't apply,
-        // maybe due to inlining, and the constructors are used everywhere, so I
-        // can't selectively re-JIT affected methods.
+        // I tried hooking SpriteBatch::.ctor, but it seemingly wouldn't
+        // apply -- possibly due to inlining -- and the constructors are used
+        // everywhere (so I can't selectively re-JIT affected methods).
 
         if (ShouldInterceptEffect(self, out var state))
         {
             var effect = Data.Instance.EntityLightingShader;
             {
-                effect.Parameters.draw_offset = state.DrawOffset;
-                effect.Parameters.draw_zoom = state.DrawZoom;
-                effect.Parameters.light_map = new HlslSampler2D
+                effect.Parameters.OffscreenTiles = LightingEngine.BufferOffscreenTileRange;
+                effect.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
+                effect.Parameters.DrawOffset = state.DrawOffset;
+                effect.Parameters.DrawZoom = state.DrawZoom;
+                effect.Parameters.DrawFlipped = state.FlipScreen;
+                effect.Parameters.LightMap = new HlslSampler2D
                 {
                     Sampler = SamplerState.LinearClamp,
-                    Texture = LightingBuffers.Instance.TotalLightingBuffer.Target,
+                    Texture = LightingEngine.TileSpaceBuffer.Target,
                 };
 
                 effect.Apply();

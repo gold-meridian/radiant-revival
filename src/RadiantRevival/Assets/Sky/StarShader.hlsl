@@ -1,26 +1,19 @@
-sampler uImage0 : register(s0);
+#include "../common.h"
 
-float4 main(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
+sampler StarTexture : register(s0);
+
+float4 StarShaderFragment(float2 uv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
 {
-    float4 col = tex2D(uImage0, saturate(uv)) * baseColor;
-    
+    float4 col = tex2D(StarTexture, saturate(uv)) * baseColor;
     float dist = 1 - (length(uv - .5) * 8.6);
-    
     col += pow(saturate(dist), 4);
-    
     col = saturate(col);
-    
     col.rgb * col.a;
-    
     return col;
 }
 
-#ifdef FX
-technique Technique1
-{
-    pass StarShader
-    {
-        PixelShader = compile ps_3_0 main();
-    }
-}
-#endif // FX
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(StarShader)
+        PIXEL_SHADER(compile ps_3_0 StarShaderFragment())
+    END_PASS
+END_TECHNIQUE

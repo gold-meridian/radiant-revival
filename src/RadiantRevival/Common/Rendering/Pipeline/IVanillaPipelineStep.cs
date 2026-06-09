@@ -21,5 +21,5 @@ public interface IVanillaPipelineStep
     ///     API consumers *must* report any mutated targets.  Built-in state
     ///     tracking only applies to vanilla operations.
     /// </remarks>
-    List<WorldSceneLayerTarget> Apply();
+    List<WorldSceneLayerTarget> Apply(in VanillaTargetRendererContext ctx);
 }
