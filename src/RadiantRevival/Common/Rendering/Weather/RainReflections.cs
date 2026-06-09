@@ -10,7 +10,6 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
 
-// TODO: Delta Time? Zoom
 public static class RainReflections
 {
     private sealed class Data : IStatic<Data>
@@ -63,7 +62,6 @@ public static class RainReflections
 
     private const int max_reflection_length = 16;
 
-    private static float priorZoom;
     private static Vector2 priorScreenPosition;
 
     private static bool ApplyShader(RenderTarget2D screen, RenderTarget2D screenSwap, Color color)
@@ -81,7 +79,7 @@ public static class RainReflections
 
         var screenPosition = Main.screenPosition;
 
-        var deltaTime = 1f;
+        var deltaTime = (float)Main.gameTimeCache.ElapsedGameTime.TotalSeconds * 60f;
 
         var fadeSpeed = 0.04f * deltaTime;
 
@@ -92,7 +90,7 @@ public static class RainReflections
         device.Clear(Color.Transparent);
 
         // Draw tileTarget to a screen target to make the UVs a little nicer for the distance shader
-        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.ZoomMatrix);
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
         {
             var tilePosition = Main.tileTarget.Position - screenPosition;
 
@@ -109,8 +107,6 @@ public static class RainReflections
                 Texture = Rain.MaskTarget.Target,
             };
 
-            processorShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
-            processorShader.Parameters.PriorZoom = 1f / priorZoom;
             processorShader.Parameters.ScreenPositionDifference = priorScreenPosition - Main.screenPosition;
             processorShader.Parameters.DistanceMap = new HlslSampler2D
             {
@@ -129,11 +125,10 @@ public static class RainReflections
 
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
         {
-            var distance = (-1f * Main.GameZoomTarget) / Main.screenHeight;
+            var distance = -1f / Main.screenHeight;
 
             distanceShader.Parameters.SampleCount = max_reflection_length;
             distanceShader.Parameters.SampleDistance = distance;
-            distanceShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
             distanceShader.Parameters.ScreenPositionDifference = priorScreenPosition - Main.screenPosition;
             distanceShader.Parameters.FadeSpeed = fadeSpeed;
 
@@ -154,6 +149,7 @@ public static class RainReflections
                 Texture = DistanceMap.Target,
             };
 
+            reflectionsShader.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
             reflectionsShader.Parameters.Intensity = intensity;
 
             reflectionsShader.Apply();
@@ -162,7 +158,6 @@ public static class RainReflections
         }
         sb.End();
 
-        priorZoom = Main.GameZoomTarget;
         priorScreenPosition = Main.screenPosition;
 
         return true;

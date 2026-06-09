@@ -9,10 +9,8 @@ TEXTURE_SIZE(TileTextureSize, 0);
 
 int SampleCount;
 float SampleDistance;
-float DrawZoom;
 
 float2 RainMaskOffset;
-float PriorZoom;
 
 float2 ScreenPositionDifference;
 
@@ -32,7 +30,7 @@ float4 DistanceMapProcessingShaderFragment(float2 textureUv : TEXCOORD0, float2 
     alpha = 1 - pow(1 - alpha, 5);
     
     float2 distUv = svPos / ScreenSize;
-    distUv -= (ScreenPositionDifference / ScreenSize) / DrawZoom;
+    distUv -= ScreenPositionDifference / ScreenSize;
     
     float prior = tex2D(DistanceMap, distUv).y;
     
@@ -54,7 +52,7 @@ float4 DistanceMapShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
     // Tiles coming in from offscreen should appear have their reflections fade in instantly
     float2 diffUv = uv;
     
-    float2 difference = (ScreenPositionDifference / ScreenSize) / DrawZoom;
+    float2 difference = ScreenPositionDifference / ScreenSize;
     difference.y *= SampleCount * 0.5f;
     
     diffUv -= difference;
@@ -68,13 +66,16 @@ float4 DistanceMapShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
         
         if (tex2D(TileTexture, uv).r == 0)
         {
-            float dist = distance(textureUv.y, uv.y) * SampleCount * DrawZoom * 4;
+            float dist = distance(textureUv.y, uv.y) * SampleCount * 4;
             dist = pow(1 - dist, 2);
             
             float alpha = tiles.g * dist;
             alpha = lerp(tiles.b, alpha, interpolator) * tiles.r;
             
-            float4 output = float4(uv.y, min(alpha, dist), 0, 0);
+            // Alpha can on occasion be more than the distance value
+            alpha = min(alpha, dist);
+            
+            float4 output = float4(uv.y, alpha, 0, 0);
             
             return output;
         }
