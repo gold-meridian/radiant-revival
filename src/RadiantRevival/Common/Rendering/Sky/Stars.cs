@@ -155,7 +155,7 @@ public static class Stars
         const float day_length = 54000f;
 
         const float graveyard_alpha = 1.4f;
-        const float atmo_multiplier = 0.43f;
+        const float atmo_multiplier = 1.13f;
 
         var alpha = 1f;
 
@@ -191,7 +191,7 @@ public static class Stars
         var u = rand.NextFloat();
         var v = rand.NextFloat();
 
-        var theta = 2 * MathF.PI * u;
+        var theta = MathF.Tau * u;
         var phi = MathF.Acos(2 * v - 1);
 
         var x = MathF.Sin(phi) * MathF.Cos(theta);
