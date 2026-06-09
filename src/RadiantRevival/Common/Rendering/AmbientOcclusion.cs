@@ -103,7 +103,13 @@ public static class AmbientOcclusion
 
             sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, horizShader.Shader);
             {
-                sb.Draw(Main.tileTarget.Texture, device.Viewport.Bounds, Color.White);
+                var tilePos = Main.wallTarget.Position;
+                var tileOffset = new Vector2(
+                    IsIntegerOdd(tilePos.X) ? -0.5f : 0,
+                    IsIntegerOdd(tilePos.Y) ? -0.5f : 0
+                );
+
+                sb.Draw(Main.tileTarget.Texture, tileOffset, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
             }
             sb.End();
         }
@@ -120,6 +126,13 @@ public static class AmbientOcclusion
                 sb.Draw(BlurTargetSwap.Target, device.Viewport.Bounds, Color.White);
             }
             sb.End();
+        }
+
+        return;
+
+        static bool IsIntegerOdd(float f)
+        {
+            return (int)f % 2 == 1;
         }
     }
 

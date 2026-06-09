@@ -18,6 +18,7 @@ float GlobalBrightness;
 // For cases where manual adjustment is needed.
 float2 DrawOffset;
 float DrawZoom;
+bool DrawFlipped;
 
 #if DOGSHIT_SLOP
 float luminance(float3 c)
@@ -57,6 +58,9 @@ float3 compute_normal(float2 uv)
 float4 SmoothLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv : TEXCOORD0, float4 color : COLOR0) : COLOR0
 {
     float4 albedo = tex2D(Texture, textureUv) * color;
+    
+    svPos.y *= DrawFlipped ? -1 : 1;
+    svPos.y += ScreenSize.y * DrawFlipped;
     
     float2 screenPosTiles = (svPos + DrawOffset / DrawZoom) / TILE_SIZE;
     screenPosTiles += OffscreenTiles;
