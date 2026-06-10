@@ -286,9 +286,12 @@ public static class Rain
                 for (var i = 0; i <= stepCount; i++)
                 {
                     var tilePosition = tileOffset + (direction * i);
-                    var waterPosition = waterOffset + (direction * i);
-
                     sb.Draw(Main.tileTarget.Texture, tilePosition, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+                }
+
+                for (var i = 0; i <= stepCount; i++)
+                {
+                    var waterPosition = waterOffset + (direction * i);
                     sb.Draw(Main.waterTarget.Texture, waterPosition, null, Color.White, 0, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
                 }
             }
