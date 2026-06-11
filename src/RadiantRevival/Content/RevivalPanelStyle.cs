@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Daybreak.Common.Features.Models;
+﻿using Daybreak.Common.Features.Models;
 using Daybreak.Common.Features.ModPanel;
 using Daybreak.Common.Rendering;
+using Daybreak.Common.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using ReLogic.Content;
+using System;
+using System.Collections.Generic;
+using System.Text;
 using Terraria;
 using Terraria.GameContent.UI.Elements;
 using Terraria.ModLoader;
@@ -21,19 +22,14 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     [Autoload(Side = ModSide.Client)]
     private sealed class Data : IStatic<Data>
     {
-        public required WrapperShaderData<Assets.UI.ModPanel.ModPanelShader.Parameters> PanelShader { get; init; }
+        public required WrapperShaderData<Assets.UI.ModPanel.MaskShader.Parameters> MaskShader { get; init; }
 
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
-                () =>
+                () => new Data
                 {
-                    var panelShaderData = Assets.UI.ModPanel.ModPanelShader.CreatePanelShader();
-
-                    return new Data
-                    {
-                        PanelShader = panelShaderData,
-                    };
+                    MaskShader = Assets.UI.ModPanel.MaskShader.CreateMaskShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -41,13 +37,14 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         public static void UnloadData(Data data) { }
     }
 
+    // TODO: Custom font visuals
     public sealed class ModName : UIText
     {
         private readonly string originalText;
 
         public ModName(string text, float textScale = 1, bool large = false) : base(text, textScale, large)
         {
-            if (ChatManager.Regexes.Format.Matches(text).Count != 0)
+            if (ChatManager.Regexes.Format.Count(text) != 0)
             {
                 throw new InvalidOperationException("The text cannot contain formatting.");
             }
@@ -93,25 +90,17 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
-    private static float hoverIntensity;
-
-    public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = [];
-
-    public override void Load()
+    public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = new()
     {
-        base.Load();
-    }
+        { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
+        { TextureKind.ModConfig, Assets.UI.ModPanel.ModConfig.Asset },
+    };
 
     public override bool PreInitialize(UIModItem element)
     {
         element.BorderColor = Color.Black;
 
         return base.PreInitialize(element);
-    }
-
-    public override void PostInitialize(UIModItem element)
-    {
-        base.PostInitialize(element);
     }
 
     public override UIImage ModifyModIcon(UIModItem element, UIImage modIcon, ref int modIconAdjust)
@@ -146,44 +135,51 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             element.LoadTextures();
         }
 
-        // Render our cool custom panel with a shader.
+        var dims = element.Dimensions;
+
+        var panelShader = Data.Instance.MaskShader;
+
+        using (sb.Scope())
         {
-            sb.End(out var ss);
             sb.Begin(
                 SpriteSortMode.Immediate,
                 BlendState.NonPremultiplied,
                 SamplerState.PointClamp,
                 DepthStencilState.None,
-                ss.RasterizerState,
+                RasterizerState.CullNone,
                 null,
                 Main.UIScaleMatrix
             );
+
+            var source = new Vector4(dims.Width, dims.Height, dims.X, dims.Y);
+            source = Transform(source);
+
+            panelShader.Parameters.PanelSource = source;
+            panelShader.Parameters.TargetTexture = new HlslSampler2D
             {
-                var data = Data.Instance;
-                var shaderData = data.PanelShader;
+                Sampler = SamplerState.PointClamp,
+                Texture = Assets.Sky.CelestialBodies.Moon4.Asset.Value,
+            };
 
-                var dims = element.GetDimensions();
+            panelShader.Apply();
 
-                hoverIntensity = MathHelper.Lerp(hoverIntensity, element.IsMouseHovering ? 1f : 0f, 0.15f);
-                hoverIntensity = Math.Clamp(MathF.Round(hoverIntensity, 2), 0f, 1f);
+            element.DrawPanel(sb, element._backgroundTexture.Value, element.BackgroundColor);
 
-                element.DrawPanel(sb, Assets.UI.ModPanel.BevelPanel.Asset.Value, element.BackgroundColor);
-            }
-            sb.Restart(in ss);
+            sb.End();
         }
 
         return false;
+
+        static Vector4 Transform(Vector4 vector)
+        {
+            var vec1 = Vector2.Transform(new Vector2(vector.X, vector.Y), Main.UIScaleMatrix);
+            var vec2 = Vector2.Transform(new Vector2(vector.Z, vector.W), Main.UIScaleMatrix);
+            return new Vector4(vec1, vec2.X, vec2.Y);
+        }
     }
 
     public override Color ModifyEnabledTextColor(bool enabled, Color color)
     {
         return base.ModifyEnabledTextColor(enabled, color);
-    }
-
-    private static Vector4 Transform(Vector4 vector)
-    {
-        var vec1 = Vector2.Transform(new Vector2(vector.X, vector.Y), Main.UIScaleMatrix);
-        var vec2 = Vector2.Transform(new Vector2(vector.Z, vector.W), Main.UIScaleMatrix);
-        return new Vector4(vec1, vec2.X, vec2.Y);
     }
 }
