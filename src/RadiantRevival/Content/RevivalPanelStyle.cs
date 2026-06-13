@@ -1,18 +1,24 @@
-﻿using Daybreak.Common.Features.Models;
+﻿using Daybreak.Common.Features.Authorship;
+using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.Features.Models;
 using Daybreak.Common.Features.ModPanel;
 using Daybreak.Common.Rendering;
 using Daybreak.Common.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using MonoMod.Cil;
 using RadiantRevival.Core;
 using ReLogic.Content;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using RadiantRevival.Common;
 using Terraria;
 using Terraria.GameContent.UI.Elements;
 using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
+using Terraria.UI;
 using Terraria.UI.Chat;
 
 namespace RadiantRevival.Content;
@@ -35,6 +41,56 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
 
         public static void UnloadData(Data data) { }
+    }
+
+    [ModSystemHooks.PostSetupContent]
+    private static void PostSetupContent()
+    {
+        Main.RunOnMainThread(
+            static () =>
+            {
+                var mod = ModContent.GetInstance<ModImpl>();
+                var authors = mod.GetContent<AuthorTag>();
+
+                foreach (var author in authors)
+                {
+                    if (!ModContent.RequestIfExists<Texture2D>(author.Texture, out var icon))
+                    {
+                        continue;
+                    }
+
+                    icon.Wait();
+
+                    var ex = FromImage(icon.Value);
+
+                    author_explosions.Add(ex);
+                }
+            }
+        ).GetAwaiter().GetResult();
+
+        return;
+
+        static ExplosionImage FromImage(Texture2D texture)
+        {
+            var data = new Color[texture.Width * texture.Height];
+
+            var colors = new Color[texture.Width / 2, texture.Height / 2];
+
+            texture.GetData(data);
+
+            for (var i = 0; i < texture.Width; i += 2)
+            {
+                for (var j = 0; j < texture.Height; j += 2)
+                {
+                    var col = data[i + (j * texture.Width)];
+                    col.A = 0;
+
+                    colors[i / 2, j / 2] = col;
+                }
+            }
+
+            return new ExplosionImage(colors, texture.Width / 2, texture.Height / 2);
+        }
     }
 
     // TODO: Custom font visuals
@@ -100,6 +156,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         element.BorderColor = Color.Black;
 
+        element.OnUpdate += OnUpdate_Particles;
+
         return base.PreInitialize(element);
     }
 
@@ -127,6 +185,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         return base.PreSetHoverColors(element, hovered);
     }
 
+    private static readonly Color background_color = new Color(3, 8, 254);
+
     public override bool PreDrawPanel(UIModItem element, SpriteBatch sb, ref bool drawDivider)
     {
         if (element._needsTextureLoading)
@@ -135,22 +195,31 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             element.LoadTextures();
         }
 
+        var device = sb.GraphicsDevice;
+
         var dims = element.Dimensions;
 
         var panelShader = Data.Instance.MaskShader;
 
-        using (sb.Scope())
-        {
-            sb.Begin(
-                SpriteSortMode.Immediate,
-                BlendState.NonPremultiplied,
-                SamplerState.PointClamp,
-                DepthStencilState.None,
-                RasterizerState.CullNone,
-                null,
-                Main.UIScaleMatrix
-            );
+        sb.End(out var ss);
 
+        using var lease = RenderTargetPool.Shared.Rent(device, dims.Width / 2, dims.Height / 2, RenderTargetDescriptor.Default);
+
+        using (lease.Scope(clearColor: background_color))
+        {
+            DrawPanelContents(sb, device);
+        }
+
+        sb.Begin(
+            SpriteSortMode.Immediate,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            ss.RasterizerState,
+            null,
+            Main.UIScaleMatrix
+        );
+        {
             var source = new Vector4(dims.Width, dims.Height, dims.X, dims.Y);
             source = Transform(source);
 
@@ -158,15 +227,14 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             panelShader.Parameters.TargetTexture = new HlslSampler2D
             {
                 Sampler = SamplerState.PointClamp,
-                Texture = Assets.Sky.CelestialBodies.Moon4.Asset.Value,
+                Texture = lease.Target,
             };
 
             panelShader.Apply();
 
             element.DrawPanel(sb, element._backgroundTexture.Value, element.BackgroundColor);
-
-            sb.End();
         }
+        sb.Restart(in ss);
 
         return false;
 
@@ -177,6 +245,201 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             return new Vector4(vec1, vec2.X, vec2.Y);
         }
     }
+
+    private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device)
+    {
+        DrawSparks(sb);
+    }
+
+    private void OnUpdate_Particles(UIElement affectedElement)
+    {
+        UpdateSparks(affectedElement.Dimensions);
+    }
+
+#region Fireworks
+    private record struct Spark(Vector2 Position, Vector2 Velocity, Color Color, float Scale, float Lifetime, bool Active);
+
+    private const int spark_count = 800;
+    private static readonly Spark[] sparks = new Spark[spark_count];
+
+    private static readonly Color firework_red = new Color(255, 196, 216, 0);
+
+    private static readonly Color firework_yellow = new Color(255, 230, 117, 0);
+
+    private readonly record struct ExplosionImage(Color[,] Colors, int Width, int Height);
+
+    private static readonly List<ExplosionImage> author_explosions = [];
+
+    private static void UpdateSparks(Rectangle dims)
+    {
+        const float spark_lifetime_increment = 0.013f;
+
+        for (var i = 0; i < sparks.Length; i++)
+        {
+            ref var spark = ref sparks[i];
+
+            if (!spark.Active)
+            {
+                continue;
+            }
+
+            spark.Position += spark.Velocity;
+            spark.Velocity *= 0.92f;
+
+            spark.Lifetime += spark_lifetime_increment;
+
+            if (spark.Lifetime > 1f)
+            {
+                spark.Active = false;
+            }
+        }
+
+        SpawnFireworkExplosions();
+
+        return;
+
+        void SpawnFireworkExplosions()
+        {
+            const int star_chance = 75;
+            const int author_tag_chance = 155;
+
+            if (Main.rand.NextBool(star_chance))
+            {
+                var position = RandomPosition(dims) / 2;
+
+                var color = Color.OklabLerp(firework_red, firework_yellow, Main.rand.NextFloat());
+
+                ExplosionFivePointStar(position, color);
+            }
+
+            if (Main.rand.NextBool(author_tag_chance))
+            {
+                var position = RandomPosition(dims) / 2;
+
+                ExplosionAuthorTag(position);
+            }
+        }
+
+        static Vector2 RandomPosition(Rectangle dims)
+        {
+            return Main.rand.NextVector2FromRectangle(dims) - dims.TopLeft();
+        }
+    }
+
+    private static void DrawSparks(SpriteBatch sb)
+    {
+        const float spark_scale_freq = 22f;
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var texture = Assets.UI.ModPanel.Spark.Asset.Value;
+
+            var origin = texture.Size() * 0.5f;
+
+            foreach (var spark in sparks)
+            {
+                if (!spark.Active)
+                {
+                    continue;
+                }
+
+                var scale = spark.Scale;
+
+                scale *= 1 - MathF.Pow(spark.Lifetime, 5);
+
+                scale *= 1 + (MathF.Sin((spark.Lifetime + scale) * spark_scale_freq) * 0.5f);
+
+                sb.Draw(texture, spark.Position, null, spark.Color, 0, origin, scale, SpriteEffects.None, 0f);
+            }
+        }
+        sb.End();
+    }
+
+    private static void ExplosionAuthorTag(Vector2 position)
+    {
+        var index = Main.rand.Next(author_explosions.Count);
+
+        var explosion = author_explosions[index];
+
+        var speed = Main.rand.NextFloat(1f, 3.5f);
+
+        const float range = MathHelper.PiOver4;
+        
+        var rotation = Main.rand.NextFloat(-range, range);
+
+        for (var i = 0; i < explosion.Width; i++)
+        {
+            for (var j = 0; j < explosion.Height; j++)
+            {
+                var color = explosion.Colors[i, j];
+
+                if (color is not { R: > 0, G: > 0, B: > 0 })
+                {
+                    continue;
+                }
+
+                var imageSize = new Vector2(explosion.Width, explosion.Height);
+
+                var velocity = new Vector2(i, j) - (imageSize * 0.5f);
+                velocity /= imageSize * 0.5f;
+                velocity *= speed;
+
+                velocity = velocity.RotatedBy(rotation);
+
+                var size = Main.rand.NextFloat(0.35f, 1.1f);
+
+                var lifetime = Main.rand.NextFloat(0f, 0.35f);
+
+                SpawnSpark(position, velocity, color, size, lifetime);
+            }
+        }
+    }
+
+    private static void ExplosionFivePointStar(Vector2 position, Color color)
+    {
+        var smoothness = Main.rand.NextFloat(0f, 0.3f);
+
+        ExplosionStar(position, color, 5, 60, smoothness);
+    }
+
+    private static void ExplosionStar(Vector2 position, Color color, int points, int count, float smoothness = 0)
+    {
+        var increment = MathF.Tau / count;
+
+        var rotationOffset = Main.rand.NextFloatDirection();
+
+        var speed = Main.rand.NextFloat(1.3f, 7.5f);
+
+        for (var t = 0f; t < MathF.Tau; t += increment)
+        {
+            var m = points - 2;
+
+            var num = MathF.Cos((2 * MathF.Asin(1 - smoothness) + MathF.PI * m) / (2 * points));
+            var denom = MathF.Cos((2 * MathF.Asin((1 - smoothness) * MathF.Cos(points * t)) + MathF.PI * m) / (2 * points));
+            var radius = num / denom;
+
+            var velocity = Vector2.UnitY.RotatedBy(t + rotationOffset) * radius * speed;
+
+            var size = Main.rand.NextFloat(0.15f, 0.75f);
+
+            var lifetime = Main.rand.NextFloat(0f, 0.35f);
+
+            SpawnSpark(position, velocity, color, size, lifetime);
+        }
+    }
+
+    private static void SpawnSpark(Vector2 position, Vector2 velocity, Color color, float scale, float lifetime)
+    {
+        var index = Array.FindIndex(sparks, s => !s.Active);
+
+        if (index == -1)
+        {
+            return;
+        }
+
+        sparks[index] = new Spark(position, velocity, color, scale, lifetime, true);
+    }
+#endregion
 
     public override Color ModifyEnabledTextColor(bool enabled, Color color)
     {
