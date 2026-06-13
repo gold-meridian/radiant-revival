@@ -65,11 +65,13 @@ public static class SmoothLightingRenderer
     public static IDisposable BeginScope(Vector2? drawOffset = null, float? drawZoom = null, bool? flipScreen = null)
     {
         var screenPosition = Main.screenPosition;
-        var off = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
+        drawOffset ??= new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
 
-        var flip = Main.BackgroundViewMatrix.Effects.HasFlag(SpriteEffects.FlipVertically);
+        drawZoom ??= 1f / Main.GameZoomTarget;
 
-        return new ApplicationScope(drawOffset ?? off, drawZoom ?? 1f / Main.GameZoomTarget, flipScreen ?? flip);
+        flipScreen ??= Main.BackgroundViewMatrix.Effects.HasFlag(SpriteEffects.FlipVertically);
+
+        return new ApplicationScope(drawOffset.Value, drawZoom.Value, flipScreen.Value);
     }
 
 #pragma warning disable CA2255
