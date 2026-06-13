@@ -21,6 +21,7 @@ using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI;
 using Terraria.UI.Chat;
+using static Terraria.GameContent.Skies.StardustSky;
 
 namespace RadiantRevival.Content;
 
@@ -137,70 +138,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     [ModSystemHooks.PostSetupContent]
     private static void PostSetupContent()
     {
-        Main.RunOnMainThread(
-            static () =>
-            {
-                patterns.Add(new FireworkPattern(ExplosionFivePointStar, 160));
-                patterns.Add(new FireworkPattern(ExplosionFourPointStar, 180));
-                patterns.Add(new FireworkPattern(ExplosionSwirl, 580));
-
-                AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 700, true);
-                AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 600, false);
-                AddImage(Assets.UI.ModPanel.Fireworks.SteamHappy.Asset, 1300, false);
-
-                var mod = ModContent.GetInstance<ModImpl>();
-                var authors = mod.GetContent<AuthorTag>();
-
-                foreach (var author in authors)
-                {
-                    if (!ModContent.RequestIfExists<Texture2D>(author.Texture, out var icon))
-                    {
-                        continue;
-                    }
-
-                    AddImage(icon, 540, true);
-                }
-            }
-        ).GetAwaiter().GetResult();
-
-        return;
-
-        static void AddImage(Asset<Texture2D> asset, int chance, bool doubleScale = true)
-        {
-            asset.Wait();
-
-            var ex = FromImage(asset.Value, doubleScale);
-
-            patterns.Add(
-                new FireworkPattern(
-                    p => ExplosionCustomImage(p, ex),
-                    chance
-                )
-            );
-        }
-
-        static ExplosionImage FromImage(Texture2D texture, bool doubleScale = true)
-        {
-            var pixelSize = doubleScale ? 2 : 1;
-
-            var data = new Color[texture.Width * texture.Height];
-
-            var colors = new Color[texture.Width / pixelSize, texture.Height / pixelSize];
-
-            texture.GetData(data);
-
-            for (var i = 0; i < texture.Width; i += pixelSize)
-            {
-                for (var j = 0; j < texture.Height; j += pixelSize)
-                {
-                    var col = data[i + (j * texture.Width)];
-
-                    colors[i / pixelSize, j / pixelSize] = col;
-                }
-            }
-
-            return new ExplosionImage(colors, texture.Width / pixelSize, texture.Height / pixelSize);
-        }
+        Main.RunOnMainThread(InitFireworkPatterns).GetAwaiter().GetResult();
     }
 
     // TODO: Custom font visuals
@@ -269,20 +207,28 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         element.OnUpdate += OnUpdate_Particles;
 
-        element.OnMouseOver += OnMouseOver_Hover;
         element.OnUpdate += OnUpdate_Hover;
+
+        starsCreated = false;
+        element.OnUpdate += OnUpdate_Stars;
 
         return base.PreInitialize(element);
     }
 
-    private static float hoverIntensity;
+    private static bool starsCreated;
 
-    private void OnMouseOver_Hover(UIMouseEvent evt, UIElement listeningElement)
+    private static void OnUpdate_Stars(UIElement affectedElement)
     {
-        //hoverIntensity = 1f;
+        if (!starsCreated)
+        {
+            CreateStars(affectedElement.Dimensions);
+            starsCreated = true;
+        }
     }
 
-    private void OnUpdate_Hover(UIElement affectedElement)
+    private static float hoverIntensity;
+
+    private static void OnUpdate_Hover(UIElement affectedElement)
     {
         hoverIntensity -= 0.01f;
 
@@ -292,6 +238,11 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
 
         hoverIntensity = MathHelper.Clamp(hoverIntensity, 0f, 1f);
+    }
+
+    private static void OnUpdate_Particles(UIElement affectedElement)
+    {
+        UpdateSparks(affectedElement.Dimensions);
     }
 
     public override UIImage ModifyModIcon(UIModItem element, UIImage modIcon, ref int modIconAdjust)
@@ -319,6 +270,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     }
 
     private static readonly Color background_gradient_lower = new Color(9, 14, 211);
+    private static readonly Color background_nebula = new Color(5, 10, 255);
 
     public override bool PreDrawPanel(UIModItem element, SpriteBatch sb, ref bool drawDivider)
     {
@@ -395,19 +347,75 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             var pixel = TextureAssets.MagicPixel.Value;
 
-            var color = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.6f;
+            var overlayColor = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.6f;
 
-            sb.Draw(pixel, bounds, null, color);
+            sb.Draw(pixel, bounds, null, overlayColor);
+
+            var nebula = Assets.UI.ModPanel.NebulaLeft.Asset.Value;
+
+            var nebulaColor = background_nebula * 0.5f;
+
+            sb.Draw(nebula, Vector2.Zero, nebulaColor);
         }
         sb.End();
+
+        DrawStars(sb);
 
         DrawSparks(sb);
     }
 
-    private void OnUpdate_Particles(UIElement affectedElement)
+#region Stars
+    private readonly record struct Star(Vector2 Position, int Style, float Phase);
+
+    private const int star_styles = 9;
+
+    private const int star_count = 35;
+    private static readonly Star[] stars = new Star[star_count];
+
+    private static void CreateStars(Rectangle dims)
     {
-        UpdateSparks(affectedElement.Dimensions);
+        for (var i = 0; i < stars.Length; i++)
+        {
+            var positon = RandomPosition(dims) * 0.5f;
+
+            stars[i] = new Star(positon, Main.rand.Next(star_styles), Main.rand.NextFloatDirection());
+        }
+
+        return;
+
+        static Vector2 RandomPosition(Rectangle dims)
+        {
+            return Main.rand.NextVector2FromRectangle(dims) - dims.TopLeft();
+        }
     }
+
+    private static void DrawStars(SpriteBatch sb)
+    {
+        const float twinkle_freq = 2f;
+        const float twinkle_ampl = 0.7f;
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var texture = Assets.UI.ModPanel.Stars.Asset.Value;
+
+            var origin = texture.Frame(1, star_styles).Size() * 0.5f;
+
+            foreach (var star in stars)
+            {
+                var frame = texture.Frame(1, star_styles, 0, star.Style);
+
+                var frequency = twinkle_freq * (1 - (star.Style / (float)star_styles + 0.1f));
+
+                var scale = 0.5f;
+                scale *= 0.8f + (MathF.Sin((Main.GlobalTimeWrappedHourly + star.Phase) * frequency) * twinkle_ampl);
+                scale = Math.Min(scale, 0.5f);
+
+                sb.Draw(texture, star.Position, frame, Color.White, 0, origin, scale, SpriteEffects.None, 0f);
+            }
+        }
+        sb.End();
+    }
+#endregion
 
 #region Fireworks
     private record struct Spark(Vector2 Position, Vector2 Velocity, Color Color, float Scale, float Lifetime, bool Active);
@@ -428,6 +436,69 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     private readonly record struct FireworkPattern(Action<Vector2> Explosion, int Chance);
 
     private static readonly List<FireworkPattern> patterns = [];
+
+    private static void InitFireworkPatterns()
+    {
+        patterns.Add(new FireworkPattern(ExplosionFivePointStar, 160));
+        patterns.Add(new FireworkPattern(ExplosionFourPointStar, 180));
+        patterns.Add(new FireworkPattern(ExplosionSwirl, 580));
+
+        AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 700, true);
+        AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 600, false);
+        AddImage(Assets.UI.ModPanel.Fireworks.SteamHappy.Asset, 1300, false);
+
+        var mod = ModContent.GetInstance<ModImpl>();
+        var authors = mod.GetContent<AuthorTag>();
+
+        foreach (var author in authors)
+        {
+            if (!ModContent.RequestIfExists<Texture2D>(author.Texture, out var icon))
+            {
+                continue;
+            }
+
+            AddImage(icon, 540, true);
+        }
+
+        return;
+
+        static void AddImage(Asset<Texture2D> asset, int chance, bool doubleScale = true)
+        {
+            asset.Wait();
+
+            var ex = FromImage(asset.Value, doubleScale);
+
+            patterns.Add(
+                new FireworkPattern(
+                    p => ExplosionCustomImage(p, ex),
+                    chance
+                )
+            );
+        }
+
+        static ExplosionImage FromImage(Texture2D texture, bool doubleScale = true)
+        {
+            var pixelSize = doubleScale ? 2 : 1;
+
+            var data = new Color[texture.Width * texture.Height];
+
+            var colors = new Color[texture.Width / pixelSize, texture.Height / pixelSize];
+
+            texture.GetData(data);
+
+            for (var i = 0; i < texture.Width; i += pixelSize)
+            {
+                for (var j = 0; j < texture.Height; j += pixelSize)
+                {
+                    var col = data[i + (j * texture.Width)];
+
+                    colors[i / pixelSize, j / pixelSize] = col;
+                }
+            }
+
+            return new ExplosionImage(colors, texture.Width / pixelSize, texture.Height / pixelSize);
+        }
+    }
 
     private static void UpdateSparks(Rectangle dims)
     {
