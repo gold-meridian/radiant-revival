@@ -269,7 +269,29 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         element.OnUpdate += OnUpdate_Particles;
 
+        element.OnMouseOver += OnMouseOver_Hover;
+        element.OnUpdate += OnUpdate_Hover;
+
         return base.PreInitialize(element);
+    }
+
+    private static float hoverIntensity;
+
+    private void OnMouseOver_Hover(UIMouseEvent evt, UIElement listeningElement)
+    {
+        //hoverIntensity = 1f;
+    }
+
+    private void OnUpdate_Hover(UIElement affectedElement)
+    {
+        hoverIntensity -= 0.01f;
+
+        if (affectedElement.Dimensions.Contains(Main.MouseScreen.ToPoint()))
+        {
+            hoverIntensity += 0.2f;
+        }
+
+        hoverIntensity = MathHelper.Clamp(hoverIntensity, 0f, 1f);
     }
 
     public override UIImage ModifyModIcon(UIModItem element, UIImage modIcon, ref int modIconAdjust)
@@ -295,6 +317,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         return base.PreSetHoverColors(element, hovered);
     }
+
+    private static readonly Color background_gradient_lower = new Color(9, 14, 211);
 
     public override bool PreDrawPanel(UIModItem element, SpriteBatch sb, ref bool drawDivider)
     {
@@ -368,6 +392,12 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var bounds = device.Viewport.Bounds;
 
             sb.Draw(sky, bounds, null, Color.White);
+
+            var pixel = TextureAssets.MagicPixel.Value;
+
+            var color = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.6f;
+
+            sb.Draw(pixel, bounds, null, color);
         }
         sb.End();
 
