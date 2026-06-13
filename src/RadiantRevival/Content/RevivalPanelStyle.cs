@@ -49,6 +49,12 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         Main.RunOnMainThread(
             static () =>
             {
+                patterns.Add(new FireworkPattern(ExplosionFivePointStar, 60));
+                patterns.Add(new FireworkPattern(ExplosionFourPointStar, 80));
+
+                AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 500, true);
+                AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 300, false);
+
                 var mod = ModContent.GetInstance<ModImpl>();
                 var authors = mod.GetContent<AuthorTag>();
 
@@ -59,37 +65,49 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                         continue;
                     }
 
-                    icon.Wait();
-
-                    var ex = FromImage(icon.Value);
-
-                    author_explosions.Add(ex);
+                    AddImage(icon, 240, true);
                 }
             }
         ).GetAwaiter().GetResult();
 
         return;
 
-        static ExplosionImage FromImage(Texture2D texture)
+        static void AddImage(Asset<Texture2D> asset, int chance, bool doubleScale = true)
         {
+            asset.Wait();
+
+            var ex = FromImage(asset.Value, doubleScale);
+
+            patterns.Add(
+                new FireworkPattern(
+                    p => ExplosionCustomImage(p, ex),
+                    chance
+                )
+            );
+        }
+
+        static ExplosionImage FromImage(Texture2D texture, bool doubleScale = true)
+        {
+            var pixelSize = doubleScale ? 2 : 1;
+
             var data = new Color[texture.Width * texture.Height];
 
-            var colors = new Color[texture.Width / 2, texture.Height / 2];
+            var colors = new Color[texture.Width / pixelSize, texture.Height / pixelSize];
 
             texture.GetData(data);
 
-            for (var i = 0; i < texture.Width; i += 2)
+            for (var i = 0; i < texture.Width; i += pixelSize)
             {
-                for (var j = 0; j < texture.Height; j += 2)
+                for (var j = 0; j < texture.Height; j += pixelSize)
                 {
                     var col = data[i + (j * texture.Width)];
                     col.A = 0;
 
-                    colors[i / 2, j / 2] = col;
+                    colors[i / pixelSize, j / pixelSize] = col;
                 }
             }
 
-            return new ExplosionImage(colors, texture.Width / 2, texture.Height / 2);
+            return new ExplosionImage(colors, texture.Width / pixelSize, texture.Height / pixelSize);
         }
     }
 
@@ -201,6 +219,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         var panelShader = Data.Instance.MaskShader;
 
+        var scissor = device.ScissorRectangle;
+
         sb.End(out var ss);
 
         using var lease = RenderTargetPool.Shared.Rent(device, dims.Width / 2, dims.Height / 2, RenderTargetDescriptor.Default);
@@ -209,6 +229,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         {
             DrawPanelContents(sb, device);
         }
+
+        device.ScissorRectangle = scissor;
 
         sb.Begin(
             SpriteSortMode.Immediate,
@@ -266,9 +288,15 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private static readonly Color firework_yellow = new Color(255, 230, 117, 0);
 
+    private static readonly Color firework_blue = new Color(161, 213, 255, 0);
+
     private readonly record struct ExplosionImage(Color[,] Colors, int Width, int Height);
 
     private static readonly List<ExplosionImage> author_explosions = [];
+
+    private readonly record struct FireworkPattern(Action<Vector2> Explosion, int Chance);
+
+    private static readonly List<FireworkPattern> patterns = [];
 
     private static void UpdateSparks(Rectangle dims)
     {
@@ -300,23 +328,16 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         void SpawnFireworkExplosions()
         {
-            const int star_chance = 75;
-            const int author_tag_chance = 155;
-
-            if (Main.rand.NextBool(star_chance))
+            foreach (var fireworkPattern in patterns)
             {
+                if (!Main.rand.NextBool(fireworkPattern.Chance))
+                {
+                    continue;
+                }
+
                 var position = RandomPosition(dims) / 2;
 
-                var color = Color.OklabLerp(firework_red, firework_yellow, Main.rand.NextFloat());
-
-                ExplosionFivePointStar(position, color);
-            }
-
-            if (Main.rand.NextBool(author_tag_chance))
-            {
-                var position = RandomPosition(dims) / 2;
-
-                ExplosionAuthorTag(position);
+                fireworkPattern.Explosion(position);
             }
         }
 
@@ -361,10 +382,15 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         var explosion = author_explosions[index];
 
-        var speed = Main.rand.NextFloat(1f, 3.5f);
+        ExplosionCustomImage(position, explosion);
+    }
 
+    private static void ExplosionCustomImage(Vector2 position, ExplosionImage explosion)
+    {
         const float range = MathHelper.PiOver4;
-        
+
+        var speed = Main.rand.NextFloat(1f, 4.5f);
+
         var rotation = Main.rand.NextFloat(-range, range);
 
         for (var i = 0; i < explosion.Width; i++)
@@ -395,11 +421,22 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
-    private static void ExplosionFivePointStar(Vector2 position, Color color)
+    private static void ExplosionFivePointStar(Vector2 position)
     {
         var smoothness = Main.rand.NextFloat(0f, 0.3f);
 
+        var color = Color.OklabLerp(firework_red, firework_yellow, Main.rand.NextFloat());
+
         ExplosionStar(position, color, 5, 60, smoothness);
+    }
+
+    private static void ExplosionFourPointStar(Vector2 position)
+    {
+        var smoothness = Main.rand.NextFloat(0.1f, 0.2f);
+
+        var color = Color.OklabLerp(firework_red, firework_blue, Main.rand.NextFloat());
+
+        ExplosionStar(position, color, 4, 50, smoothness);
     }
 
     private static void ExplosionStar(Vector2 position, Color color, int points, int count, float smoothness = 0)
