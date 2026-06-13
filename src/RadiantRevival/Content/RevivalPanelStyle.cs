@@ -12,9 +12,11 @@ using ReLogic.Content;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using RadiantRevival.Common;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
 using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
@@ -41,6 +43,96 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
 
         public static void UnloadData(Data data) { }
+    }
+
+    private static bool currentlyDrawing;
+
+    private static readonly Color state_text_inner = new Color(255, 227, 123);
+    private static readonly Color state_text_outer = new Color(167, 23, 152);
+
+    [OnLoad]
+    private static void Load()
+    {
+        MonoModHooks.Modify(
+            typeof(UIModStateText).GetMethod(
+                nameof(UIModStateText.DrawEnabledText),
+                BindingFlags.Instance | BindingFlags.NonPublic
+            ),
+            DrawEnabledText_CustomText
+        );
+    }
+
+    private static void DrawEnabledText_CustomText(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        var positionIndex = -1;
+
+        var jumpRetTarget = c.DefineLabel();
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchMul()
+        );
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchStloc(out positionIndex)
+        );
+
+        c.EmitLdarg0();
+        c.EmitLdloc(positionIndex);
+
+        c.EmitDelegate(
+            static (UIModStateText element, Vector2 position) =>
+            {
+                if (!currentlyDrawing)
+                {
+                    return false;
+                }
+
+                var sb = Main.spriteBatch;
+                var font = FontAssets.MouseText.Value;
+
+                ChatManager.DrawColorCodedStringWithShadow(
+                    sb,
+                    font,
+                    element.DisplayText,
+                    position,
+                    state_text_inner,
+                    state_text_outer,
+                    0f,
+                    Vector2.Zero,
+                    Vector2.One,
+                    999f, // For whatever reason the game doesn't use shadowColor if maxWidth is below 0???
+                    1.5f
+                );
+
+                return true;
+            }
+        );
+
+        c.EmitBrfalse(jumpRetTarget);
+
+        c.EmitRet();
+
+        c.MarkLabel(jumpRetTarget);
+    }
+
+    public override Color ModifyEnabledTextColor(bool enabled, Color color)
+    {
+        return state_text_inner;
+    }
+
+    public override bool PreDraw(UIModItem element, SpriteBatch sb)
+    {
+        currentlyDrawing = true;
+        return base.PreDraw(element, sb);
+    }
+
+    public override void PostDraw(UIModItem element, SpriteBatch sb)
+    {
+        currentlyDrawing = false;
     }
 
     [ModSystemHooks.PostSetupContent]
@@ -168,6 +260,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
         { TextureKind.ModConfig, Assets.UI.ModPanel.ModConfig.Asset },
+        { TextureKind.InnerPanel, Assets.UI.ModPanel.InnerPanel.Asset },
     };
 
     public override bool PreInitialize(UIModItem element)
@@ -477,9 +570,4 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         sparks[index] = new Spark(position, velocity, color, scale, lifetime, true);
     }
 #endregion
-
-    public override Color ModifyEnabledTextColor(bool enabled, Color color)
-    {
-        return base.ModifyEnabledTextColor(enabled, color);
-    }
 }
