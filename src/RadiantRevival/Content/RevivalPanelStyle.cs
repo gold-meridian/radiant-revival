@@ -7,14 +7,13 @@ using Daybreak.Common.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
+using RadiantRevival.Common;
 using RadiantRevival.Core;
 using ReLogic.Content;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Text;
-using RadiantRevival.Common;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
@@ -141,11 +140,13 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         Main.RunOnMainThread(
             static () =>
             {
-                patterns.Add(new FireworkPattern(ExplosionFivePointStar, 60));
-                patterns.Add(new FireworkPattern(ExplosionFourPointStar, 80));
+                patterns.Add(new FireworkPattern(ExplosionFivePointStar, 160));
+                patterns.Add(new FireworkPattern(ExplosionFourPointStar, 180));
+                patterns.Add(new FireworkPattern(ExplosionSwirl, 580));
 
-                AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 500, true);
-                AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 300, false);
+                AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 700, true);
+                AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 600, false);
+                AddImage(Assets.UI.ModPanel.Fireworks.SteamHappy.Asset, 1300, false);
 
                 var mod = ModContent.GetInstance<ModImpl>();
                 var authors = mod.GetContent<AuthorTag>();
@@ -157,7 +158,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                         continue;
                     }
 
-                    AddImage(icon, 240, true);
+                    AddImage(icon, 540, true);
                 }
             }
         ).GetAwaiter().GetResult();
@@ -193,7 +194,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 for (var j = 0; j < texture.Height; j += pixelSize)
                 {
                     var col = data[i + (j * texture.Width)];
-                    col.A = 0;
 
                     colors[i / pixelSize, j / pixelSize] = col;
                 }
@@ -296,8 +296,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         return base.PreSetHoverColors(element, hovered);
     }
 
-    private static readonly Color background_color = new Color(3, 8, 254);
-
     public override bool PreDrawPanel(UIModItem element, SpriteBatch sb, ref bool drawDivider)
     {
         if (element._needsTextureLoading)
@@ -318,7 +316,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         using var lease = RenderTargetPool.Shared.Rent(device, dims.Width / 2, dims.Height / 2, RenderTargetDescriptor.Default);
 
-        using (lease.Scope(clearColor: background_color))
+        using (lease.Scope(clearColor: Color.Black))
         {
             DrawPanelContents(sb, device);
         }
@@ -363,6 +361,16 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device)
     {
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var sky = Assets.UI.ModPanel.PanelBackground.Asset.Value;
+
+            var bounds = device.Viewport.Bounds;
+
+            sb.Draw(sky, bounds, null, Color.White);
+        }
+        sb.End();
+
         DrawSparks(sb);
     }
 
@@ -374,18 +382,18 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 #region Fireworks
     private record struct Spark(Vector2 Position, Vector2 Velocity, Color Color, float Scale, float Lifetime, bool Active);
 
-    private const int spark_count = 800;
+    private const int spark_count = 1300;
     private static readonly Spark[] sparks = new Spark[spark_count];
 
-    private static readonly Color firework_red = new Color(255, 196, 216, 0);
+    private static readonly Color firework_red = new Color(255, 196, 216);
 
-    private static readonly Color firework_yellow = new Color(255, 230, 117, 0);
+    private static readonly Color firework_yellow = new Color(255, 230, 117);
 
-    private static readonly Color firework_blue = new Color(161, 213, 255, 0);
+    private static readonly Color firework_blue = new Color(161, 213, 255);
+
+    private static readonly Color firework_swirl_color = new Color(116, 131, 250);
 
     private readonly record struct ExplosionImage(Color[,] Colors, int Width, int Height);
-
-    private static readonly List<ExplosionImage> author_explosions = [];
 
     private readonly record struct FireworkPattern(Action<Vector2> Explosion, int Chance);
 
@@ -469,15 +477,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         sb.End();
     }
 
-    private static void ExplosionAuthorTag(Vector2 position)
-    {
-        var index = Main.rand.Next(author_explosions.Count);
-
-        var explosion = author_explosions[index];
-
-        ExplosionCustomImage(position, explosion);
-    }
-
     private static void ExplosionCustomImage(Vector2 position, ExplosionImage explosion)
     {
         const float range = MathHelper.PiOver4;
@@ -491,11 +490,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             for (var j = 0; j < explosion.Height; j++)
             {
                 var color = explosion.Colors[i, j];
-
-                if (color is not { R: > 0, G: > 0, B: > 0 })
-                {
-                    continue;
-                }
 
                 var imageSize = new Vector2(explosion.Width, explosion.Height);
 
@@ -558,6 +552,36 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
+    private static void ExplosionSwirl(Vector2 position)
+    {
+        const int count = 120;
+
+        const float loops = 2;
+
+        const float radians = MathF.Tau * loops;
+
+        const float increment = radians / count;
+
+        var rotationOffset = Main.rand.NextFloatDirection();
+
+        var speed = Main.rand.NextFloat(2.3f, 6.5f);
+
+        var color = firework_swirl_color;
+
+        for (var t = 0f; t < radians; t += increment)
+        {
+            var radius = 0.1f + (t / radians);
+
+            var velocity = Vector2.UnitY.RotatedBy(t + rotationOffset) * radius * speed;
+
+            var size = Main.rand.NextFloat(0.25f, 0.65f);
+
+            var lifetime = Main.rand.NextFloat(0f, 0.35f);
+
+            SpawnSpark(position, velocity, color, size, lifetime);
+        }
+    }
+
     private static void SpawnSpark(Vector2 position, Vector2 velocity, Color color, float scale, float lifetime)
     {
         var index = Array.FindIndex(sparks, s => !s.Active);
@@ -566,6 +590,15 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         {
             return;
         }
+
+        if (color is { R: < 40, G: < 40, B: < 40 } || color.A == 0)
+        {
+            return;
+        }
+
+        scale *= color.A / (float)byte.MaxValue;
+
+        color.A = 120;
 
         sparks[index] = new Spark(position, velocity, color, scale, lifetime, true);
     }
