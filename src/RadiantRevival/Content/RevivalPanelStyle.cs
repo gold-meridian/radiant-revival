@@ -410,10 +410,19 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 scale *= 0.8f + (MathF.Sin((Main.GlobalTimeWrappedHourly + star.Phase) * frequency) * twinkle_ampl);
                 scale = Math.Min(scale, 0.5f);
 
-                sb.Draw(texture, star.Position, frame, Color.White, 0, origin, scale, SpriteEffects.None, 0f);
+                var position = RoundPosition(star.Position);
+
+                sb.Draw(texture, position, frame, Color.White, 0, origin, scale, SpriteEffects.None, 0f);
             }
         }
         sb.End();
+
+        return;
+
+        static Vector2 RoundPosition(Vector2 position)
+        {
+            return new Vector2((int)position.X + 0.5f, (int)position.Y + 0.5f);
+        }
     }
 #endregion
 
