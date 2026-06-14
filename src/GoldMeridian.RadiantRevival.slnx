@@ -8,5 +8,6 @@
         <Project Path="daybreak-mod/src/generators/DaybreakHookGenerator/DaybreakHookGenerator.csproj" />
     </Folder>
     <Project Path="RadiantRevival/RadiantRevival.csproj" />
+    <Project Path="RadiantRevival.SourceGen/RadiantRevival.SourceGen.csproj" />
     <Project Path="RenderReprise/RenderReprise.csproj" />
 </Solution>
