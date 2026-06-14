@@ -1,0 +1,11 @@
+﻿<Project>
+    <ItemGroup>
+        <!-- DynamicSpriteFonts -->
+        <AdditionalFiles Include="$(MSBuildProjectFileDirectory)**/*.dsf"/>
+
+        <!-- ObjModels -->
+        <AdditionalFiles Include="$(MSBuildProjectFileDirectory)**/*.obj"/>
+
+        <ProjectReference Include="$(MSBuildThisFileDirectory)RadiantRevival.SourceGen.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer"/>
+    </ItemGroup>
+</Project>
