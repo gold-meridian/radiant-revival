@@ -230,11 +230,13 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private static void OnUpdate_Hover(UIElement affectedElement)
     {
-        hoverIntensity -= 0.01f;
-
         if (affectedElement.Dimensions.Contains(Main.MouseScreen.ToPoint()))
         {
-            hoverIntensity += 0.2f;
+            hoverIntensity += 0.08f;
+        }
+        else
+        {
+            hoverIntensity -= 0.1f;
         }
 
         hoverIntensity = MathHelper.Clamp(hoverIntensity, 0f, 1f);
@@ -325,7 +327,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             sb.spriteEffectPass.Apply();
 
-            var outlineColor = Color.OklabLerp(background_nebula, new Color(246, 190, 66), hoverIntensity);
+            var outlineColor = Color.Lerp(background_nebula, new Color(246, 190, 66), 1f - MathF.Pow(1f - hoverIntensity, 2f));
 
             element.DrawPanel(sb, element._borderTexture.Value, outlineColor);
         }
@@ -353,7 +355,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             var pixel = TextureAssets.MagicPixel.Value;
 
-            var overlayColor = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.6f;
+            // var overlayColor = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.6f;
+            var overlayColor = background_gradient_lower * MathF.Pow(0f, 3f) * 0.6f;
 
             sb.Draw(pixel, bounds, null, overlayColor);
 
