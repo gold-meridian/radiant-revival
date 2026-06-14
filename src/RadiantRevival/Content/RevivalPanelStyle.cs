@@ -473,6 +473,10 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 {
                     alpha = float.Lerp(1f, 0f, 1f - (timeLeft / 60f));
                 }
+                else if (star.Time < 60)
+                {
+                    alpha = float.Lerp(0f, 1f, star.Time / 60f);
+                }
 
                 var position = RoundPosition(star.Position);
 
