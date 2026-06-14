@@ -457,7 +457,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             sb.spriteEffectPass.Apply();
 
-            var outlineColor = Color.Lerp(background_nebula, new Color(246, 190, 66), 1f - MathF.Pow(1f - hoverIntensity, 2f));
+            var outlineColor = Color.Lerp(background_nebula, /*new Color(246, 190, 66)*/ new Color(167, 23, 152), 1f - MathF.Pow(1f - hoverIntensity, 2f));
 
             element.DrawPanel(sb, element._borderTexture.Value, outlineColor);
         }
