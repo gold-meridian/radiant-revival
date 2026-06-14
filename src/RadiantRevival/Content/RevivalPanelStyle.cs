@@ -321,7 +321,13 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             panelShader.Apply();
 
-            element.DrawPanel(sb, element._backgroundTexture.Value, element.BackgroundColor);
+            element.DrawPanel(sb, element._backgroundTexture.Value, Color.White);
+
+            sb.spriteEffectPass.Apply();
+
+            var outlineColor = Color.OklabLerp(background_nebula, new Color(246, 190, 66), hoverIntensity);
+
+            element.DrawPanel(sb, element._borderTexture.Value, outlineColor);
         }
         sb.Restart(in ss);
 
