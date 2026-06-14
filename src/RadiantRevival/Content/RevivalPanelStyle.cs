@@ -16,13 +16,14 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using Terraria;
+using Terraria.Audio;
 using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
+using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI;
 using Terraria.UI.Chat;
-using static Terraria.GameContent.Skies.StardustSky;
 
 namespace RadiantRevival.Content;
 
@@ -195,6 +196,80 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
+    private abstract class BouncyHoverImage : UIImage
+    {
+        private readonly Asset<Texture2D> normalTexture;
+        private readonly Asset<Texture2D> hoverTexture;
+
+        private float bounceTime;
+        private float randomStart;
+
+        protected BouncyHoverImage(Asset<Texture2D> normalTexture, Asset<Texture2D> hoverTexture) : base(normalTexture)
+        {
+            this.normalTexture = normalTexture;
+            this.hoverTexture = hoverTexture;
+
+            RemoveFloatingPointsFromDrawPosition = true;
+        }
+
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+
+            if (bounceTime > 0f)
+            {
+                bounceTime = Math.Max(0f, bounceTime - 0.08f);
+            }
+        }
+
+        public override void MouseOver(UIMouseEvent evt)
+        {
+            base.MouseOver(evt);
+
+            // do we want this
+            SoundEngine.PlaySound(SoundID.MenuTick);
+
+            SetImage(hoverTexture);
+
+            bounceTime = 1f;
+            randomStart = Main.rand.NextFloat();
+        }
+
+        public override void MouseOut(UIMouseEvent evt)
+        {
+            base.MouseOut(evt);
+
+            SetImage(normalTexture);
+        }
+
+        protected override void DrawSelf(SpriteBatch spriteBatch)
+        {
+            var dims = GetDimensions();
+            var texture = _texture!.Value;
+
+            var curveX = 1f - SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 0f);
+            var curveY = 1f + SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 1f);
+            var rotation = MathF.Cos(bounceTime * MathHelper.TwoPi - randomStart * 10f) * 0.2f * MathF.Sqrt(bounceTime);
+
+            var scale = new Vector2(curveX, curveY);
+
+            // never bruh
+            // if (ScaleToFit)
+
+            spriteBatch.Draw(texture, dims.Center(), null, Color.White, rotation, texture.Size() / 2f, scale, SpriteEffects.None, 0f);
+        }
+
+        private static float SpecialBounceCurve(float x, float alpha, float beta, float gamma)
+        {
+            x = Math.Clamp(x, 0f, 1f);
+            return (MathF.Cos((1 - x) * 7f + gamma) * alpha + beta) * MathF.Pow(1 - x, 1.5f) * MathF.Sqrt(x);
+        }
+    }
+
+    private sealed class MoreInfoButton() : BouncyHoverImage(Assets.UI.ModPanel.ModInfo.Asset, Assets.UI.ModPanel.ModInfo_Hover.Asset);
+
+    private sealed class ConfigButton() : BouncyHoverImage(Assets.UI.ModPanel.ModConfig.Asset, Assets.UI.ModPanel.ModConfig_Hover.Asset);
+
     public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = new()
     {
         { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
@@ -214,6 +289,42 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         element.OnUpdate += OnUpdate_Stars;
 
         return base.PreInitialize(element);
+    }
+
+    public override void PostInitialize(UIModItem element)
+    {
+        base.PostInitialize(element);
+
+        element._moreInfoButton.OnLeftClick -= element.ShowMoreInfo;
+        ReplaceElement(ref element._moreInfoButton, new MoreInfoButton());
+        {
+            element._moreInfoButton.OnLeftClick += element.ShowMoreInfo;
+        }
+
+        if (element._configButton is not null)
+        {
+            element._moreInfoButton.OnLeftClick -= element.OpenConfig;
+            ReplaceElement(ref element._configButton, new ConfigButton());
+            {
+                element._configButton.OnLeftClick += element.OpenConfig;
+            }
+        }
+    }
+
+    // this is not generalized do not use this for anything else ever
+    private static void ReplaceElement<T>(ref T element, T newElement)
+        where T : UIElement
+    {
+        var parent = element.Parent;
+        var idx = parent.Elements.IndexOf(element);
+        element.Remove();
+        parent.Elements.Insert(idx, newElement);
+        newElement.Parent = parent;
+
+        // Do this after since it calls Recalculate for us.
+        newElement.CopyStyle(element);
+
+        element = newElement;
     }
 
     private static bool starsCreated;
