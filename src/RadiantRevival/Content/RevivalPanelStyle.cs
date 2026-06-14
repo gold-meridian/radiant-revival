@@ -413,7 +413,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         star.Style = Main.rand.Next(star_styles);
         star.Phase = Main.rand.NextFloatDirection();
         star.Rotation = Angle.Zero;
-        star.RotationVelocity = Main.rand.NextFloat() * 0.01f;
+        star.RotationVelocity = Main.rand.NextFloat() * 0.09f;
         star.Time = Main.rand.Next(60 * 5, 60 * 10);
         star.TimeProgress = 0;
         return star;
@@ -451,11 +451,11 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         {
             var texture = Assets.UI.ModPanel.Stars.Asset.Value;
 
-            var origin = texture.Frame(1, star_styles).Size() * 0.5f;
+            var origin = texture.Frame(4, star_styles).Size() * 0.5f;
 
             foreach (var star in stars)
             {
-                var frame = texture.Frame(1, star_styles, 0, star.Style);
+                var frame = texture.Frame(4, star_styles, (int)(star.Rotation.NormalizedPositive() / MathHelper.PiOver2), star.Style);
 
                 var frequency = twinkle_freq * (1 - (star.Style / (float)star_styles + 0.1f));
 
