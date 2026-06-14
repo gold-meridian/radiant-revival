@@ -24,6 +24,7 @@ using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI;
 using Terraria.UI.Chat;
+using static Terraria.GameContent.Animations.Actions.Sprites;
 
 namespace RadiantRevival.Content;
 
@@ -201,6 +202,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         private readonly Asset<Texture2D> normalTexture;
         private readonly Asset<Texture2D> hoverTexture;
 
+        private float hoverIntensity;
         private float bounceTime;
         private float randomStart;
 
@@ -210,6 +212,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             this.hoverTexture = hoverTexture;
 
             RemoveFloatingPointsFromDrawPosition = true;
+
+            OverrideSamplerState = SamplerState.PointClamp;
         }
 
         public override void Update(GameTime gameTime)
@@ -220,6 +224,17 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             {
                 bounceTime = Math.Max(0f, bounceTime - 0.08f);
             }
+
+            if (IsMouseHovering)
+            {
+                hoverIntensity += 0.1f;
+            }
+            else
+            {
+                hoverIntensity -= 0.33f;
+            }
+
+            hoverIntensity = Math.Clamp(hoverIntensity, 0f, 1f);
         }
 
         public override void MouseOver(UIMouseEvent evt)
@@ -252,6 +267,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var rotation = MathF.Cos(bounceTime * MathHelper.TwoPi - randomStart * 10f) * 0.2f * MathF.Sqrt(bounceTime);
 
             var scale = new Vector2(curveX, curveY);
+            scale += scale * 0.15f * hoverIntensity;
 
             // never bruh
             // if (ScaleToFit)
