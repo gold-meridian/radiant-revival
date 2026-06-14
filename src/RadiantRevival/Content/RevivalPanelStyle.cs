@@ -540,7 +540,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         star.Style = Main.rand.Next(star_styles);
         star.Phase = Main.rand.NextFloatDirection();
         star.Rotation = Angle.Zero;
-        star.RotationVelocity = Main.rand.NextFloat() * 0.09f;
+        star.RotationVelocity = Main.rand.NextFloat(-1f, 1f) * 0.09f;
         star.Time = Main.rand.Next(60 * 5, 60 * 10);
         star.TimeProgress = 0;
         return star;
