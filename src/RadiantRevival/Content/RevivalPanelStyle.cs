@@ -2,6 +2,7 @@
 using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Features.ModPanel;
+using Daybreak.Common.Mathematics;
 using Daybreak.Common.Rendering;
 using Daybreak.Common.UI;
 using Microsoft.Xna.Framework;
@@ -224,6 +225,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             CreateStars(affectedElement.Dimensions);
             starsCreated = true;
         }
+
+        UpdateStars(affectedElement.Dimensions);
     }
 
     private static float hoverIntensity;
@@ -367,14 +370,29 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             sb.Draw(nebula, Vector2.Zero, nebulaColor);
         }
         sb.End();
-
+        
         DrawStars(sb);
 
         DrawSparks(sb);
     }
 
 #region Stars
-    private readonly record struct Star(Vector2 Position, int Style, float Phase);
+    private sealed class Star
+    {
+        public Vector2 Position { get; set; } 
+
+        public int Style { get; set; }
+
+        public float Phase { get; set; }
+
+        public Angle Rotation { get; set; }
+
+        public float RotationVelocity { get; set; }
+
+        public int Time { get; set; }
+
+        public int TimeProgress { get; set; }
+    }
 
     private const int star_styles = 9;
 
@@ -385,12 +403,20 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         for (var i = 0; i < stars.Length; i++)
         {
-            var positon = RandomPosition(dims) * 0.5f;
-
-            stars[i] = new Star(positon, Main.rand.Next(star_styles), Main.rand.NextFloatDirection());
+            stars[i] = GenerateStar(new Star(), dims);
         }
+    }
 
-        return;
+    private static Star GenerateStar(Star star, Rectangle dims)
+    {
+        star.Position = RandomPosition(dims) * 0.5f;
+        star.Style = Main.rand.Next(star_styles);
+        star.Phase = Main.rand.NextFloatDirection();
+        star.Rotation = Angle.Zero;
+        star.RotationVelocity = Main.rand.NextFloat() * 0.01f;
+        star.Time = Main.rand.Next(60 * 5, 60 * 10);
+        star.TimeProgress = 0;
+        return star;
 
         static Vector2 RandomPosition(Rectangle dims)
         {
@@ -398,8 +424,26 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
+    private static void UpdateStars(Rectangle dims)
+    {
+        foreach (var star in stars)
+        {
+            star.Rotation += Angle.FromRadians(star.RotationVelocity);
+
+            if (star.TimeProgress++ > star.Time)
+            {
+                GenerateStar(star, dims);
+            }
+        }
+    }
+
     private static void DrawStars(SpriteBatch sb)
     {
+        if (!starsCreated)
+        {
+            return;
+        }
+
         const float twinkle_freq = 2f;
         const float twinkle_ampl = 0.7f;
 
@@ -418,10 +462,21 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 var scale = 0.5f;
                 scale *= 0.8f + (MathF.Sin((Main.GlobalTimeWrappedHourly + star.Phase) * frequency) * twinkle_ampl);
                 scale = Math.Min(scale, 0.5f);
+                var alpha = 1f;
+                var timeLeft = star.Time - star.TimeProgress;
+                if (timeLeft < 120)
+                {
+                    scale = float.Lerp(scale, 0f, 1f - (timeLeft / 120f));
+                }
+
+                if (timeLeft < 60)
+                {
+                    alpha = float.Lerp(1f, 0f, 1f - (timeLeft / 60f));
+                }
 
                 var position = RoundPosition(star.Position);
 
-                sb.Draw(texture, position, frame, Color.White, 0, origin, scale, SpriteEffects.None, 0f);
+                sb.Draw(texture, position, frame, Color.White * alpha, 0, origin, scale, SpriteEffects.None, 0f);
             }
         }
         sb.End();
