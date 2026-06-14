@@ -325,6 +325,12 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 element._configButton.OnLeftClick += element.OpenConfig;
             }
         }
+
+        element._uiModStateText.PaddingLeft = element._uiModStateText.PaddingRight = 14f;
+        element._uiModStateText.Recalculate();
+
+        // Daybreak will make it so UI elements respond to our padding change here.
+        element.UpdateUIForEnabledChange();
     }
 
     // this is not generalized do not use this for anything else ever
