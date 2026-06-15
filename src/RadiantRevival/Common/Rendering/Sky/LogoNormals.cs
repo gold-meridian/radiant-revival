@@ -78,9 +78,22 @@ public class LogoNormals
         c.EmitStloc(logoBColorIdx);
     }
 
+    // Purposefully ignoring color for now.
     private static Color CalculateLogoColor(Color color)
     {
-        return Main.ColorOfTheSkies;
+        var skyColor = Main.ColorOfTheSkies;
+        skyColor.R = (byte)Math.Clamp(Brighten(skyColor.R, 1.2f), 25, 255);
+        skyColor.G = (byte)Math.Clamp(Brighten(skyColor.G, 1.2f), 25, 255);
+        skyColor.B = (byte)Math.Clamp(Brighten(skyColor.B, 1.2f), 25, 255);
+
+        return skyColor;
+
+        static int Brighten(byte b, float amt)
+        {
+            var f = b / 255f;
+            f *= amt;
+            return (int)Math.Clamp(f * 255f, 0, 255);
+        }
     }
 
     private static void UpdateAndDrawModMenuInner_Normals(ILContext il)
