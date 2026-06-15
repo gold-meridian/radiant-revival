@@ -295,7 +295,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             scale *= MathHelper.Lerp(1f, 0.5f, clickIntensity);
 
             var wobble = MathF.Sin(time * 0.35f);
-            wobble *= 1 - hoverIntensity;
+            // wobble *= 1 - hoverIntensity;
 
             wobble *= 0.1f;
 
