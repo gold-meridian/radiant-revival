@@ -203,6 +203,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         private readonly Asset<Texture2D> hoverTexture;
 
         private float hoverIntensity;
+        private float clickIntensity;
         private float bounceTime;
         private float randomStart;
 
@@ -225,6 +226,17 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 bounceTime = Math.Max(0f, bounceTime - 0.08f);
             }
 
+            var clicking = IsMouseHovering && Main.mouseLeft;
+
+            if (clicking)
+            {
+                clickIntensity += 0.33f;
+            }
+            else
+            {
+                clickIntensity -= 0.33f;
+            }
+
             if (IsMouseHovering)
             {
                 hoverIntensity += 0.1f;
@@ -234,6 +246,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 hoverIntensity -= 0.33f;
             }
 
+            clickIntensity = Math.Clamp(clickIntensity, 0f, 1f);
             hoverIntensity = Math.Clamp(hoverIntensity, 0f, 1f);
         }
 
@@ -244,8 +257,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             // do we want this
             SoundEngine.PlaySound(SoundID.MenuTick);
 
-            SetImage(hoverTexture);
-
             bounceTime = 1f;
             randomStart = Main.rand.NextFloat();
         }
@@ -254,13 +265,18 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         {
             base.MouseOut(evt);
 
-            SetImage(normalTexture);
+            if (Main.mouseLeft)
+            {
+                bounceTime = 1f;
+                randomStart = Main.rand.NextFloat();
+            }
         }
 
         protected override void DrawSelf(SpriteBatch spriteBatch)
         {
             var dims = this.Dimensions;
-            var texture = _texture.Value;
+
+            var texture = IsMouseHovering ? hoverTexture.Value : normalTexture.Value;
             var time = Main.GlobalTimeWrappedHourly;
 
             var curveX = 1f - SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 0f);
@@ -268,7 +284,10 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var rotation = MathF.Cos(bounceTime * MathHelper.TwoPi - randomStart * 10f) * 0.2f * MathF.Sqrt(bounceTime);
 
             var scale = new Vector2(curveX, curveY);
+
             scale += scale * 0.13f * hoverIntensity;
+
+            scale *= MathHelper.Lerp(1f, 0.5f, clickIntensity);
 
             var wobble = MathF.Sin(time * 0.35f);
             wobble *= 1 - hoverIntensity;
