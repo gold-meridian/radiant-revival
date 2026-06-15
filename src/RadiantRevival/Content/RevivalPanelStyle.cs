@@ -259,20 +259,30 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         protected override void DrawSelf(SpriteBatch spriteBatch)
         {
-            var dims = GetDimensions();
-            var texture = _texture!.Value;
+            var dims = this.Dimensions;
+            var texture = _texture.Value;
+            var time = Main.GlobalTimeWrappedHourly;
 
             var curveX = 1f - SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 0f);
             var curveY = 1f + SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 1f);
             var rotation = MathF.Cos(bounceTime * MathHelper.TwoPi - randomStart * 10f) * 0.2f * MathF.Sqrt(bounceTime);
 
             var scale = new Vector2(curveX, curveY);
-            scale += scale * 0.15f * hoverIntensity;
+            scale += scale * 0.13f * hoverIntensity;
 
-            // never bruh
-            // if (ScaleToFit)
+            var wobble = MathF.Sin(time * 0.35f);
+            wobble *= 1 - hoverIntensity;
 
-            spriteBatch.Draw(texture, dims.Center(), null, Color.White, rotation, texture.Size() / 2f, scale, SpriteEffects.None, 0f);
+            wobble *= 0.1f;
+
+            rotation += wobble;
+
+            var offset = new Vector2(MathF.Sin(time * 0.4f) * 0.5f, MathF.Sin(time * 0.7f) * 2f);
+            offset *= 1 - hoverIntensity;
+
+            var position = dims.Center() + offset;
+
+            spriteBatch.Draw(texture, position, null, Color.White, rotation, texture.Size() / 2f, scale, SpriteEffects.None, 0f);
         }
 
         private static float SpecialBounceCurve(float x, float alpha, float beta, float gamma)
