@@ -24,7 +24,6 @@ using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI;
 using Terraria.UI.Chat;
-using static Terraria.GameContent.Animations.Actions.Sprites;
 
 namespace RadiantRevival.Content;
 
@@ -35,12 +34,15 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         public required WrapperShaderData<Assets.UI.ModPanel.MaskShader.Parameters> MaskShader { get; init; }
 
+        public required WrapperShaderData<Assets.UI.ModPanel.NebulaShader.Parameters> NebulaShader { get; init; }
+
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
                 () => new Data
                 {
                     MaskShader = Assets.UI.ModPanel.MaskShader.CreateMaskShader(),
+                    NebulaShader = Assets.UI.ModPanel.NebulaShader.CreateNebulaShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -524,10 +526,24 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var overlayColor = background_gradient_lower * MathF.Pow(0f, 3f) * 0.6f;
 
             sb.Draw(pixel, bounds, null, overlayColor);
+        }
+        sb.End();
+
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointWrap, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var nebulaShader = Data.Instance.NebulaShader;
 
             var nebula = Assets.UI.ModPanel.NebulaLeft.Asset.Value;
 
             var nebulaColor = background_nebula * 0.5f;
+
+            nebulaShader.Parameters.NoiseTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointWrap,
+                Texture = Assets.Weather.Rain.Noise.Asset.Value,
+            };
+
+            nebulaShader.Apply();
 
             sb.Draw(nebula, Vector2.Zero, nebulaColor);
         }
