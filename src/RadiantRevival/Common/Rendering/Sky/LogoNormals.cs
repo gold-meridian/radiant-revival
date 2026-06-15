@@ -30,6 +30,57 @@ public class LogoNormals
             ),
             UpdateAndDrawModMenuInner_Normals
         );
+
+        IL_Main.DrawMenu += AdjustLogoColor;
+    }
+
+    private static void AdjustLogoColor(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        /*
+        var bIdx = -1;
+        var colorIdx = -1;
+        c.GotoNext(x => x.MatchLdsflda<Main>(nameof(Main.tileColor)), x => x.MatchCall<Color>($"get_{nameof(Color.R)}"));
+        c.GotoNext(x => x.MatchStloc(out bIdx));
+        c.GotoNext(x => x.MatchLdloc(bIdx));
+        c.GotoNext(x => x.MatchLdloca(out colorIdx));
+        c.GotoNext(MoveType.After, x => x.MatchCall<Color>(".ctor"));
+
+        c.EmitLdloca(colorIdx);
+        c.EmitDelegate(CalculateLogoColor);
+        */
+
+        var bIdx = -1;
+        var colorIdx = -1;
+        c.GotoNext(x => x.MatchLdsflda<Main>(nameof(Main.tileColor)), x => x.MatchCall<Color>($"get_{nameof(Color.R)}"));
+        c.GotoNext(x => x.MatchStloc(out bIdx));
+        c.GotoNext(x => x.MatchLdloc(bIdx));
+        c.GotoPrev(x => x.MatchLdloca(out colorIdx));
+
+        c.GotoNext(x => x.MatchCall(typeof(MenuLoader), nameof(MenuLoader.UpdateAndDrawModMenu)));
+        c.GotoPrev(MoveType.After, x => x.MatchLdloc(colorIdx));
+        c.EmitDelegate(CalculateLogoColor);
+
+        var logoAColorIdx = -1;
+        var logoBColorIdx = -1;
+        c.GotoNext(x => x.MatchLdloca(out logoAColorIdx));
+        c.GotoNext(x => x.MatchCall<Color>(".ctor"));
+        c.GotoNext(x => x.MatchLdloca(out logoBColorIdx));
+        c.GotoNext(MoveType.After, x => x.MatchCall<Color>(".ctor"));
+
+        c.EmitLdloc(logoAColorIdx);
+        c.EmitDelegate(CalculateLogoColor);
+        c.EmitStloc(logoAColorIdx);
+        
+        c.EmitLdloc(logoBColorIdx);
+        c.EmitDelegate(CalculateLogoColor);
+        c.EmitStloc(logoBColorIdx);
+    }
+
+    private static Color CalculateLogoColor(Color color)
+    {
+        return Main.ColorOfTheSkies;
     }
 
     private static void UpdateAndDrawModMenuInner_Normals(ILContext il)
