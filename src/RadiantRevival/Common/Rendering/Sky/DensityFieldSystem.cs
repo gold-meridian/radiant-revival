@@ -96,6 +96,10 @@ public sealed class DensityFieldSystem : ModSystem
 
     public override void PostDrawTiles()
     {
+        // TODO -- OK I'm pretty sure this isn't cheap. At all.
+        // Maybe consider adding some extra checks to
+        // disable state evolution if the player won't
+        // see the clouds anyway, such as if they're underground?
         if (Main.gamePaused && DensityField is not null)
             return;
 
