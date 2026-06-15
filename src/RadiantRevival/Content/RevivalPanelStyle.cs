@@ -36,6 +36,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         public required WrapperShaderData<Assets.UI.ModPanel.NebulaShader.Parameters> NebulaShader { get; init; }
 
+        public required WrapperShaderData<Assets.UI.ModPanel.CelestialBodies.EarthShader.Parameters> EarthShader { get; init; }
+
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
@@ -43,6 +45,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 {
                     MaskShader = Assets.UI.ModPanel.MaskShader.CreateMaskShader(),
                     NebulaShader = Assets.UI.ModPanel.NebulaShader.CreateNebulaShader(),
+                    EarthShader = Assets.UI.ModPanel.CelestialBodies.EarthShader.CreateEarthShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -551,8 +554,72 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         
         DrawStars(sb);
 
+        DrawEarth(sb, device);
+
         DrawSparks(sb);
     }
+
+#region Planets
+    private static void DrawEarth(SpriteBatch sb, GraphicsDevice device)
+    {
+        var bounds = device.Viewport.Bounds;
+
+        using var lease = RenderTargetPool.Shared.Rent(device, bounds.Width, bounds.Height, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 });
+
+        Assets.UI.ModPanel.CelestialBodies.PlanetModel.Asset.Wait();
+        var planet = Assets.UI.ModPanel.CelestialBodies.PlanetModel.Asset.Value;
+
+        using (lease.Scope(clearColor: Color.Transparent))
+        {
+            device.RasterizerState = RasterizerState.CullCounterClockwise;
+
+            var earthShader = Data.Instance.EarthShader;
+
+            var cameraPositon = new Vector3(1f, 0, 0f);
+
+            var height = bounds.Height / (float)bounds.Width;
+
+            var transform = Matrix.CreateScale(0.2f)
+                          * Matrix.CreateRotationY(Main.GlobalTimeWrappedHourly)
+                          * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
+                          * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2) 
+                          * Matrix.CreateTranslation(-0.91f, -0.7f, 0);
+
+            var inverseTransform = Matrix.Transpose(transform);
+
+            earthShader.Parameters.Projection = transform;
+            earthShader.Parameters.ProjectionInverse = inverseTransform;
+
+            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointWrap,
+                Texture = Assets.Sky.CelestialBodies.Moon4.Asset.Value,
+            };
+
+            earthShader.Apply();
+
+            planet.Draw(device, "Planet");
+
+            device.RasterizerState = RasterizerState.CullCounterClockwise;
+
+            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointWrap,
+                Texture = TextureAssets.MagicPixel.Value,
+            };
+
+            earthShader.Apply();
+
+            planet.Draw(device, "Outline");
+        }
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            sb.Draw(lease.Target, Vector2.Zero, Color.White);
+        }
+        sb.End();
+    }
+#endregion
 
 #region Stars
     private sealed class Star
