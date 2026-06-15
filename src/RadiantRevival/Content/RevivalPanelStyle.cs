@@ -593,6 +593,16 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             earthShader.Parameters.SurfaceTexture = new HlslSampler2D
             {
                 Sampler = SamplerState.PointWrap,
+                Texture = TextureAssets.MagicPixel.Value,
+            };
+
+            earthShader.Apply();
+
+            planet.Draw(device, "Outline");
+
+            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointWrap,
                 Texture = Assets.Sky.CelestialBodies.Moon4.Asset.Value,
             };
 
@@ -601,16 +611,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             planet.Draw(device, "Planet");
 
             device.RasterizerState = RasterizerState.CullCounterClockwise;
-
-            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
-            {
-                Sampler = SamplerState.PointWrap,
-                Texture = TextureAssets.MagicPixel.Value,
-            };
-
-            earthShader.Apply();
-
-            planet.Draw(device, "Outline");
         }
 
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
