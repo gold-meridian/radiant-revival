@@ -525,8 +525,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             var pixel = TextureAssets.MagicPixel.Value;
 
-            // var overlayColor = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.6f;
-            var overlayColor = background_gradient_lower * MathF.Pow(0f, 3f) * 0.6f;
+            var overlayColor = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.33f;
+            // var overlayColor = background_gradient_lower * MathF.Pow(0f, 3f) * 0.6f;
 
             sb.Draw(pixel, bounds, null, overlayColor);
         }
