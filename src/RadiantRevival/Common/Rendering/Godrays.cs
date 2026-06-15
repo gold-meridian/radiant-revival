@@ -1,10 +1,11 @@
-using Daybreak.Common.CIL;
+﻿using Daybreak.Common.CIL;
 using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
+using RadiantRevival.Common.Rendering.Sky;
 using RadiantRevival.Core;
 using System;
 using Terraria;
@@ -97,6 +98,7 @@ public static class Godrays
                         return;
                     }
 
+                    AtmosphereCloudRenderingSystem.RenderCloudsToBackground();
                     scope?.Dispose();
 
                     var sb = Main.spriteBatch;
