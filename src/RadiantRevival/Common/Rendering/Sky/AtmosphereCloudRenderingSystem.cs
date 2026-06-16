@@ -271,7 +271,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         // green pixels at the top that tint the sky
         // naturally.
         var color = Vector3.One;
-        color = Vector3.Lerp(color, new Vector3(1f, 0.52f, 0.45f), info.CorruptionBiomeInfluence);
+        color = Vector3.Lerp(color, new Vector3(2.4f, 0.82f, 0.38f), info.CorruptionBiomeInfluence);
         color = Vector3.Lerp(color, new Vector3(1f, 0.6f, 0.4f), info.CrimsonBiomeInfluence);
         color = Vector3.Lerp(color, new Vector3(0.2f, 0.3f, 0.4f), info.MushroomBiomeInfluence);
         color = Vector3.Lerp(color, new Vector3(1f, 0.5f, 0.35f), info.GraveyardInfluence);
