@@ -36,7 +36,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         public required WrapperShaderData<Assets.UI.ModPanel.NebulaShader.Parameters> NebulaShader { get; init; }
 
-        public required WrapperShaderData<Assets.UI.ModPanel.CelestialBodies.EarthShader.Parameters> EarthShader { get; init; }
+        public required WrapperShaderData<Assets.UI.ModPanel.CelestialBodies.PlanetShader.Parameters> PlanetShader { get; init; }
 
         public static Data LoadData(Mod mod)
         {
@@ -45,7 +45,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 {
                     MaskShader = Assets.UI.ModPanel.MaskShader.CreateMaskShader(),
                     NebulaShader = Assets.UI.ModPanel.NebulaShader.CreateNebulaShader(),
-                    EarthShader = Assets.UI.ModPanel.CelestialBodies.EarthShader.CreateEarthShader(),
+                    PlanetShader = Assets.UI.ModPanel.CelestialBodies.PlanetShader.CreatePlanetShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -556,20 +556,14 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         
         DrawStars(sb);
 
-        DrawEarth(sb, device);
+        RenderModels(sb, device);
 
         DrawSparks(sb);
     }
 
-#region Planets
-    private static void DrawEarth(SpriteBatch sb, GraphicsDevice device)
+#region Models
+    private static void RenderModels(SpriteBatch sb, GraphicsDevice device)
     {
-        const float rotation_x = -0.2f;
-        const float rotation_y_speed = 0.3f;
-        const float rotation_z = -0.3f;
-
-        const float scale = 0.24f;
-
         var bounds = device.Viewport.Bounds;
 
         using var lease = RenderTargetPool.Shared.Rent(device, bounds.Width, bounds.Height, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 });
@@ -579,51 +573,10 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         using (lease.Scope(clearColor: Color.Transparent))
         {
-            var earthShader = Data.Instance.EarthShader;
+            var earthPosition = new Vector2(12, bounds.Height - 7);
 
-            var cameraPositon = new Vector3(1f, 0, 0f);
-
-            var time = Main.GlobalTimeWrappedHourly;
-
-            var height = bounds.Height / (float)bounds.Width;
-
-            var position = new Vector2(-bounds.Width * 0.5f, bounds.Height * 0.5f);
-
-            position += new Vector2(12, -7);
-
-            var transform = Matrix.CreateScale(scale)
-                          * Matrix.CreateRotationY(time * rotation_y_speed)
-                          * Matrix.CreateRotationX(rotation_x)
-                          * Matrix.CreateRotationZ(rotation_z)
-                          * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
-                          * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2) 
-                          * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
-            
-            earthShader.Parameters.Projection = transform;
-
-            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
-            {
-                Sampler = SamplerState.PointWrap,
-                Texture = Assets.UI.ModPanel.CelestialBodies.Earth.Asset.Value,
-            };
-
-            earthShader.Parameters.DrawColor = Color.White.ToVector4();
-
-            earthShader.Apply();
-
-            Assets.UI.ModPanel.CelestialBodies.PlanetModel.DrawPlanet();
-
-            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
-            {
-                Sampler = SamplerState.PointWrap,
-                Texture = TextureAssets.MagicPixel.Value,
-            };
-
-            earthShader.Parameters.DrawColor = outline_hover.ToVector4();
-
-            earthShader.Apply();
-
-            Assets.UI.ModPanel.CelestialBodies.PlanetModel.DrawOutline();
+            DrawEarth(device, bounds, earthPosition);
+            DrawMoon(device, bounds, earthPosition);
         }
 
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
@@ -631,6 +584,121 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             sb.Draw(lease.Target, Vector2.Zero, Color.White);
         }
         sb.End();
+    }
+
+    private static void DrawEarth(GraphicsDevice device, Rectangle bounds, Vector2 earthPosition)
+    {
+        const float rotation_x = -0.2f;
+        const float rotation_y_speed = 0.3f;
+        const float rotation_z = -0.3f;
+
+        const float scale = 0.24f;
+
+        var planetShader = Data.Instance.PlanetShader;
+
+        var cameraPositon = new Vector3(1f, 0, 0f);
+
+        var time = Main.GlobalTimeWrappedHourly;
+
+        var height = bounds.Height / (float)bounds.Width;
+
+        var position = new Vector2(-bounds.Width * 0.5f, -bounds.Height * 0.5f);
+
+        position += earthPosition;
+
+        var transform = Matrix.CreateScale(scale)
+                      * Matrix.CreateRotationY(time * rotation_y_speed)
+                      * Matrix.CreateRotationX(rotation_x)
+                      * Matrix.CreateRotationZ(rotation_z)
+                      * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
+                      * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2)
+                      * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
+
+        planetShader.Parameters.Projection = transform;
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = Assets.UI.ModPanel.CelestialBodies.Earth.Asset.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawPlanet();
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = TextureAssets.MagicPixel.Value,
+        };
+
+        planetShader.Parameters.DrawColor = outline_hover.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawOutline();
+    }
+
+    private static void DrawMoon(GraphicsDevice device, Rectangle bounds, Vector2 earthPosition)
+    {
+        const float rotation_x = -0.4f;
+        const float rotation_y = -MathHelper.PiOver2;
+        const float orbit_speed = 0.32f;
+        const float rotation_z = -0.35f;
+
+        const float distance = 0.6f;
+
+        const float scale = 0.09f;
+
+        var planetShader = Data.Instance.PlanetShader;
+
+        var cameraPositon = new Vector3(1f, 0, 0f);
+
+        var time = Main.GlobalTimeWrappedHourly;
+
+        var height = bounds.Height / (float)bounds.Width;
+
+        var position = new Vector2(-bounds.Width * 0.5f, -bounds.Height * 0.5f);
+
+        position += earthPosition;
+
+        var transform = Matrix.CreateScale(scale)
+                      * Matrix.CreateRotationY(rotation_y)
+                      * Matrix.CreateTranslation(distance, 0f, 0f)
+                      * Matrix.CreateRotationY(time * orbit_speed)
+                      * Matrix.CreateRotationX(rotation_x)
+                      * Matrix.CreateRotationZ(rotation_z)
+                      * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
+                      * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2)
+                      * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
+            ;
+        planetShader.Parameters.Projection = transform;
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = Assets.UI.ModPanel.CelestialBodies.Moon.Asset.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.MoonModel.DrawPlanet();
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = TextureAssets.MagicPixel.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.MoonModel.DrawOutline();
     }
 #endregion
 

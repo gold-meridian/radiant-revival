@@ -19,7 +19,7 @@ struct PSInput
     float3 Normal : NORMAL0;
 };
 
-PSInput EarthShaderVertex(in VSInput input)
+PSInput PlanetShaderVertex(in VSInput input)
 {
     PSInput output = (PSInput)0;
     
@@ -31,7 +31,7 @@ PSInput EarthShaderVertex(in VSInput input)
     return output;
 }
 
-float4 EarthShaderFragment(in PSInput input) : COLOR0
+float4 PlanetShaderFragment(in PSInput input) : COLOR0
 {
     float3 normal = input.Normal;
 
@@ -44,8 +44,8 @@ float4 EarthShaderFragment(in PSInput input) : COLOR0
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(EarthShader)
-        VERTEX_SHADER(compile vs_3_0 EarthShaderVertex())
-        PIXEL_SHADER(compile ps_3_0 EarthShaderFragment())
+    BEGIN_PASS(PlanetShader) 
+        VERTEX_SHADER(compile vs_3_0 PlanetShaderVertex()) 
+        PIXEL_SHADER(compile ps_3_0 PlanetShaderFragment()) 
     END_PASS
 END_TECHNIQUE
