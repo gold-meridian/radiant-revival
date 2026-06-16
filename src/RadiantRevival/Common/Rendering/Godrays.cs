@@ -98,7 +98,7 @@ public static class Godrays
                         return;
                     }
 
-                    AtmosphereCloudRenderingSystem.RenderCloudsToBackground();
+                    AtmosphereCloudRenderingSystem.RenderCloudsToBackground(AtmosphereCloudRenderingSystem.Profile);
                     scope?.Dispose();
 
                     var sb = Main.spriteBatch;

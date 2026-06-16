@@ -7,7 +7,6 @@ using RadiantRevival.Core;
 using System;
 using Terraria;
 using Terraria.GameContent;
-using Terraria.GameContent.Events;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -125,23 +124,14 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     public static float RainInterpolant => Utils.GetLerpValue(0f, 0.4f, Main.maxRaining, true);
 
     /// <summary>
-    ///     The amount by which the background should be upwardly
-    ///     saturated. This is not realistically accurate, but artistically
-    ///     it's cool and helps the colors a bit more vivid.
+    ///     The profile that dictates all artistically relevant
+    ///     details of the sky.
     /// </summary>
-    public static float AtmosphereSaturationBoost => 0.2f;
-
-    /// <summary>
-    ///     The factor by which clouds should be saturated relative
-    ///     to the baseline background color.
-    /// </summary>
-    public static float CloudDesaturationFactor => 0.5f;
-
-    /// <summary>
-    ///     The color used for tinting the tiles and background
-    ///     as the sun is low (e.g. during sunrise or sunset).
-    /// </summary>
-    public static Color LowSunTintColor => new(255, 25, 15);
+    public static SkyProfile Profile
+    {
+        get;
+        set;
+    } = InitializeDefaultProfile();
 
     /// <summary>
     ///     The size of the cloud box in the sky.
@@ -191,20 +181,70 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
 
         var sunWorldPosition = CelestialBodyPosition + Main.screenPosition;
-        RenderSkyGradient(sunWorldPosition);
+        RenderSkyGradient(Profile, sunWorldPosition);
 
-        Rainbows.Render();
+        Rainbows.Render(Profile);
 
         // Ordinarily this gets called from the god rays
         // system, but that seems to only be active during the day.
         // So, if it's night time, this background is the one
         // responsible for the clouds instead.
         if (!Main.dayTime)
-            AtmosphereCloudRenderingSystem.RenderCloudsToBackground();
+            AtmosphereCloudRenderingSystem.RenderCloudsToBackground(Profile);
 
         Main.spriteBatch.Restart(ss);
 
         orig(self, sceneArea, moonColor, sunColor, tempMushroomInfluence);
+    }
+
+    private static SkyProfile InitializeDefaultProfile()
+    {
+        var corruptionBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.EvilTileCount / (float)SceneMetrics.CorruptionTileMax, 0f, 1f))
+        {
+            AtmosphereTintColor = new Vector3(2.4f, 0.82f, 0.38f),
+            RainbowTintColor = new Color(85, 255, 174) * 0.75f,
+            InfluencePriority = 0
+        };
+        var crimsonBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.BloodTileCount / (float)SceneMetrics.CrimsonTileMax, 0f, 1f))
+        {
+            AtmosphereTintColor = new Vector3(1f, 0.6f, 0.4f),
+            RainbowTintColor = new Color(255, 50, 50) * 0.75f,
+            InfluencePriority = 0
+        };
+        var graveyardBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.GraveyardTileCount / (float)SceneMetrics.GraveyardTileThreshold, 0f, 1f))
+        {
+            AtmosphereTintColor = new Vector3(1f, 0.5f, 0.35f),
+            RainbowTintColor = new Color(105, 105, 105) * 0.5f,
+            InfluencePriority = 1
+        };
+        var mushroomBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.MushroomTileCount / (float)SceneMetrics.MushroomTileMax, 0f, 1f))
+        {
+            AtmosphereTintColor = new Vector3(0.2f, 0.3f, 0.4f),
+            RainbowTintColor = new Color(50, 50, 255) * 0.84f,
+            InfluencePriority = 2
+        };
+        var eclipse = new SkyProfileInfluence(p => Main.eclipseLight)
+        {
+            AtmosphereTintColor = new Vector3(0.1f, 0.025f, 0.005f),
+            RainbowTintColor = new Color(40, 40, 40) * 0.5f,
+            InfluencePriority = 10
+        };
+
+        return new SkyProfile(corruptionBiome, crimsonBiome, graveyardBiome, mushroomBiome, eclipse)
+        {
+            AtmosphereSaturationBoost = 0.2f,
+            CloudSaturationFactor = 0.5f,
+            ColorWavelengthsNanometers = new Vector3(690f, 550f, 440f),
+            LowSunTintColor = new Color(255, 25, 15),
+            CloudRainColorTint = new Vector3(0.5f, 0.58f, 0.7f),
+            LowSunColorExaggerationFunction = LowSunColorExaggerationFunction
+        };
+    }
+
+    private static Vector3 LowSunColorExaggerationFunction(float x)
+    {
+        var xCubed = MathF.Pow(x, 3f);
+        return new Vector3(1f, 0.76f - xCubed * 0.6f, 0.68f - xCubed * 0.15f) * x * 2f;
     }
 
     /// <summary>
@@ -256,28 +296,9 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     /// </remarks>
     private static Vector3 CalculateBiomeColorInfluence()
     {
-        Main.InfoToSetBackColor info = default;
-        info.isInGameMenuOrIsServer = Main.gameMenu || Main.netMode == NetmodeID.Server;
-        info.CorruptionBiomeInfluence = Math.Clamp(Main.SceneMetrics.EvilTileCount / (float)SceneMetrics.CorruptionTileMax, 0f, 1f);
-        info.CrimsonBiomeInfluence = Math.Clamp(Main.SceneMetrics.BloodTileCount / (float)SceneMetrics.CrimsonTileMax, 0f, 1f);
-        info.JungleBiomeInfluence = Math.Clamp(Main.SceneMetrics.JungleTileCount / (float)SceneMetrics.JungleTileMax, 0f, 1f);
-        info.MushroomBiomeInfluence = Main.SmoothedMushroomLightInfluence;
-        info.GraveyardInfluence = Main.GraveyardVisualIntensity;
-        info.BloodMoonActive = Main.bloodMoon || Main.SceneMetrics.BloodMoonMonolith;
-        info.LanternNightActive = LanternNight.LanternsUp;
-
-        // Jungle influence is more or less irrelevant, since
-        // the jungle background textures have sone translucent
-        // green pixels at the top that tint the sky
-        // naturally.
         var color = Vector3.One;
-        color = Vector3.Lerp(color, new Vector3(2.4f, 0.82f, 0.38f), info.CorruptionBiomeInfluence);
-        color = Vector3.Lerp(color, new Vector3(1f, 0.6f, 0.4f), info.CrimsonBiomeInfluence);
-        color = Vector3.Lerp(color, new Vector3(0.2f, 0.3f, 0.4f), info.MushroomBiomeInfluence);
-        color = Vector3.Lerp(color, new Vector3(1f, 0.5f, 0.35f), info.GraveyardInfluence);
-
-        var eclipseInfluence = Vector3.Lerp(Vector3.One, new Vector3(0.1f, 0.025f, 0.005f), Main.eclipseLight);
-        color *= eclipseInfluence;
+        foreach (var influence in Profile.Influences)
+            color = Vector3.Lerp(color, influence.AtmosphereTintColor, influence.InfluenceFunction(Main.LocalPlayer));
 
         return color;
     }
@@ -286,7 +307,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     ///     Renders the atmospheric gradient to the background.
     /// </summary>
     /// <param name="sunMoonWorldPosition">The world position of the sun/moon, depending on whichever is active currently.</param>
-    private static void RenderSkyGradient(Vector2 sunMoonWorldPosition)
+    private static void RenderSkyGradient(SkyProfile profile, Vector2 sunMoonWorldPosition)
     {
         var darkeningFactor = Utils.GetLerpValue(0f, 0.06f, DayProgress, true) * Utils.GetLerpValue(1f, 0.94f, DayProgress, true);
 
@@ -306,7 +327,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
         shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
         shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(wavelengthMeters, 1.00037f);
-        shader.Parameters.saturationBoost = AtmosphereSaturationBoost;
+        shader.Parameters.saturationBoost = profile.AtmosphereSaturationBoost;
         shader.Apply();
 
         var pixel = TextureAssets.MagicPixel.Value;
@@ -316,7 +337,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     /// <summary>
     ///     Renders the clouds to the background.
     /// </summary>
-    public static void RenderCloudsToBackground()
+    public static void RenderCloudsToBackground(SkyProfile profile)
     {
         if (DensityFieldSystem.DensityField is null)
             return;
@@ -330,9 +351,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
 
         var tint = Vector3.One;
-
-        var reddening = MathF.Pow(LowSun, 3f);
-        tint += new Vector3(1f, 0.76f - reddening * 0.6f, 0.68f - reddening * 0.15f) * LowSun * 2f;
+        tint += profile.LowSunColorExaggerationFunction(LowSun);
 
         var nightBrightness = 0.45f + MoonlightGlowInterpolant * 8f;
         var nightCompletion = (float)(Main.time / Main.nightLength);
@@ -354,12 +373,12 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
             tint *= moonTintingFactor;
         }
 
-        var rainInfluence = Vector3.Lerp(Vector3.One, new Vector3(0.5f, 0.58f, 0.7f), RainInterpolant);
+        var rainInfluence = Vector3.Lerp(Vector3.One, profile.CloudRainColorTint, RainInterpolant);
         tint *= rainInfluence;
 
         var skyColor = ColorBeforeAtmoDarkening;
         var skyColorHsl = Main.rgbToHsl(skyColor);
-        skyColorHsl.Y *= CloudDesaturationFactor;
+        skyColorHsl.Y *= profile.CloudSaturationFactor;
         skyColor = Main.hslToRgb(skyColorHsl);
 
         var sunMoonWorldPosition = CelestialBodyPosition + Main.screenPosition;
@@ -399,10 +418,10 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var eveningColorBias = LowSun * Interpolate.Lerp(1f, 0.2f, RainInterpolant) * 0.85f;
         var nightColor = Color.Lerp(Color.Black, Color.White, MoonlightGlowInterpolant);
 
-        backgroundColor = Color.Lerp(backgroundColor, LowSunTintColor, eveningColorBias);
+        backgroundColor = Color.Lerp(backgroundColor, Profile.LowSunTintColor, eveningColorBias);
         backgroundColor = Color.Lerp(backgroundColor, nightColor, 1f - darkeningFactor);
 
-        tileLightColor = Color.Lerp(tileLightColor, LowSunTintColor, eveningColorBias);
+        tileLightColor = Color.Lerp(tileLightColor, Profile.LowSunTintColor, eveningColorBias);
         tileLightColor = Color.Lerp(tileLightColor, nightColor, 1f - darkeningFactor);
     }
 

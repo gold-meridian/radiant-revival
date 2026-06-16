@@ -116,15 +116,11 @@ public static class Rainbows
     ///     gameplay context, such as the biome the player
     ///     is currently inhabiting.
     /// </summary>
-    private static Color CalculateContextualTint()
+    private static Color CalculateContextualTint(SkyProfile profile)
     {
         var tint = Color.White;
-
-        var evilBiomeInterpolant = Utils.GetLerpValue(0f, 700f, Main.SceneMetrics.EvilTileCount, true);
-        tint = Color.Lerp(tint, new Color(85, 255, 174) * 0.75f, evilBiomeInterpolant);
-
-        var mushroomBiomeInterpolant = Utils.GetLerpValue(0f, 500f, Main.SceneMetrics.MushroomTileCount, true);
-        tint = Color.Lerp(tint, new Color(50, 50, 255), mushroomBiomeInterpolant);
+        foreach (var influence in profile.Influences)
+            tint = Color.Lerp(tint, influence.RainbowTintColor, influence.InfluenceFunction(Main.LocalPlayer));
 
         return tint;
     }
@@ -132,7 +128,7 @@ public static class Rainbows
     /// <summary>
     ///     Renders the rainbow in the sky.
     /// </summary>
-    public static void Render()
+    public static void Render(SkyProfile profile)
     {
         if (RainbowIntensity <= 0f)
             return;
@@ -152,7 +148,7 @@ public static class Rainbows
         var opacity = RainbowIntensity * overallLight;
 
         var pixel = TextureAssets.MagicPixel.Value;
-        var tint = CalculateContextualTint();
+        var tint = CalculateContextualTint(profile);
         Main.spriteBatch.Draw(pixel, viewportArea, tint * MathF.Sqrt(1f - AtmosphereCloudRenderingSystem.LowSun) * opacity);
     }
 }
