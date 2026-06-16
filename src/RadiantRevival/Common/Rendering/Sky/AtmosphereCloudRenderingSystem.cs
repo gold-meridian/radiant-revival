@@ -136,6 +136,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     {
         IL_Main.SetBackColor += DisableTypicalSunriseSunsetLighting;
         IL_Main.DrawSurfaceBG += RemoveDefaultCloudBackground;
+        On_Main.UpdateAtmosphereTransparencyToSkyColor += DisableAtmosphereBackgroundDarkening;
         On_Main.DrawSunAndMoon += Render;
     }
 
@@ -160,6 +161,14 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         c.GotoPrev(MoveType.After, i => i.MatchLdsfld<Main>(nameof(Main.cloudBGAlpha)));
 
         c.EmitDelegate((float bgAlpha) => 0f);
+    }
+
+    private static void DisableAtmosphereBackgroundDarkening(On_Main.orig_UpdateAtmosphereTransparencyToSkyColor orig, float y)
+    {
+        var oldSkyColor = Main.ColorOfTheSkies;
+        orig(y);
+
+        Main.ColorOfTheSkies = oldSkyColor;
     }
 
     private static void Render(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
@@ -329,13 +338,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var rainInfluence = Vector3.Lerp(Vector3.One, new Vector3(0.5f, 0.58f, 0.7f), RainInterpolant);
         tint *= rainInfluence;
 
-        var skyColor = Main.ColorOfTheSkies.ToVector3() + Vector3.One * 0.01f;
-
-        // Try to invert the natural tapering of the
-        // background colors due to the player
-        // entering the atmosphere.
-        skyColor = Vector3.Clamp(skyColor / (Main.atmo + 0.0001f), Vector3.Zero, Vector3.One);
-
+        var skyColor = Main.ColorOfTheSkies.ToVector3();
         var sunMoonWorldPosition = CelestialBodyPosition + Main.screenPosition;
 
         var shader = AssetReferences.Assets.Sky.RealisticCloudShader.CreateAutoloadPass();
