@@ -40,6 +40,25 @@ public sealed class DensityFieldSystem : ModSystem
     public static Point BaselineTargetSize => new(500, 612);
 
     /// <summary>
+    ///     Whether this system should be disabled and not
+    ///     update, in the interest of reducing general
+    ///     performance costs.
+    /// </summary>
+    public static bool ShouldBeDisabled
+    {
+        get
+        {
+            // Hmm yes seeing a bunch of clouds underground I hadn't
+            // though of that! Yeah, no.
+            var underground = Main.LocalPlayer.Center.Y >= Main.worldSurface * 16f;
+            if (underground)
+                return true;
+
+            return false;
+        }
+    }
+
+    /// <summary>
     ///     Converts a temperature in Fahrenheit to Kelvin.
     /// </summary>
     private static float FahrenheitToKelvin(float f) => (f - 32f) * 5f / 9f + 273.15f;
@@ -96,10 +115,6 @@ public sealed class DensityFieldSystem : ModSystem
 
     public override void PostDrawTiles()
     {
-        // TODO -- OK I'm pretty sure this isn't cheap. At all.
-        // Maybe consider adding some extra checks to
-        // disable state evolution if the player won't
-        // see the clouds anyway, such as if they're underground?
         if (Main.gamePaused && DensityField is not null)
             return;
 
@@ -111,6 +126,9 @@ public sealed class DensityFieldSystem : ModSystem
         var scaledSize = new Point(BaselineTargetSize.X * SqrtDepth, BaselineTargetSize.Y * SqrtDepth);
         swapField ??= RenderTargetPool.Shared.Rent(Main.instance.GraphicsDevice, scaledSize.X, scaledSize.Y, descriptor);
         DensityField ??= RenderTargetPool.Shared.Rent(Main.instance.GraphicsDevice, scaledSize.X, scaledSize.Y, descriptor);
+
+        if (ShouldBeDisabled)
+            return;
 
         var targetSize2D = BaselineTargetSize.ToVector2();
         using (DensityField.Scope(clearColor: Color.Transparent))
