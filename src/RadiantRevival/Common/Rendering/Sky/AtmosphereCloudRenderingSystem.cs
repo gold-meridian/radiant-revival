@@ -276,6 +276,9 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         color = Vector3.Lerp(color, new Vector3(0.2f, 0.3f, 0.4f), info.MushroomBiomeInfluence);
         color = Vector3.Lerp(color, new Vector3(1f, 0.5f, 0.35f), info.GraveyardInfluence);
 
+        var eclipseInfluence = Vector3.Lerp(Vector3.One, new Vector3(0.1f, 0.025f, 0.005f), Main.eclipseLight);
+        color *= eclipseInfluence;
+
         return color;
     }
 
