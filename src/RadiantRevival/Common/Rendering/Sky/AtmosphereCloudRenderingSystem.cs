@@ -41,6 +41,16 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     }
 
     /// <summary>
+    ///     The color of the sky before <see cref="Main.atmo"/>
+    ///     calculations are applied.
+    /// </summary>
+    public static Color ColorBeforeAtmoDarkening
+    {
+        get;
+        private set;
+    }
+
+    /// <summary>
     ///     How far along the day is.
     /// </summary>
     /// <remarks>
@@ -165,10 +175,8 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
 
     private static void DisableAtmosphereBackgroundDarkening(On_Main.orig_UpdateAtmosphereTransparencyToSkyColor orig, float y)
     {
-        var oldSkyColor = Main.ColorOfTheSkies;
+        ColorBeforeAtmoDarkening = Main.ColorOfTheSkies;
         orig(y);
-
-        Main.ColorOfTheSkies = oldSkyColor;
     }
 
     private static void Render(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
@@ -338,7 +346,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var rainInfluence = Vector3.Lerp(Vector3.One, new Vector3(0.5f, 0.58f, 0.7f), RainInterpolant);
         tint *= rainInfluence;
 
-        var skyColor = Main.ColorOfTheSkies.ToVector3();
+        var skyColor = ColorBeforeAtmoDarkening.ToVector3();
         var sunMoonWorldPosition = CelestialBodyPosition + Main.screenPosition;
 
         var shader = AssetReferences.Assets.Sky.RealisticCloudShader.CreateAutoloadPass();
