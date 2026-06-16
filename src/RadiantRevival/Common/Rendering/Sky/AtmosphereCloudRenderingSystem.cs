@@ -187,6 +187,8 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var sunWorldPosition = CelestialBodyPosition + Main.screenPosition;
         RenderSkyGradient(sunWorldPosition);
 
+        Rainbows.Render();
+
         // Ordinarily this gets called from the god rays
         // system, but that seems to only be active during the day.
         // So, if it's night time, this background is the one
@@ -313,7 +315,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var skyline = Main.maxTilesY * 16f * 0.133f;
         var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         var cloudDrawPosition = viewportSize * new Vector2(0.5f, 0.22f);
-        cloudDrawPosition.Y += (skyline - Main.screenPosition.Y) * 0.15f;
+        cloudDrawPosition.Y += (skyline - Main.screenPosition.Y) * 0.12f;
 
         Main.spriteBatch.End(out var ss);
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
