@@ -132,6 +132,12 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     public static float AtmosphereSaturationBoost => 0.2f;
 
     /// <summary>
+    ///     The factor by which clouds should be saturated relative
+    ///     to the baseline background color.
+    /// </summary>
+    public static float CloudDesaturationFactor => 0.5f;
+
+    /// <summary>
     ///     The color used for tinting the tiles and background
     ///     as the sun is low (e.g. during sunrise or sunset).
     /// </summary>
@@ -348,7 +354,11 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var rainInfluence = Vector3.Lerp(Vector3.One, new Vector3(0.5f, 0.58f, 0.7f), RainInterpolant);
         tint *= rainInfluence;
 
-        var skyColor = ColorBeforeAtmoDarkening.ToVector3();
+        var skyColor = ColorBeforeAtmoDarkening;
+        var skyColorHsl = Main.rgbToHsl(skyColor);
+        skyColorHsl.Y *= CloudDesaturationFactor;
+        skyColor = Main.hslToRgb(skyColorHsl);
+
         var sunMoonWorldPosition = CelestialBodyPosition + Main.screenPosition;
 
         var shader = AssetReferences.Assets.Sky.RealisticCloudShader.CreateAutoloadPass();
@@ -358,7 +368,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         shader.Parameters.screenPosition = Main.screenPosition;
         shader.Parameters.screenSize = viewportSize;
         shader.Parameters.cloudSize = CloudSize;
-        shader.Parameters.sunlightFactor = skyColor * new Vector3(0.91f, 1f, 1f) * tint;
+        shader.Parameters.sunlightFactor = skyColor.ToVector3() * new Vector3(0.91f, 1f, 1f) * tint;
         shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 8500f);
         shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(new Vector3(400f, 400f, 400f) * 1e-9f, 1.00037f) * scatterBias;
         shader.Parameters.extinctionCoefficients = new Vector3(1f, 1f, 1f) * MathF.Cbrt(scatterBias) * 0.0021f;
