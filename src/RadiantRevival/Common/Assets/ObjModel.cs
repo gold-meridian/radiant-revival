@@ -231,21 +231,23 @@ internal sealed class ObjModel : IDisposable
         }
     }
 
-    public void Draw(GraphicsDevice device, string name)
+    public void Draw(string name)
     {
         var i = Array.FindIndex(meshes, m => m.Name == name);
 
         if (i != -1)
         {
-            Draw(device, i);
+            Draw(i);
         }
     }
 
-    public void Draw(GraphicsDevice device, int i = 0)
+    public void Draw(int i = 0)
     {
         Debug.Assert(Vertices is not null);
 
         var mesh = meshes[i];
+
+        var device = Main.graphics.GraphicsDevice;
 
         device.Indices = mesh.Indices;
         device.SetVertexBuffer(Vertices);
