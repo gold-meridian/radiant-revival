@@ -4,7 +4,8 @@
 sampler2D SurfaceTexture : register(s0);
 
 matrix Projection;
-matrix ProjectionInverse;
+
+float4 DrawColor;
 
 struct VSInput
 {
@@ -37,9 +38,9 @@ float4 EarthShaderFragment(in PSInput input) : COLOR0
     float theta = (atan2(normal.x, normal.z) / PI) * 0.5 + 0.5;
     float phi = (asin(-normal.y) / (PI * 0.5)) * 0.5 + 0.5;
     
-    float2 uv = float2(theta, phi);
+    float2 uv = float2(-theta, phi);
     
-    return tex2D(SurfaceTexture, uv);
+    return tex2D(SurfaceTexture, uv) * DrawColor;
 }
 
 BEGIN_TECHNIQUE(Technique1)

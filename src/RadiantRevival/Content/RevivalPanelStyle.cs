@@ -444,6 +444,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     private static readonly Color background_gradient_lower = new Color(9, 14, 211);
     private static readonly Color background_nebula = new Color(5, 10, 255);
 
+    private static readonly Color outline_hover = new Color(246, 190, 66);
+
     public override bool PreDrawPanel(UIModItem element, SpriteBatch sb, ref bool drawDivider)
     {
         if (element._needsTextureLoading)
@@ -497,7 +499,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             sb.spriteEffectPass.Apply();
 
-            var outlineColor = Color.Lerp(background_nebula, new Color(246, 190, 66), 1f - MathF.Pow(1f - hoverIntensity, 2f));
+            var outlineColor = Color.Lerp(background_nebula, outline_hover, 1f - MathF.Pow(1f - hoverIntensity, 2f));
 
             element.DrawPanel(sb, element._borderTexture.Value, outlineColor);
         }
@@ -562,33 +564,54 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 #region Planets
     private static void DrawEarth(SpriteBatch sb, GraphicsDevice device)
     {
+        const float rotation_x = -0.2f;
+        const float rotation_y_speed = 0.3f;
+        const float rotation_z = -0.3f;
+
+        const float scale = 0.24f;
+
         var bounds = device.Viewport.Bounds;
 
         using var lease = RenderTargetPool.Shared.Rent(device, bounds.Width, bounds.Height, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 });
 
-        Assets.UI.ModPanel.CelestialBodies.PlanetModel.Asset.Wait();
-        var planet = Assets.UI.ModPanel.CelestialBodies.PlanetModel.Asset.Value;
+        device.RasterizerState = RasterizerState.CullClockwise;
+        device.DepthStencilState = DepthStencilState.Default;
 
         using (lease.Scope(clearColor: Color.Transparent))
         {
-            device.RasterizerState = RasterizerState.CullCounterClockwise;
-
             var earthShader = Data.Instance.EarthShader;
 
             var cameraPositon = new Vector3(1f, 0, 0f);
 
+            var time = Main.GlobalTimeWrappedHourly;
+
             var height = bounds.Height / (float)bounds.Width;
 
-            var transform = Matrix.CreateScale(0.2f)
-                          * Matrix.CreateRotationY(Main.GlobalTimeWrappedHourly)
+            var position = new Vector2(-bounds.Width * 0.5f, bounds.Height * 0.5f);
+
+            position += new Vector2(12, -7);
+
+            var transform = Matrix.CreateScale(scale)
+                          * Matrix.CreateRotationY(time * rotation_y_speed)
+                          * Matrix.CreateRotationX(rotation_x)
+                          * Matrix.CreateRotationZ(rotation_z)
                           * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
                           * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2) 
-                          * Matrix.CreateTranslation(-0.91f, -0.7f, 0);
-
-            var inverseTransform = Matrix.Transpose(transform);
-
+                          * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
+            
             earthShader.Parameters.Projection = transform;
-            earthShader.Parameters.ProjectionInverse = inverseTransform;
+
+            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointWrap,
+                Texture = Assets.UI.ModPanel.CelestialBodies.Earth.Asset.Value,
+            };
+
+            earthShader.Parameters.DrawColor = Color.White.ToVector4();
+
+            earthShader.Apply();
+
+            Assets.UI.ModPanel.CelestialBodies.PlanetModel.DrawPlanet();
 
             earthShader.Parameters.SurfaceTexture = new HlslSampler2D
             {
@@ -596,21 +619,11 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 Texture = TextureAssets.MagicPixel.Value,
             };
 
-            earthShader.Apply();
-
-            planet.Draw(device, "Outline");
-
-            earthShader.Parameters.SurfaceTexture = new HlslSampler2D
-            {
-                Sampler = SamplerState.PointWrap,
-                Texture = Assets.Sky.CelestialBodies.Moon4.Asset.Value,
-            };
+            earthShader.Parameters.DrawColor = outline_hover.ToVector4();
 
             earthShader.Apply();
 
-            planet.Draw(device, "Planet");
-
-            device.RasterizerState = RasterizerState.CullCounterClockwise;
+            Assets.UI.ModPanel.CelestialBodies.PlanetModel.DrawOutline();
         }
 
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
