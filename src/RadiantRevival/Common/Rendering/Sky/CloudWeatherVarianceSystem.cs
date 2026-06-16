@@ -31,16 +31,6 @@ public sealed class CloudWeatherVarianceSystem : ModSystem
         private set;
     }
 
-    /// <summary>
-    ///     The density threshold indicative of overcast skies.
-    /// </summary>
-    public static float OvercastSkiesThreshold => 0.15f;
-
-    /// <summary>
-    ///     The density threshold indicative of clear skies.
-    /// </summary>
-    public static float ClearSkiesThreshold => 0.7f;
-
     public override void ClearWorld()
     {
         ScrollOffset = 0f;
