@@ -1,5 +1,4 @@
 ﻿using System;
-using Terraria;
 using Terraria.ModLoader;
 using Terraria.ModLoader.IO;
 
@@ -12,15 +11,6 @@ namespace RadiantRevival.Common.Rendering.Sky;
 public sealed class CloudWeatherVarianceSystem : ModSystem
 {
     /// <summary>
-    ///     The scroll offset of the clouds due to wind.
-    /// </summary>
-    public static float ScrollOffset
-    {
-        get;
-        private set;
-    }
-
-    /// <summary>
     ///     An ever-incrementing, global timer that dictates
     ///     slow changes for weather effects, such as the
     ///     density of clouds in the sky.
@@ -31,29 +21,13 @@ public sealed class CloudWeatherVarianceSystem : ModSystem
         private set;
     }
 
-    public override void ClearWorld()
-    {
-        ScrollOffset = 0f;
-        WeatherTimer = 0f;
-    }
+    public override void ClearWorld() => WeatherTimer = 0f;
 
-    public override void SaveWorldData(TagCompound tag)
-    {
-        tag[nameof(ScrollOffset)] = ScrollOffset;
-        tag[nameof(WeatherTimer)] = WeatherTimer;
-    }
+    public override void SaveWorldData(TagCompound tag) => tag[nameof(WeatherTimer)] = WeatherTimer;
 
-    public override void LoadWorldData(TagCompound tag)
-    {
-        ScrollOffset = tag.GetFloat(nameof(ScrollOffset));
-        WeatherTimer = tag.GetFloat(nameof(WeatherTimer));
-    }
+    public override void LoadWorldData(TagCompound tag) => WeatherTimer = tag.GetFloat(nameof(WeatherTimer));
 
-    public override void PostUpdateNPCs()
-    {
-        ScrollOffset -= Main.windSpeedCurrent;
-        WeatherTimer += 0.002f;
-    }
+    public override void PostUpdateNPCs() => WeatherTimer += 0.002f;
 
     /// <summary>
     ///     Calculates one-dimensional noise based 
