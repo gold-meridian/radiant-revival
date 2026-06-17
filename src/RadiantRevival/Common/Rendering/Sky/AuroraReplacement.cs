@@ -68,8 +68,12 @@ public static class AuroraReplacement
 
         shader.Parameters.colorBandWidths = new Vector3(redBandWidth, greenBandWidth, blueBandWidth);
 
+        var offsetFromSurface = (float)(Main.screenPosition.Y - Main.worldSurface * 16f);
+        if (offsetFromSurface > 0f)
+            offsetFromSurface = 0f;
+
         shader.Parameters.bandClumping = 0.85f;
-        shader.Parameters.baseHeight = 0.84f;
+        shader.Parameters.baseHeight = 1.2f + offsetFromSurface / 13000f;
         shader.Parameters.heightSuppressionExponent = 1.28f;
         shader.Parameters.raymarchStepDecay = 1.5f;
         shader.Parameters.noiseTexture = new HlslSampler2D
@@ -93,7 +97,7 @@ public static class AuroraReplacement
         if (self._isLeaving)
         {
             const float base_fadeout_rate = 0.5f;
-            const float new_fadeout_rate = 0.125f;
+            const float new_fadeout_rate = 0.18f;
             self._opacity += (float)(gameTime.ElapsedGameTime.TotalSeconds * (base_fadeout_rate - new_fadeout_rate));
         }
     }
