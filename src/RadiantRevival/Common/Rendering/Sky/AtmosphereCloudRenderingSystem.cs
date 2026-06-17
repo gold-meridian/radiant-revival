@@ -199,6 +199,14 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
 
     private static SkyProfile InitializeDefaultProfile()
     {
+        var snowBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.EvilTileCount / (float)SceneMetrics.CorruptionTileMax, 0f, 1f))
+        {
+            AtmosphereTintColor = Vector3.One,
+            RainbowTintColor = Color.White,
+            OverridingSurfaceTemperature = 19.5f,
+            InfluencePriority = -1
+        };
+
         var corruptionBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.EvilTileCount / (float)SceneMetrics.CorruptionTileMax, 0f, 1f))
         {
             AtmosphereTintColor = new Vector3(2.4f, 0.82f, 0.38f),
@@ -245,7 +253,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
             InfluencePriority = 10
         };
 
-        return new SkyProfile(corruptionBiome, crimsonBiome, hallowBiome, graveyardBiome, mushroomBiome, eclipse)
+        return new SkyProfile(snowBiome, corruptionBiome, crimsonBiome, hallowBiome, graveyardBiome, mushroomBiome, eclipse)
         {
             AtmosphereSaturationBoost = 0.2f,
             CloudSaturationFactor = 0.5f,
@@ -354,6 +362,9 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     /// </summary>
     public static void RenderCloudsToBackground(SkyProfile profile)
     {
+        if (DensityFieldSystem.ShouldBeDisabled)
+            return;
+
         if (DensityFieldSystem.DensityField is null)
             return;
 

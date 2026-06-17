@@ -25,6 +25,22 @@ public sealed record SkyProfileInfluence
     }
 
     /// <summary>
+    ///     An optionally overrideable value that
+    ///     can be used to dictate contextual surface
+    ///     temperature values for cloud formation.
+    /// </summary>
+    /// <remarks>
+    ///     Temperature values are expected to be in
+    ///     Fahrenheit. Refer to <see cref="DensityFieldSystem.StandardSurfaceTemperature"/>
+    ///     for a sane baseline.
+    /// </remarks>
+    public float? OverridingSurfaceTemperature
+    {
+        get;
+        init;
+    }
+
+    /// <summary>
     ///     The color that auroras in the snow biome should
     ///     be tinted in the red channel.
     /// </summary>

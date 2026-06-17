@@ -54,7 +54,11 @@ public sealed class DensityFieldSystem : ModSystem
             if (underground)
                 return true;
 
-            return false;
+            // TODO -- Re-enable once the clouds have been
+            // iterated upon sufficiently. They're kind of
+            // rough around the edges right now in
+            // terms of shape formations.
+            return true;
         }
     }
 
@@ -62,6 +66,12 @@ public sealed class DensityFieldSystem : ModSystem
     ///     Converts a temperature in Fahrenheit to Kelvin.
     /// </summary>
     private static float FahrenheitToKelvin(float f) => (f - 32f) * 5f / 9f + 273.15f;
+
+    /// <summary>
+    ///     The standard surface temperature of the environment, in
+    ///     Fahrenheit.
+    /// </summary>
+    public static float StandardSurfaceTemperature => 68f;
 
     /// <summary>
     ///     Calculates the humidity factor based on the current
@@ -92,7 +102,7 @@ public sealed class DensityFieldSystem : ModSystem
     ///     on the current gameplay situation, mostly notable example
     ///     being the current time of day.
     /// </summary>
-    private static float CalculateSurfaceTemperatureFahrenheit()
+    private static float CalculateSurfaceTemperatureFahrenheit(SkyProfile profile)
     {
         var dayCompletion = (float)(Main.time / Main.dayLength);
         var nightCompletion = (float)(Main.time / Main.nightLength);
@@ -101,14 +111,25 @@ public sealed class DensityFieldSystem : ModSystem
         else
             dayCompletion = 1f;
 
-        var baseTemperature = 68f - Main.maxRaining * 17f - Main.eclipseLight * 18f;
+        var baseTemperature = StandardSurfaceTemperature;
+        foreach (var influence in profile.Influences)
+        {
+            if (influence.OverridingSurfaceTemperature is float f)
+            {
+                var influenceIntensity = influence.InfluenceFunction(Main.LocalPlayer);
+                baseTemperature = Interpolate.Lerp(baseTemperature, f, influenceIntensity);
+            }
+        }
 
         var dayBump = MathF.Pow(MathF.Sin(MathF.PI * dayCompletion), 2f);
         var dayCycleWarming = dayBump * (1f - Main.maxRaining) * 9.3f;
 
+        var rainCooling = Main.maxRaining * 17f;
+        var eclipseCooling = Main.eclipseLight * 18f;
+
         var nightBump = Math.Clamp(MathF.Sin(MathF.PI * nightCompletion), 0f, 1f);
         var nightCycleCooling = MathF.Sqrt(nightBump) * 6.5f;
-        var surfaceTemperature = baseTemperature + dayCycleWarming - nightCycleCooling;
+        var surfaceTemperature = baseTemperature + dayCycleWarming - nightCycleCooling - rainCooling - eclipseCooling;
 
         return surfaceTemperature;
     }
@@ -158,7 +179,7 @@ public sealed class DensityFieldSystem : ModSystem
             shader.Parameters.humidityHeightFalloff = 0.6f;
             shader.Parameters.buoyancyIntensity = buoyancyIntensity;
 
-            shader.Parameters.surfaceTemperature = FahrenheitToKelvin(CalculateSurfaceTemperatureFahrenheit());
+            shader.Parameters.surfaceTemperature = FahrenheitToKelvin(CalculateSurfaceTemperatureFahrenheit(AtmosphereCloudRenderingSystem.Profile));
             shader.Parameters.spaceTemperature = FahrenheitToKelvin(-59f);
             shader.Parameters.buoyancyReferenceTemperature = FahrenheitToKelvin(12.5f);
 
