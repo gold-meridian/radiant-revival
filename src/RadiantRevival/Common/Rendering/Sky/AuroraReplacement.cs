@@ -23,6 +23,7 @@ public static class AuroraReplacement
     internal static void Load()
     {
         On_AuroraSky.DrawAuroraSky += ReplaceAurora;
+        On_AuroraSky.Update += MakeFadeoutSlower;
     }
 
     private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
@@ -55,6 +56,16 @@ public static class AuroraReplacement
         shader.Parameters.redContributionCoefficients = new Vector3(0.8f, 0.1f + hueMixingA * 0.3f, 0f);
         shader.Parameters.greenContributionCoefficients = new Vector3(hueMixingB, 1f - hueMixingB * 0.3f, 0.2f + hueMixingA * 0.225f);
         shader.Parameters.blueContributionCoefficients = new Vector3(0.24f + hueMixingA * 0.54f, 0f, 0.8f);
+
+        var profile = AtmosphereCloudRenderingSystem.Profile;
+        foreach (var influence in profile.Influences)
+        {
+            var influenceIntensity = influence.InfluenceFunction(Main.LocalPlayer);
+            shader.Parameters.redContributionCoefficients += influenceIntensity * influence.RedTermAuroraTint;
+            shader.Parameters.greenContributionCoefficients += influenceIntensity * influence.GreenTermAuroraTint;
+            shader.Parameters.blueContributionCoefficients += influenceIntensity * influence.BlueTermAuroraTint;
+        }
+
         shader.Parameters.colorBandWidths = new Vector3(redBandWidth, greenBandWidth, blueBandWidth);
 
         shader.Parameters.bandClumping = 0.85f;
@@ -71,6 +82,20 @@ public static class AuroraReplacement
         var pixel = TextureAssets.MagicPixel.Value;
         var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         Main.spriteBatch.Draw(pixel, viewportArea, Color.White * skyOpacity);
+    }
+
+    private static void MakeFadeoutSlower(On_AuroraSky.orig_Update orig, AuroraSky self, GameTime gameTime)
+    {
+        orig(self, gameTime);
+        if (Main.gamePaused)
+            return;
+
+        if (self._isLeaving)
+        {
+            const float base_fadeout_rate = 0.5f;
+            const float new_fadeout_rate = 0.125f;
+            self._opacity += (float)(gameTime.ElapsedGameTime.TotalSeconds * (base_fadeout_rate - new_fadeout_rate));
+        }
     }
 
     [ModSystemHooks.ModifySunLightColor]

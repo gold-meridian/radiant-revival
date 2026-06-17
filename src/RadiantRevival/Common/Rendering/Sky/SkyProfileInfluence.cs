@@ -25,6 +25,36 @@ public sealed record SkyProfileInfluence
     }
 
     /// <summary>
+    ///     The color that auroras in the snow biome should
+    ///     be tinted in the red channel.
+    /// </summary>
+    public Vector3 RedTermAuroraTint
+    {
+        get;
+        init;
+    }
+
+    /// <summary>
+    ///     The color that auroras in the snow biome should
+    ///     be tinted in the green channel.
+    /// </summary>
+    public Vector3 GreenTermAuroraTint
+    {
+        get;
+        init;
+    }
+
+    /// <summary>
+    ///     The color that auroras in the snow biome should
+    ///     be tinted in the blue channel.
+    /// </summary>
+    public Vector3 BlueTermAuroraTint
+    {
+        get;
+        init;
+    }
+
+    /// <summary>
     ///     The color that natural rainbows should be tinted.
     /// </summary>
     public required Color RainbowTintColor
