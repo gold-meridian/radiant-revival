@@ -1,0 +1,87 @@
+﻿using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.Mathematics;
+using Daybreak.Common.Rendering;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using RadiantRevival.Core;
+using System;
+using Terraria;
+using Terraria.GameContent;
+using Terraria.GameContent.Skies;
+using Terraria.Graphics;
+using Terraria.Graphics.Effects;
+
+namespace RadiantRevival.Common.Rendering.Sky;
+
+/// <summary>
+///     The system responsible for the rendering of
+///     auroras.
+/// </summary>
+public static class AuroraReplacement
+{
+    [OnLoad]
+    internal static void Load()
+    {
+        On_AuroraSky.DrawAuroraSky += ReplaceAurora;
+    }
+
+    private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
+    {
+        using var _ = Main.spriteBatch.Scope();
+        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
+
+        var solarActivity = MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0019f) * 0.5f + 0.5f;
+        solarActivity = Interpolate.Lerp(solarActivity, 0f, 0.6f);
+
+        var redBandWidth = Interpolate.Lerp(24f, 40f, solarActivity);
+        var greenBandWidth = Interpolate.Lerp(18f, 26f, solarActivity);
+        var blueBandWidth = Interpolate.Lerp(20f, 35f, solarActivity);
+
+        var hueMixingA = MathF.Sin(CloudWeatherVarianceSystem.WeatherTimer * 0.0151f) * 0.5f + 0.5f;
+        var hueMixingB = MathF.Sin(CloudWeatherVarianceSystem.WeatherTimer * 0.0132f) * 0.5f + 0.5f;
+
+        var shader = AssetReferences.Assets.Sky.AuroraShader.CreateAutoloadPass();
+        shader.Parameters.time = Main.GlobalTimeWrappedHourly * 0.0425f;
+
+        // Oxygen exists primarily within the 100-200km range
+        // and creates red and greenish colors upon excitement.
+        shader.Parameters.redExcitementHeightKilometers = 211f + MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0074f) * 11f - MathF.Sqrt(hueMixingA) * 20f;
+        shader.Parameters.greenExcitementHeightKilometers = 110f + MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0095f) * 8f;
+
+        // Nitrogen exists lower down, within the approximately
+        // 90km range, and creates blueish colors upon excitement.
+        shader.Parameters.blueExcitementHeightKilometers = 90f + MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0117f) * 6f;
+
+        shader.Parameters.redContributionCoefficients = new Vector3(0.8f, 0.1f + hueMixingA * 0.3f, 0f);
+        shader.Parameters.greenContributionCoefficients = new Vector3(hueMixingB, 1f - hueMixingB * 0.3f, 0.2f + hueMixingA * 0.225f);
+        shader.Parameters.blueContributionCoefficients = new Vector3(0.24f + hueMixingA * 0.54f, 0f, 0.8f);
+        shader.Parameters.colorBandWidths = new Vector3(redBandWidth, greenBandWidth, blueBandWidth);
+
+        shader.Parameters.bandClumping = 0.85f;
+        shader.Parameters.baseHeight = 0.84f;
+        shader.Parameters.heightSuppressionExponent = 1.28f;
+        shader.Parameters.raymarchStepDecay = 1.5f;
+        shader.Parameters.noiseTexture = new HlslSampler2D
+        {
+            Texture = AssetReferences.Assets.Noise.CloudyNoise.Asset.Value,
+            Sampler = SamplerState.LinearWrap
+        };
+        shader.Apply();
+
+        var pixel = TextureAssets.MagicPixel.Value;
+        var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+        Main.spriteBatch.Draw(pixel, viewportArea, Color.White * skyOpacity);
+    }
+
+    [ModSystemHooks.ModifySunLightColor]
+    private static void ReplaceColorTints(ref Color tileColor, ref Color backgroundColor)
+    {
+        if (SkyManager.Instance["Aurora"] is AuroraSky { _opacity: var opacity } auroraSky && opacity > 0f)
+        {
+            var colorTint = new Color(12, 232, 123);
+            var tintInterpolant = opacity * 0.037f;
+            tileColor = Color.Lerp(tileColor, colorTint, tintInterpolant);
+            backgroundColor = Color.Lerp(backgroundColor, colorTint, tintInterpolant);
+        }
+    }
+}

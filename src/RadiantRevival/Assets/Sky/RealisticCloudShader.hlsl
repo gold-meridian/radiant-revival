@@ -20,9 +20,9 @@ float2 fieldTargetSize2D;
 
 float2 CalculateRayBoxIntersectionOffsets(float3 rayOrigin, float3 rayDirection, float3 boxMin, float3 boxMax)
 {
-    float3 invDir = 1 / rayDirection;
-    float3 tBottom = invDir * (boxMin - rayOrigin);
-    float3 tTop = invDir * (boxMax - rayOrigin);
+    float3 inverseDirection = 1 / rayDirection;
+    float3 tBottom = inverseDirection * (boxMin - rayOrigin);
+    float3 tTop = inverseDirection * (boxMax - rayOrigin);
     float3 tMin = min(tBottom, tTop);
     float3 tMax = max(tBottom, tTop);
     
@@ -122,8 +122,8 @@ float4 PixelShaderFunction(float4 sampleColor : COLOR0, float2 uv : TEXCOORD0, f
 
     for (int i = 0; i < 12; i++)
     {
-        float t = (i + 0.5) * ds;
-        float3 p = rayOrigin + rayDirection * t;
+        float marchProgress = (i + 0.5) * ds;
+        float3 p = rayOrigin + rayDirection * marchProgress;
 
         float density = CalculateDensity(p);
         float travelDistance = CalculateRayBoxIntersectionOffsets(p, sunDirection, 0, cloudSize).y;
