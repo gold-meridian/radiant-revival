@@ -3,7 +3,6 @@
 sampler2D baseTexture : register(s0);
 
 float globalTime;
-float saturationBoost;
 float2 zoom;
 float2 screenPosition;
 float2 screenSize;
@@ -12,6 +11,7 @@ float3 radii;
 float3 sunPosition;
 float3 sunlightFactor;
 float3 scatterCoefficients;
+float3x3 saturationBoostMatrix;
 
 float2 CalculateRayEllipsoidIntersectionOffsets(float3 rayOrigin, float3 rayDirection, float3 ellipsoidOrigin, float3 ellipsoidRadii)
 {
@@ -52,27 +52,6 @@ float3 CalculateOpticalDepth(float3 start, float3 end, float3 rayDirection, floa
     }
     
     return opticalDepth;
-}
-
-// https://gamedev.stackexchange.com/a/59808
-// TODO -- Maybe just use a saturation matrix.
-// I really only need this for the saturation boost visual anyway.
-float3 Rgb2hsv(float3 c)
-{
-    float4 K = float4(0, -0.33333, 0.66667, -1);
-    float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
-    float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
-
-    float d = q.x - min(q.w, q.y);
-    float e = 1e-10;
-    return float3(abs(q.z + (q.w - q.y) / (6 * d + e)), d / (q.x + e), q.x);
-}
-
-float3 Hsv2rgb(float3 c)
-{
-    float4 K = float4(1, 0.66667, 0.33333, 3);
-    float3 p = abs(frac(c.xxx + K.xyz) * 6 - K.www);
-    return c.z * lerp(K.xxx, clamp(p - K.xxx, 0, 1), c.y);
 }
 
 float4 PixelShaderFunction(float4 sampleColor : COLOR0, float2 uv : TEXCOORD0) : COLOR0
@@ -150,8 +129,7 @@ float4 PixelShaderFunction(float4 sampleColor : COLOR0, float2 uv : TEXCOORD0) :
     // This isn't really in line with the physical
     // scattering equations, I just think it's neat
     // and gives artistic control over the results.
-    float3 hsv = Rgb2hsv(tonemappedColor);
-    tonemappedColor = Hsv2rgb(hsv * float3(1, 1 + saturationBoost, 1));
+    tonemappedColor = mul(tonemappedColor, saturationBoostMatrix);
     
     // Make the color more translucent the less density
     // was found along the view ray.

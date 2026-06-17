@@ -340,6 +340,19 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
 
+        var s = 1f + profile.AtmosphereSaturationBoost;
+        var inverseS = 1f - s;
+        var luminanceVector = new Vector3(0.3f, 0.6f, 0.1f);
+        var r = Vector3.One * luminanceVector.X * inverseS + Vector3.UnitX * s;
+        var g = Vector3.One * luminanceVector.Y * inverseS + Vector3.UnitY * s;
+        var b = Vector3.One * luminanceVector.Z * inverseS + Vector3.UnitZ * s;
+        var saturationMatrix = new Matrix(
+            r.X, r.Y, r.Z, 0f,
+            g.X, g.Y, g.Z, 0f,
+            b.X, b.Y, b.Z, 0f,
+            0f, 0f, 0f, 1f);
+
+
         var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
         shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
         shader.Parameters.zoom = Vector2.One;
@@ -350,7 +363,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
         shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
         shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(wavelengthMeters, 1.00037f);
-        shader.Parameters.saturationBoost = profile.AtmosphereSaturationBoost;
+        shader.Parameters.saturationBoostMatrix = saturationMatrix;
         shader.Apply();
 
         var pixel = TextureAssets.MagicPixel.Value;
