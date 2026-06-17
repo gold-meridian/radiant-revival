@@ -6,7 +6,6 @@ using Terraria.ModLoader;
 
 namespace RadiantRevival.Common.Rendering.Sky;
 
-// TODO -- This might be redundant? Pretty sure Zoey made something similar.
 /// <summary>
 ///     A simple system that examines moon textures to
 ///     acquire an approximate tint for each of them.
