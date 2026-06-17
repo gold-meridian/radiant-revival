@@ -842,13 +842,13 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private static void InitFireworkPatterns()
     {
-        patterns.Add(new FireworkPattern(ExplosionFivePointStar, 160));
-        patterns.Add(new FireworkPattern(ExplosionFourPointStar, 180));
-        patterns.Add(new FireworkPattern(ExplosionSwirl, 580));
+        patterns.Add(new FireworkPattern(ExplosionFivePointStar, 170));
+        patterns.Add(new FireworkPattern(ExplosionFourPointStar, 200));
+        patterns.Add(new FireworkPattern(ExplosionSwirl, 600));
 
-        AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 700, true);
-        AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 600, false);
-        AddImage(Assets.UI.ModPanel.Fireworks.SteamHappy.Asset, 1300, false);
+        AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 730, true);
+        AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 640, false);
+        AddImage(Assets.UI.ModPanel.Fireworks.SteamHappy.Asset, 1500, false);
 
         var mod = ModContent.GetInstance<ModImpl>();
         var authors = mod.GetContent<AuthorTag>();
@@ -860,7 +860,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                 continue;
             }
 
-            AddImage(icon, 540, true);
+            AddImage(icon, 600, true);
         }
 
         return;
@@ -905,7 +905,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private static void UpdateSparks(Rectangle dims)
     {
-        const float spark_lifetime_increment = 0.013f;
+        const float spark_lifetime_increment = 0.01f;
 
         for (var i = 0; i < sparks.Length; i++)
         {
@@ -917,7 +917,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             }
 
             spark.Position += spark.Velocity;
-            spark.Velocity *= 0.92f;
+            spark.Velocity *= 0.935f;
 
             spark.Lifetime += spark_lifetime_increment;
 
@@ -985,7 +985,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         const float range = MathHelper.PiOver4;
 
-        var speed = Main.rand.NextFloat(1f, 4.5f);
+        var speed = Main.rand.NextFloat(1.5f, 4.2f);
 
         var rotation = Main.rand.NextFloat(-range, range);
 
@@ -1036,7 +1036,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         var rotationOffset = Main.rand.NextFloatDirection();
 
-        var speed = Main.rand.NextFloat(1.3f, 7.5f);
+        var speed = Main.rand.NextFloat(1.3f, 7f);
 
         for (var t = 0f; t < MathF.Tau; t += increment)
         {
@@ -1068,7 +1068,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         var rotationOffset = Main.rand.NextFloatDirection();
 
-        var speed = Main.rand.NextFloat(2.3f, 6.5f);
+        var speed = Main.rand.NextFloat(2.3f, 6f);
 
         var color = firework_swirl_color;
 
