@@ -166,7 +166,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         c.GotoNext(i => i.MatchLdsfld<Main>(nameof(Main.cloudBG)));
         c.GotoPrev(MoveType.After, i => i.MatchLdsfld<Main>(nameof(Main.cloudBGAlpha)));
 
-        c.EmitDelegate((float bgAlpha) => 0f);
+        c.EmitDelegate((float bgAlpha) => DensityFieldSystem.ShouldBeDisabled ? 0f : bgAlpha);
     }
 
     private static void DisableAtmosphereBackgroundDarkening(On_Main.orig_UpdateAtmosphereTransparencyToSkyColor orig, float y)
@@ -471,8 +471,11 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         if (Main.netMode == NetmodeID.Server)
             return;
 
-        for (var i = 0; i < Main.maxClouds; i++)
-            Main.cloud[i].active = false;
+        if (!DensityFieldSystem.ShouldBeDisabled)
+        {
+            for (var i = 0; i < Main.maxClouds; i++)
+                Main.cloud[i].active = false;
+        }
 
         var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         var trueBodyPosition = Main.LastCelestialBodyPosition * viewportSize;
