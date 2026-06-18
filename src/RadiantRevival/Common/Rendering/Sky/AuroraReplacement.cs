@@ -75,7 +75,7 @@ public static class AuroraReplacement
         shader.Parameters.bandClumping = 0.85f;
         shader.Parameters.baseHeight = 1.2f + offsetFromSurface / 13000f;
         shader.Parameters.heightSuppressionExponent = 1.28f;
-        shader.Parameters.raymarchStepDecay = 1.5f;
+        shader.Parameters.raymarchStepDecay = 1.3f;
         shader.Parameters.noiseTexture = new HlslSampler2D
         {
             Texture = AssetReferences.Assets.Noise.CloudyNoise.Asset.Value,

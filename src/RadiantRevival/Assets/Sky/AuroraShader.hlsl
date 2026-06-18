@@ -17,6 +17,13 @@ float3 greenContributionCoefficients;
 float3 blueContributionCoefficients;
 float3 colorBandWidths;
 
+float3 Hash33(float3 p3)
+{
+    float3 uv = frac(p3 * float3(.1031, .11369, .13787));
+    uv += dot(uv, uv.yxz + 19.19);
+    return -1.0 + 2.0 * frac(float3((uv.x + uv.y) * uv.z, (uv.x + uv.z) * uv.y, (uv.y + uv.z) * uv.x));
+}
+
 float CalculateDensity(float3 p)
 {
     float noise = 0;
@@ -28,11 +35,11 @@ float CalculateDensity(float3 p)
     // a little bit.
     uv.y += sin(time * 30 + p.x * 20) * 0.02;
     
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 3; i++)
     {
-        float theta = 6.283 * i / 4 + time * 0.08;
+        float theta = 6.283 * i / 3 + time * 0.08;
         float2 scrollDirection = float2(cos(theta), sin(theta));
-        float2 scrollOffset = float2(noise * 0.25, time * -1.9) + scrollDirection * time * 0.85;
+        float2 scrollOffset = float2(noise * 0.25, time * -1.9) + scrollDirection * time * 0.45;
         
         float decay = pow(1.25, i);
         noise += tex2D(noiseTexture, uv * decay + scrollOffset) / decay;
@@ -50,7 +57,7 @@ float CalculateDensity(float3 p)
     // sense.
     float ambientGlow = (1 - globalDissipation) * 0.4;
     
-    return noise * pow(globalDissipation, 2) * 3 + ambientGlow;
+    return noise * pow(globalDissipation, 2) * 6 + ambientGlow;
 }
 
 float4 CalculateColor(float3 p)
@@ -88,18 +95,21 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
     float3 rayDirection = normalize(float3(uv * 2 - 1, 0.5));
     float4 colorSum = 0;
     
-    for (float i = 0; i < 45; i++)
+    for (float i = 0; i < 32; i++)
     {
-        float raymarchProgress = i / 45;
+        float raymarchProgress = i / 32;
         
         // Weird nonsense that extends the march
         // direction forward and upward in accordance
         // with what one might expect from an aurora.
-        float extensionNumerator = (baseHeight + pow(i * 1.5, heightSuppressionExponent) * 0.0025 / bandClumping);
+        float extensionNumerator = (baseHeight + pow(raymarchProgress * 67.5, heightSuppressionExponent) * 0.0025 / bandClumping);
         float extensionDenominator = rayDirection.y * 2.2 + rayDirection.z * 0.3 + 0.4;        
         float extension = extensionNumerator / extensionDenominator;
         
         float3 p = rayDirection * extension;
+        
+        // Please, evil banding, go away...
+        p += Hash33(p * 80) * 0.002;
         
         // Ensure that colors further along taper
         // with an exponential decay term.
