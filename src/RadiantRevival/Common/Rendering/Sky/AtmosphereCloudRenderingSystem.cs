@@ -144,6 +144,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         IL_Main.DrawSurfaceBG += RemoveDefaultCloudBackground;
         On_Main.UpdateAtmosphereTransparencyToSkyColor += DisableAtmosphereBackgroundDarkening;
         On_Main.DrawSunAndMoon += Render;
+        On_Main.Update += Update;
     }
 
     private static void DisableTypicalSunriseSunsetLighting(ILContext il)
@@ -466,9 +467,12 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
 
     public override void ClearWorld() => CelestialBodyPosition = Vector2.Zero;
 
-    public override void PostUpdateNPCs()
+    private static void Update(On_Main.orig_Update orig, Main self, GameTime gameTime)
     {
-        if (Main.netMode == NetmodeID.Server)
+        orig(self, gameTime);
+
+        var gamePaused = Main.gamePaused && !Main.gameMenu;
+        if (Main.netMode == NetmodeID.Server || gamePaused)
             return;
 
         if (!DensityFieldSystem.ShouldBeDisabled)
