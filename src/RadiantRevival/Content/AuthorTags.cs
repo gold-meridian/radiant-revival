@@ -87,6 +87,6 @@ internal sealed class LucilleTag : CommonAuthorTag
         position.X += scale * 17f;
         spriteBatch.Draw(rightEar, position, null, Color.White, twitchAngleOffset * -0.05f, new Vector2(12f, 38f), scale, 0, 0f);
 
-        base.DrawIcon(spriteBatch, position);
+        // base.DrawIcon(spriteBatch, position);
     }
 }
