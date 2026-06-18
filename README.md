@@ -35,15 +35,15 @@
 - [x] Revised Rain Visuals
   - [x] Tile Reflections
 > <img width="397" height="275" alt="image" src="https://github.com/user-attachments/assets/3336bc6a-2875-4950-9304-810ab096f6c8" />
-  - [ ] Rainbows
+  - [x] Rainbows
 - [x] Pitch Black Night Sky
-- [ ] Revised Aurora Borealis
+- [x] Revised Aurora Borealis
 - [ ] Background Lightning Visuals
 - [ ] Revised Lunar Invasion Visuals
 - [ ] Revised Water Visuals
   - [ ] Water Reflections
 - [ ] Revised Shimmer Visuals
-- [ ] Atmosphere Visual
+- [x] Atmosphere Visual
 - [ ] Revised Nature/Treetop Lighting
 - [x] Retro Lighting Fixes Circa [ink-zoey/RetroLightingFix](https://github.com/ink-zoey/FixRetroLighting)
 

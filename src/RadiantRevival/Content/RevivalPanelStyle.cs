@@ -485,6 +485,18 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
         sb.Restart(in ss);
 
+        drawDivider = false;
+
+        var dividerTexture = Assets.UI.ModPanel.Divider.Asset.Value;
+
+        var innerDims = element.InnerDimensions;
+
+        var dividerSize = new Rectangle(
+            innerDims.X + 5 + element._modIconAdjust, innerDims.Y + 30,
+            innerDims.Width - 10 - element._modIconAdjust, 4);
+
+        sb.Draw(dividerTexture, dividerSize, Color.White);
+
         return false;
 
         static Vector4 Transform(Vector4 vector)
