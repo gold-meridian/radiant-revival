@@ -1,17 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Daybreak.Common.Features.Authorship;
+using Daybreak.Common.Features.Hooks;
 using Daybreak.Common.Features.Models;
 using Daybreak.Common.Features.ModPanel;
+using Daybreak.Common.Mathematics;
 using Daybreak.Common.Rendering;
+using Daybreak.Common.UI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using MonoMod.Cil;
+using RadiantRevival.Common;
 using RadiantRevival.Core;
 using ReLogic.Content;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
 using Terraria;
+using Terraria.Audio;
+using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
+using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
+using Terraria.UI;
 using Terraria.UI.Chat;
 
 namespace RadiantRevival.Content;
@@ -21,19 +32,20 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     [Autoload(Side = ModSide.Client)]
     private sealed class Data : IStatic<Data>
     {
-        public required WrapperShaderData<Assets.UI.ModPanel.ModPanelShader.Parameters> PanelShader { get; init; }
+        public required WrapperShaderData<Assets.UI.ModPanel.MaskShader.Parameters> MaskShader { get; init; }
+
+        public required WrapperShaderData<Assets.UI.ModPanel.NebulaShader.Parameters> NebulaShader { get; init; }
+
+        public required WrapperShaderData<Assets.UI.ModPanel.CelestialBodies.PlanetShader.Parameters> PlanetShader { get; init; }
 
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
-                () =>
+                () => new Data
                 {
-                    var panelShaderData = Assets.UI.ModPanel.ModPanelShader.CreatePanelShader();
-
-                    return new Data
-                    {
-                        PanelShader = panelShaderData,
-                    };
+                    MaskShader = Assets.UI.ModPanel.MaskShader.CreateMaskShader(),
+                    NebulaShader = Assets.UI.ModPanel.NebulaShader.CreateNebulaShader(),
+                    PlanetShader = Assets.UI.ModPanel.CelestialBodies.PlanetShader.CreatePlanetShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -41,47 +53,124 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         public static void UnloadData(Data data) { }
     }
 
+    private static bool currentlyDrawing;
+
+    private static readonly Color state_text_inner = new Color(255, 227, 123);
+    private static readonly Color state_text_outer = new Color(167, 23, 152);
+
+    [OnLoad]
+    private static void Load()
+    {
+        MonoModHooks.Modify(
+            typeof(UIModStateText).GetMethod(
+                nameof(UIModStateText.DrawEnabledText),
+                BindingFlags.Instance | BindingFlags.NonPublic
+            ),
+            DrawEnabledText_CustomText
+        );
+    }
+
+    private static void DrawEnabledText_CustomText(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        var positionIndex = -1;
+
+        var jumpRetTarget = c.DefineLabel();
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchMul()
+        );
+
+        c.GotoNext(
+            MoveType.After,
+            i => i.MatchStloc(out positionIndex)
+        );
+
+        c.EmitLdarg0();
+        c.EmitLdloc(positionIndex);
+
+        c.EmitDelegate(
+            static (UIModStateText element, Vector2 position) =>
+            {
+                if (!currentlyDrawing)
+                {
+                    return false;
+                }
+
+                var sb = Main.spriteBatch;
+                var font = FontAssets.MouseText.Value;
+
+                ChatManager.DrawColorCodedStringWithShadow(
+                    sb,
+                    font,
+                    element.DisplayText,
+                    position,
+                    state_text_inner,
+                    state_text_outer,
+                    0f,
+                    Vector2.Zero,
+                    Vector2.One,
+                    999f, // For whatever reason the game doesn't use shadowColor if maxWidth is below 0???
+                    1.5f
+                );
+
+                return true;
+            }
+        );
+
+        c.EmitBrfalse(jumpRetTarget);
+
+        c.EmitRet();
+
+        c.MarkLabel(jumpRetTarget);
+    }
+
+    public override Color ModifyEnabledTextColor(bool enabled, Color color)
+    {
+        return state_text_inner;
+    }
+
+    public override bool PreDraw(UIModItem element, SpriteBatch sb)
+    {
+        currentlyDrawing = true;
+        return base.PreDraw(element, sb);
+    }
+
+    public override void PostDraw(UIModItem element, SpriteBatch sb)
+    {
+        currentlyDrawing = false;
+    }
+
+    [ModSystemHooks.PostSetupContent]
+    private static void PostSetupContent()
+    {
+        Main.RunOnMainThread(InitFireworkPatterns).GetAwaiter().GetResult();
+    }
+
     public sealed class ModName : UIText
     {
-        private readonly string originalText;
-
         public ModName(string text, float textScale = 1, bool large = false) : base(text, textScale, large)
         {
-            if (ChatManager.Regexes.Format.Matches(text).Count != 0)
-            {
-                throw new InvalidOperationException("The text cannot contain formatting.");
-            }
+            SetText(" ");
 
-            originalText = text;
+            Assets.UI.ModPanel.ModName.Asset.Wait();
+
+            Width.Set(Assets.UI.ModPanel.ModName.Asset.Value.Width, 0f);
         }
 
         protected override void DrawSelf(SpriteBatch spriteBatch)
         {
-            var formattedText = GetAnimatedText(originalText, Main.GlobalTimeWrappedHourly);
-            SetText(formattedText);
+            // base.DrawSelf(spriteBatch);
 
-            base.DrawSelf(spriteBatch);
-        }
+            var texture = IsMouseHovering ? Assets.UI.ModPanel.ModName_Hover.Asset.Value : Assets.UI.ModPanel.ModName.Asset.Value;
 
-        public static string GetAnimatedText(string text, float time)
-        {
-            // [c/______:x]
-            const int character_length = 12;
+            var position = this.Dimensions.Left();
 
-            var sb = new StringBuilder(character_length * text.Length);
-            for (var i = 0; i < text.Length; i++)
-            {
-                /*
-                var wave = MathF.Sin(time * speed + i * offset);
+            var origin = new Vector2(0f, texture.Height * 0.5f);
 
-                // Factor normalized 0-1.
-                var color = Color.Lerp(lightPurple, darkPurple, (wave + 1f) / 2f);
-
-                sb.Append($"[c/{color.Hex3()}:{text[i]}]");
-                */
-            }
-
-            return sb.ToString();
+            spriteBatch.Draw(texture, position, null, Color.White, 0f, origin, 1f, SpriteEffects.None, 0f);
         }
     }
 
@@ -93,18 +182,141 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
-    private static float hoverIntensity;
-
-    public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = [];
-
-    public override void Load()
+    private abstract class BouncyHoverImage : UIImage
     {
-        base.Load();
+        private readonly Asset<Texture2D> normalTexture;
+        private readonly Asset<Texture2D> hoverTexture;
+
+        private float hoverIntensity;
+        private float clickIntensity;
+        private float bounceTime;
+        private float randomStart;
+
+        protected BouncyHoverImage(Asset<Texture2D> normalTexture, Asset<Texture2D> hoverTexture) : base(normalTexture)
+        {
+            this.normalTexture = normalTexture;
+            this.hoverTexture = hoverTexture;
+
+            RemoveFloatingPointsFromDrawPosition = true;
+
+            OverrideSamplerState = SamplerState.PointClamp;
+        }
+
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+
+            if (bounceTime > 0f)
+            {
+                bounceTime = Math.Max(0f, bounceTime - 0.08f);
+            }
+
+            var clicking = IsMouseHovering && Main.mouseLeft;
+
+            if (clicking)
+            {
+                clickIntensity += 0.33f;
+            }
+            else
+            {
+                clickIntensity -= 0.33f;
+            }
+
+            if (IsMouseHovering)
+            {
+                hoverIntensity += 0.1f;
+            }
+            else
+            {
+                hoverIntensity -= 0.33f;
+            }
+
+            clickIntensity = Math.Clamp(clickIntensity, 0f, 1f);
+            hoverIntensity = Math.Clamp(hoverIntensity, 0f, 1f);
+        }
+
+        public override void MouseOver(UIMouseEvent evt)
+        {
+            base.MouseOver(evt);
+
+            // do we want this
+            SoundEngine.PlaySound(SoundID.MenuTick);
+
+            bounceTime = 1f;
+            randomStart = Main.rand.NextFloat();
+        }
+
+        public override void MouseOut(UIMouseEvent evt)
+        {
+            base.MouseOut(evt);
+
+            if (Main.mouseLeft)
+            {
+                bounceTime = 1f;
+                randomStart = Main.rand.NextFloat();
+            }
+        }
+
+        protected override void DrawSelf(SpriteBatch spriteBatch)
+        {
+            var dims = this.Dimensions;
+
+            var texture = IsMouseHovering ? hoverTexture.Value : normalTexture.Value;
+            var time = Main.GlobalTimeWrappedHourly;
+
+            var curveX = 1f - SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 0f);
+            var curveY = 1f + SpecialBounceCurve(1f - bounceTime, 0.8f, 0f, 1f);
+            var rotation = MathF.Cos(bounceTime * MathHelper.TwoPi - randomStart * 10f) * 0.2f * MathF.Sqrt(bounceTime);
+
+            var scale = new Vector2(curveX, curveY);
+
+            scale += scale * 0.13f * hoverIntensity;
+
+            scale *= MathHelper.Lerp(1f, 0.5f, clickIntensity);
+
+            var wobble = MathF.Sin(time * 0.35f);
+            // wobble *= 1 - hoverIntensity;
+
+            wobble *= 0.1f;
+
+            rotation += wobble;
+
+            var offset = new Vector2(MathF.Sin(time * 0.4f) * 0.5f, MathF.Sin(time * 0.7f) * 2f);
+            offset *= 1 - hoverIntensity;
+
+            var position = dims.Center() + offset;
+
+            spriteBatch.Draw(texture, position, null, Color.White, rotation, texture.Size() / 2f, scale, SpriteEffects.None, 0f);
+        }
+
+        private static float SpecialBounceCurve(float x, float alpha, float beta, float gamma)
+        {
+            x = Math.Clamp(x, 0f, 1f);
+            return (MathF.Cos((1 - x) * 7f + gamma) * alpha + beta) * MathF.Pow(1 - x, 1.5f) * MathF.Sqrt(x);
+        }
     }
+
+    private sealed class MoreInfoButton() : BouncyHoverImage(Assets.UI.ModPanel.ModInfo.Asset, Assets.UI.ModPanel.ModInfo_Hover.Asset);
+
+    private sealed class ConfigButton() : BouncyHoverImage(Assets.UI.ModPanel.ModConfig.Asset, Assets.UI.ModPanel.ModConfig_Hover.Asset);
+
+    public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = new()
+    {
+        { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
+        { TextureKind.ModConfig, Assets.UI.ModPanel.ModConfig.Asset },
+        { TextureKind.InnerPanel, Assets.UI.ModPanel.InnerPanel.Asset },
+    };
 
     public override bool PreInitialize(UIModItem element)
     {
         element.BorderColor = Color.Black;
+
+        element.OnUpdate += OnUpdate_Particles;
+
+        element.OnUpdate += OnUpdate_Hover;
+
+        starsCreated = false;
+        element.OnUpdate += OnUpdate_Stars;
 
         return base.PreInitialize(element);
     }
@@ -112,6 +324,77 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     public override void PostInitialize(UIModItem element)
     {
         base.PostInitialize(element);
+
+        element._moreInfoButton.OnLeftClick -= element.ShowMoreInfo;
+        ReplaceElement(ref element._moreInfoButton, new MoreInfoButton());
+        {
+            element._moreInfoButton.OnLeftClick += element.ShowMoreInfo;
+        }
+
+        if (element._configButton is not null)
+        {
+            element._moreInfoButton.OnLeftClick -= element.OpenConfig;
+            ReplaceElement(ref element._configButton, new ConfigButton());
+            {
+                element._configButton.OnLeftClick += element.OpenConfig;
+            }
+        }
+
+        element._uiModStateText.PaddingLeft = element._uiModStateText.PaddingRight = 14f;
+        element._uiModStateText.Recalculate();
+
+        // Daybreak will make it so UI elements respond to our padding change here.
+        element.UpdateUIForEnabledChange();
+    }
+
+    // this is not generalized do not use this for anything else ever
+    private static void ReplaceElement<T>(ref T element, T newElement)
+        where T : UIElement
+    {
+        var parent = element.Parent;
+        var idx = parent.Elements.IndexOf(element);
+        element.Remove();
+        parent.Elements.Insert(idx, newElement);
+        newElement.Parent = parent;
+
+        // Do this after since it calls Recalculate for us.
+        newElement.CopyStyle(element);
+
+        element = newElement;
+    }
+
+    private static bool starsCreated;
+
+    private static void OnUpdate_Stars(UIElement affectedElement)
+    {
+        if (!starsCreated)
+        {
+            CreateStars(affectedElement.Dimensions);
+            starsCreated = true;
+        }
+
+        UpdateStars(affectedElement.Dimensions);
+    }
+
+    private static float hoverIntensity;
+
+    private static void OnUpdate_Hover(UIElement affectedElement)
+    {
+        if (affectedElement.Dimensions.Contains(Main.MouseScreen.ToPoint()))
+        {
+            hoverIntensity += 0.08f;
+        }
+        else
+        {
+            hoverIntensity -= 0.1f;
+        }
+
+        hoverIntensity = MathHelper.Clamp(hoverIntensity, 0f, 1f);
+    }
+
+    private static void OnUpdate_Particles(UIElement affectedElement)
+    {
+        UpdateSparks(affectedElement.Dimensions);
     }
 
     public override UIImage ModifyModIcon(UIModItem element, UIImage modIcon, ref int modIconAdjust)
@@ -138,6 +421,11 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         return base.PreSetHoverColors(element, hovered);
     }
 
+    private static readonly Color background_gradient_lower = new Color(9, 14, 211);
+    private static readonly Color background_nebula = new Color(5, 10, 255);
+
+    private static readonly Color outline_hover = new Color(246, 190, 66);
+
     public override bool PreDrawPanel(UIModItem element, SpriteBatch sb, ref bool drawDivider)
     {
         if (element._needsTextureLoading)
@@ -146,44 +434,689 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             element.LoadTextures();
         }
 
-        // Render our cool custom panel with a shader.
+        var device = sb.GraphicsDevice;
+
+        var dims = element.Dimensions;
+
+        var panelShader = Data.Instance.MaskShader;
+
+        var scissor = device.ScissorRectangle;
+
+        sb.End(out var ss);
+
+        using var lease = RenderTargetPool.Shared.Rent(device, dims.Width / 2, dims.Height / 2, RenderTargetDescriptor.Default);
+
+        using (lease.Scope(clearColor: Color.Black))
         {
-            sb.End(out var ss);
-            sb.Begin(
-                SpriteSortMode.Immediate,
-                BlendState.NonPremultiplied,
-                SamplerState.PointClamp,
-                DepthStencilState.None,
-                ss.RasterizerState,
-                null,
-                Main.UIScaleMatrix
-            );
-            {
-                var data = Data.Instance;
-                var shaderData = data.PanelShader;
-
-                var dims = element.GetDimensions();
-
-                hoverIntensity = MathHelper.Lerp(hoverIntensity, element.IsMouseHovering ? 1f : 0f, 0.15f);
-                hoverIntensity = Math.Clamp(MathF.Round(hoverIntensity, 2), 0f, 1f);
-
-                element.DrawPanel(sb, Assets.UI.ModPanel.BevelPanel.Asset.Value, element.BackgroundColor);
-            }
-            sb.Restart(in ss);
+            DrawPanelContents(sb, device);
         }
 
+        device.ScissorRectangle = scissor;
+
+        sb.Begin(
+            SpriteSortMode.Immediate,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            ss.RasterizerState,
+            null,
+            Main.UIScaleMatrix
+        );
+        {
+            var source = new Vector4(dims.Width, dims.Height, dims.X, dims.Y);
+            source = Transform(source);
+
+            panelShader.Parameters.PanelSource = source;
+            panelShader.Parameters.TargetTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointClamp,
+                Texture = lease.Target,
+            };
+
+            panelShader.Apply();
+
+            element.DrawPanel(sb, element._backgroundTexture.Value, Color.White);
+
+            sb.spriteEffectPass.Apply();
+
+            var outlineColor = Color.Lerp(background_nebula, outline_hover, 1f - MathF.Pow(1f - hoverIntensity, 2f));
+
+            element.DrawPanel(sb, element._borderTexture.Value, outlineColor);
+        }
+        sb.Restart(in ss);
+
+        drawDivider = false;
+
+        var dividerTexture = Assets.UI.ModPanel.Divider.Asset.Value;
+
+        var innerDims = element.InnerDimensions;
+
+        var dividerSize = new Rectangle(
+            innerDims.X + 5 + element._modIconAdjust, innerDims.Y + 30,
+            innerDims.Width - 10 - element._modIconAdjust, 4);
+
+        sb.Draw(dividerTexture, dividerSize, Color.White);
+
         return false;
+
+        static Vector4 Transform(Vector4 vector)
+        {
+            var vec1 = Vector2.Transform(new Vector2(vector.X, vector.Y), Main.UIScaleMatrix);
+            var vec2 = Vector2.Transform(new Vector2(vector.Z, vector.W), Main.UIScaleMatrix);
+            return new Vector4(vec1, vec2.X, vec2.Y);
+        }
     }
 
-    public override Color ModifyEnabledTextColor(bool enabled, Color color)
+    private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device)
     {
-        return base.ModifyEnabledTextColor(enabled, color);
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var sky = Assets.UI.ModPanel.PanelBackground.Asset.Value;
+
+            var bounds = device.Viewport.Bounds;
+
+            sb.Draw(sky, bounds, null, Color.White);
+
+            var pixel = TextureAssets.MagicPixel.Value;
+
+            var overlayColor = background_gradient_lower * MathF.Pow(hoverIntensity, 3f) * 0.33f;
+            // var overlayColor = background_gradient_lower * MathF.Pow(0f, 3f) * 0.6f;
+
+            sb.Draw(pixel, bounds, null, overlayColor);
+        }
+        sb.End();
+
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointWrap, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var nebulaShader = Data.Instance.NebulaShader;
+
+            var nebula = Assets.UI.ModPanel.NebulaLeft.Asset.Value;
+
+            var nebulaColor = background_nebula * 0.5f;
+
+            nebulaShader.Parameters.NoiseTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointWrap,
+                Texture = Assets.Weather.Rain.Noise.Asset.Value,
+            };
+
+            nebulaShader.Apply();
+
+            sb.Draw(nebula, Vector2.Zero, nebulaColor);
+        }
+        sb.End();
+        
+        DrawStars(sb);
+
+        RenderModels(sb, device);
+
+        DrawSparks(sb);
     }
 
-    private static Vector4 Transform(Vector4 vector)
+#region Models
+    private static void RenderModels(SpriteBatch sb, GraphicsDevice device)
     {
-        var vec1 = Vector2.Transform(new Vector2(vector.X, vector.Y), Main.UIScaleMatrix);
-        var vec2 = Vector2.Transform(new Vector2(vector.Z, vector.W), Main.UIScaleMatrix);
-        return new Vector4(vec1, vec2.X, vec2.Y);
+        var bounds = device.Viewport.Bounds;
+
+        using var lease = RenderTargetPool.Shared.Rent(device, bounds.Width, bounds.Height, RenderTargetDescriptor.Default with { Depth = DepthFormat.Depth16 });
+
+        device.RasterizerState = RasterizerState.CullClockwise;
+        device.DepthStencilState = DepthStencilState.Default;
+
+        using (lease.Scope(clearColor: Color.Transparent))
+        {
+            var earthPosition = new Vector2(12, bounds.Height - 7);
+
+            DrawEarth(device, bounds, earthPosition);
+            DrawMoon(device, bounds, earthPosition);
+        }
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            sb.Draw(lease.Target, Vector2.Zero, Color.White);
+        }
+        sb.End();
     }
+
+    private static void DrawEarth(GraphicsDevice device, Rectangle bounds, Vector2 earthPosition)
+    {
+        const float rotation_x = -0.2f;
+        const float rotation_y_speed = 0.3f;
+        const float rotation_z = -0.3f;
+
+        const float cloud_rotation_speed = -0.1f;
+
+        const float scale = 0.24f;
+
+        var planetShader = Data.Instance.PlanetShader;
+
+        var cameraPositon = new Vector3(1f, 0, 0f);
+
+        var time = Main.GlobalTimeWrappedHourly;
+
+        var height = bounds.Height / (float)bounds.Width;
+
+        var position = new Vector2(-bounds.Width * 0.5f, -bounds.Height * 0.5f);
+
+        position += earthPosition;
+
+        var transform = Matrix.CreateScale(scale)
+                      * Matrix.CreateRotationY(time * rotation_y_speed)
+                      * Matrix.CreateRotationX(rotation_x)
+                      * Matrix.CreateRotationZ(rotation_z)
+                      * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
+                      * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2)
+                      * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
+
+        planetShader.Parameters.Projection = transform;
+
+        planetShader.Parameters.SurfaceRotation = Matrix.Identity;
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = Assets.UI.ModPanel.CelestialBodies.Earth.Asset.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawPlanet();
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = TextureAssets.MagicPixel.Value,
+        };
+
+        planetShader.Parameters.DrawColor = outline_hover.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawOutline();
+
+        planetShader.Parameters.SurfaceRotation = Matrix.CreateRotationY(time * cloud_rotation_speed);
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = Assets.UI.ModPanel.CelestialBodies.EarthClouds.Asset.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawClouds();
+    }
+
+    private static void DrawMoon(GraphicsDevice device, Rectangle bounds, Vector2 earthPosition)
+    {
+        const float rotation_x = -0.4f;
+        const float rotation_y = -MathHelper.PiOver2;
+        const float orbit_speed = 0.32f;
+        const float rotation_z = -0.35f;
+
+        const float distance = 0.6f;
+
+        const float scale = 0.09f;
+
+        var planetShader = Data.Instance.PlanetShader;
+
+        var cameraPositon = new Vector3(1f, 0, 0f);
+
+        var time = Main.GlobalTimeWrappedHourly;
+
+        var height = bounds.Height / (float)bounds.Width;
+
+        var position = new Vector2(-bounds.Width * 0.5f, -bounds.Height * 0.5f);
+
+        position += earthPosition;
+
+        var transform = Matrix.CreateScale(scale)
+                      * Matrix.CreateRotationY(rotation_y)
+                      * Matrix.CreateTranslation(distance, 0f, 0f)
+                      * Matrix.CreateRotationY(time * orbit_speed)
+                      * Matrix.CreateRotationX(rotation_x)
+                      * Matrix.CreateRotationZ(rotation_z)
+                      * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
+                      * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2)
+                      * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
+        
+        planetShader.Parameters.Projection = transform;
+
+        planetShader.Parameters.SurfaceRotation = Matrix.Identity;
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = Assets.UI.ModPanel.CelestialBodies.Moon.Asset.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.MoonModel.DrawPlanet();
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = TextureAssets.MagicPixel.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.MoonModel.DrawOutline();
+    }
+#endregion
+
+#region Stars
+    private sealed class Star
+    {
+        public Vector2 Position { get; set; } 
+
+        public int Style { get; set; }
+
+        public float Phase { get; set; }
+
+        public Angle Rotation { get; set; }
+
+        public float RotationVelocity { get; set; }
+
+        public int Time { get; set; }
+
+        public int TimeProgress { get; set; }
+    }
+
+    private const int star_styles = 9;
+
+    private const int star_count = 35;
+    private static readonly Star[] stars = new Star[star_count];
+
+    private static void CreateStars(Rectangle dims)
+    {
+        for (var i = 0; i < stars.Length; i++)
+        {
+            stars[i] = GenerateStar(new Star(), dims);
+        }
+    }
+
+    private static Star GenerateStar(Star star, Rectangle dims)
+    {
+        star.Position = RandomPosition(dims) * 0.5f;
+        star.Style = Main.rand.Next(star_styles);
+        star.Phase = Main.rand.NextFloatDirection();
+        star.Rotation = Angle.Zero;
+        star.RotationVelocity = Main.rand.NextFloat(-1f, 1f) * 0.09f;
+        star.Time = Main.rand.Next(60 * 5, 60 * 10);
+        star.TimeProgress = 0;
+        return star;
+
+        static Vector2 RandomPosition(Rectangle dims)
+        {
+            return Main.rand.NextVector2FromRectangle(dims) - dims.TopLeft();
+        }
+    }
+
+    private static void UpdateStars(Rectangle dims)
+    {
+        foreach (var star in stars)
+        {
+            star.Rotation += Angle.FromRadians(star.RotationVelocity);
+
+            if (star.TimeProgress++ > star.Time)
+            {
+                GenerateStar(star, dims);
+            }
+        }
+    }
+
+    private static void DrawStars(SpriteBatch sb)
+    {
+        if (!starsCreated)
+        {
+            return;
+        }
+
+        const float twinkle_freq = 2f;
+        const float twinkle_ampl = 0.7f;
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var texture = Assets.UI.ModPanel.Stars.Asset.Value;
+
+            var origin = texture.Frame(4, star_styles).Size() * 0.5f;
+
+            foreach (var star in stars)
+            {
+                var frame = texture.Frame(4, star_styles, (int)(star.Rotation.NormalizedPositive() / MathHelper.PiOver2), star.Style);
+
+                var frequency = twinkle_freq * (1 - (star.Style / (float)star_styles + 0.1f));
+
+                var scale = 0.5f;
+                scale *= 0.8f + (MathF.Sin((Main.GlobalTimeWrappedHourly + star.Phase) * frequency) * twinkle_ampl);
+                scale = Math.Min(scale, 0.5f);
+                var alpha = 1f;
+                var timeLeft = star.Time - star.TimeProgress;
+                if (timeLeft < 120)
+                {
+                    scale = float.Lerp(scale, 0f, 1f - (timeLeft / 120f));
+                }
+
+                if (timeLeft < 60)
+                {
+                    alpha = float.Lerp(1f, 0f, 1f - (timeLeft / 60f));
+                }
+                else if (star.Time < 60)
+                {
+                    alpha = float.Lerp(0f, 1f, star.Time / 60f);
+                }
+
+                var position = RoundPosition(star.Position);
+
+                sb.Draw(texture, position, frame, Color.White * alpha, 0, origin, scale, SpriteEffects.None, 0f);
+            }
+        }
+        sb.End();
+
+        return;
+
+        static Vector2 RoundPosition(Vector2 position)
+        {
+            return new Vector2((int)position.X + 0.5f, (int)position.Y + 0.5f);
+        }
+    }
+#endregion
+
+#region Fireworks
+    private record struct Spark(Vector2 Position, Vector2 Velocity, Color Color, float Scale, float Lifetime, bool Active);
+
+    private const int spark_count = 1300;
+    private static readonly Spark[] sparks = new Spark[spark_count];
+
+    private static readonly Color firework_red = new Color(255, 196, 216);
+
+    private static readonly Color firework_yellow = new Color(255, 230, 117);
+
+    private static readonly Color firework_blue = new Color(161, 213, 255);
+
+    private static readonly Color firework_swirl_color = new Color(116, 131, 250);
+
+    private readonly record struct ExplosionImage(Color[,] Colors, int Width, int Height);
+
+    private readonly record struct FireworkPattern(Action<Vector2> Explosion, int Chance);
+
+    private static readonly List<FireworkPattern> patterns = [];
+
+    private static void InitFireworkPatterns()
+    {
+        patterns.Add(new FireworkPattern(ExplosionFivePointStar, 170));
+        patterns.Add(new FireworkPattern(ExplosionFourPointStar, 200));
+        patterns.Add(new FireworkPattern(ExplosionSwirl, 600));
+
+        AddImage(Assets.UI.ModPanel.Fireworks.Extra_98.Asset, 730, true);
+        AddImage(Assets.UI.ModPanel.Fireworks.Nightshade.Asset, 640, false);
+        AddImage(Assets.UI.ModPanel.Fireworks.SteamHappy.Asset, 1500, false);
+
+        var mod = ModContent.GetInstance<ModImpl>();
+        var authors = mod.GetContent<AuthorTag>();
+
+        foreach (var author in authors)
+        {
+            if (!ModContent.RequestIfExists<Texture2D>(author.Texture, out var icon))
+            {
+                continue;
+            }
+
+            AddImage(icon, 600, true);
+        }
+
+        return;
+
+        static void AddImage(Asset<Texture2D> asset, int chance, bool doubleScale = true)
+        {
+            asset.Wait();
+
+            var ex = FromImage(asset.Value, doubleScale);
+
+            patterns.Add(
+                new FireworkPattern(
+                    p => ExplosionCustomImage(p, ex),
+                    chance
+                )
+            );
+        }
+
+        static ExplosionImage FromImage(Texture2D texture, bool doubleScale = true)
+        {
+            var pixelSize = doubleScale ? 2 : 1;
+
+            var data = new Color[texture.Width * texture.Height];
+
+            var colors = new Color[texture.Width / pixelSize, texture.Height / pixelSize];
+
+            texture.GetData(data);
+
+            for (var i = 0; i < texture.Width; i += pixelSize)
+            {
+                for (var j = 0; j < texture.Height; j += pixelSize)
+                {
+                    var col = data[i + (j * texture.Width)];
+
+                    colors[i / pixelSize, j / pixelSize] = col;
+                }
+            }
+
+            return new ExplosionImage(colors, texture.Width / pixelSize, texture.Height / pixelSize);
+        }
+    }
+
+    private static void UpdateSparks(Rectangle dims)
+    {
+        const float spark_lifetime_increment = 0.01f;
+
+        for (var i = 0; i < sparks.Length; i++)
+        {
+            ref var spark = ref sparks[i];
+
+            if (!spark.Active)
+            {
+                continue;
+            }
+
+            spark.Position += spark.Velocity;
+            spark.Velocity *= 0.935f;
+
+            spark.Lifetime += spark_lifetime_increment;
+
+            if (spark.Lifetime > 1f)
+            {
+                spark.Active = false;
+            }
+        }
+
+        SpawnFireworkExplosions();
+
+        return;
+
+        void SpawnFireworkExplosions()
+        {
+            foreach (var fireworkPattern in patterns)
+            {
+                if (!Main.rand.NextBool(fireworkPattern.Chance))
+                {
+                    continue;
+                }
+
+                var position = RandomPosition(dims) / 2;
+
+                fireworkPattern.Explosion(position);
+            }
+        }
+
+        static Vector2 RandomPosition(Rectangle dims)
+        {
+            return Main.rand.NextVector2FromRectangle(dims) - dims.TopLeft();
+        }
+    }
+
+    private static void DrawSparks(SpriteBatch sb)
+    {
+        const float spark_scale_freq = 22f;
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var texture = Assets.UI.ModPanel.Spark.Asset.Value;
+
+            var origin = texture.Size() * 0.5f;
+
+            foreach (var spark in sparks)
+            {
+                if (!spark.Active)
+                {
+                    continue;
+                }
+
+                var scale = spark.Scale;
+
+                scale *= 1 - MathF.Pow(spark.Lifetime, 5);
+
+                scale *= 1 + (MathF.Sin((spark.Lifetime + scale) * spark_scale_freq) * 0.5f);
+
+                sb.Draw(texture, spark.Position, null, spark.Color, 0, origin, scale, SpriteEffects.None, 0f);
+            }
+        }
+        sb.End();
+    }
+
+    private static void ExplosionCustomImage(Vector2 position, ExplosionImage explosion)
+    {
+        const float range = MathHelper.PiOver4;
+
+        var speed = Main.rand.NextFloat(1.5f, 4.2f);
+
+        var rotation = Main.rand.NextFloat(-range, range);
+
+        for (var i = 0; i < explosion.Width; i++)
+        {
+            for (var j = 0; j < explosion.Height; j++)
+            {
+                var color = explosion.Colors[i, j];
+
+                var imageSize = new Vector2(explosion.Width, explosion.Height);
+
+                var velocity = new Vector2(i, j) - (imageSize * 0.5f);
+                velocity /= imageSize * 0.5f;
+                velocity *= speed;
+
+                velocity = velocity.RotatedBy(rotation);
+
+                var size = Main.rand.NextFloat(0.35f, 1.1f);
+
+                var lifetime = Main.rand.NextFloat(0f, 0.35f);
+
+                SpawnSpark(position, velocity, color, size, lifetime);
+            }
+        }
+    }
+
+    private static void ExplosionFivePointStar(Vector2 position)
+    {
+        var smoothness = Main.rand.NextFloat(0f, 0.3f);
+
+        var color = Color.OklabLerp(firework_red, firework_yellow, Main.rand.NextFloat());
+
+        ExplosionStar(position, color, 5, 60, smoothness);
+    }
+
+    private static void ExplosionFourPointStar(Vector2 position)
+    {
+        var smoothness = Main.rand.NextFloat(0.1f, 0.2f);
+
+        var color = Color.OklabLerp(firework_red, firework_blue, Main.rand.NextFloat());
+
+        ExplosionStar(position, color, 4, 50, smoothness);
+    }
+
+    private static void ExplosionStar(Vector2 position, Color color, int points, int count, float smoothness = 0)
+    {
+        var increment = MathF.Tau / count;
+
+        var rotationOffset = Main.rand.NextFloatDirection();
+
+        var speed = Main.rand.NextFloat(1.3f, 7f);
+
+        for (var t = 0f; t < MathF.Tau; t += increment)
+        {
+            var m = points - 2;
+
+            var num = MathF.Cos((2 * MathF.Asin(1 - smoothness) + MathF.PI * m) / (2 * points));
+            var denom = MathF.Cos((2 * MathF.Asin((1 - smoothness) * MathF.Cos(points * t)) + MathF.PI * m) / (2 * points));
+            var radius = num / denom;
+
+            var velocity = Vector2.UnitY.RotatedBy(t + rotationOffset) * radius * speed;
+
+            var size = Main.rand.NextFloat(0.15f, 0.75f);
+
+            var lifetime = Main.rand.NextFloat(0f, 0.35f);
+
+            SpawnSpark(position, velocity, color, size, lifetime);
+        }
+    }
+
+    private static void ExplosionSwirl(Vector2 position)
+    {
+        const int count = 120;
+
+        const float loops = 2;
+
+        const float radians = MathF.Tau * loops;
+
+        const float increment = radians / count;
+
+        var rotationOffset = Main.rand.NextFloatDirection();
+
+        var speed = Main.rand.NextFloat(2.3f, 6f);
+
+        var color = firework_swirl_color;
+
+        for (var t = 0f; t < radians; t += increment)
+        {
+            var radius = 0.1f + (t / radians);
+
+            var velocity = Vector2.UnitY.RotatedBy(t + rotationOffset) * radius * speed;
+
+            var size = Main.rand.NextFloat(0.25f, 0.65f);
+
+            var lifetime = Main.rand.NextFloat(0f, 0.35f);
+
+            SpawnSpark(position, velocity, color, size, lifetime);
+        }
+    }
+
+    private static void SpawnSpark(Vector2 position, Vector2 velocity, Color color, float scale, float lifetime)
+    {
+        var index = Array.FindIndex(sparks, s => !s.Active);
+
+        if (index == -1)
+        {
+            return;
+        }
+
+        if (color is { R: < 40, G: < 40, B: < 40 } || color.A == 0)
+        {
+            return;
+        }
+
+        scale *= color.A / (float)byte.MaxValue;
+
+        color.A = 120;
+
+        sparks[index] = new Spark(position, velocity, color, scale, lifetime, true);
+    }
+#endregion
 }
