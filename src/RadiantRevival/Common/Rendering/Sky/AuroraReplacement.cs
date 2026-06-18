@@ -29,7 +29,7 @@ public static class AuroraReplacement
     private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
     {
         using var _ = Main.spriteBatch.Scope();
-        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
+        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.BackgroundViewMatrix.EffectMatrix);
 
         var solarActivity = MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0019f) * 0.5f + 0.5f;
         solarActivity = Interpolate.Lerp(solarActivity, 0f, 0.6f);

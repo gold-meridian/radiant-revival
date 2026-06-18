@@ -178,7 +178,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     private static void Render(On_Main.orig_DrawSunAndMoon orig, Main self, Main.SceneArea sceneArea, Color moonColor, Color sunColor, float tempMushroomInfluence)
     {
         Main.spriteBatch.End(out var ss);
-        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
+        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.BackgroundViewMatrix.EffectMatrix);
 
         var sunWorldPosition = CelestialBodyPosition + Main.screenPosition;
         RenderSkyGradient(Profile, sunWorldPosition);
