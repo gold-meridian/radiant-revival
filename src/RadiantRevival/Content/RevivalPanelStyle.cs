@@ -592,6 +592,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         const float rotation_y_speed = 0.3f;
         const float rotation_z = -0.3f;
 
+        const float cloud_rotation_speed = -0.1f;
+
         const float scale = 0.24f;
 
         var planetShader = Data.Instance.PlanetShader;
@@ -616,6 +618,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         planetShader.Parameters.Projection = transform;
 
+        planetShader.Parameters.SurfaceRotation = Matrix.Identity;
+
         planetShader.Parameters.SurfaceTexture = new HlslSampler2D
         {
             Sampler = SamplerState.PointWrap,
@@ -639,6 +643,20 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         planetShader.Apply();
 
         Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawOutline();
+
+        planetShader.Parameters.SurfaceRotation = Matrix.CreateRotationY(time * cloud_rotation_speed);
+
+        planetShader.Parameters.SurfaceTexture = new HlslSampler2D
+        {
+            Sampler = SamplerState.PointWrap,
+            Texture = Assets.UI.ModPanel.CelestialBodies.EarthClouds.Asset.Value,
+        };
+
+        planetShader.Parameters.DrawColor = Color.White.ToVector4();
+
+        planetShader.Apply();
+
+        Assets.UI.ModPanel.CelestialBodies.EarthModel.DrawClouds();
     }
 
     private static void DrawMoon(GraphicsDevice device, Rectangle bounds, Vector2 earthPosition)
@@ -673,8 +691,10 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
                       * Matrix.CreateLookAt(cameraPositon, Vector3.Zero, -Vector3.UnitY)
                       * Matrix.CreateOrthographicOffCenter(-1, 1, height, -height, -2, 2)
                       * Matrix.CreateTranslation(position.X / (bounds.Width * 0.5f), -position.Y / (bounds.Height * 0.5f), 0);
-            ;
+        
         planetShader.Parameters.Projection = transform;
+
+        planetShader.Parameters.SurfaceRotation = Matrix.Identity;
 
         planetShader.Parameters.SurfaceTexture = new HlslSampler2D
         {

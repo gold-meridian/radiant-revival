@@ -5,6 +5,8 @@ sampler2D SurfaceTexture : register(s0);
 
 matrix Projection;
 
+matrix SurfaceRotation;
+
 float4 DrawColor;
 
 struct VSInput
@@ -34,6 +36,8 @@ PSInput PlanetShaderVertex(in VSInput input)
 float4 PlanetShaderFragment(in PSInput input) : COLOR0
 {
     float3 normal = input.Normal;
+    
+    normal = mul(normal, SurfaceRotation);
 
     float theta = (atan2(normal.x, normal.z) / PI) * 0.5 + 0.5;
     float phi = (asin(-normal.y) / (PI * 0.5)) * 0.5 + 0.5;
