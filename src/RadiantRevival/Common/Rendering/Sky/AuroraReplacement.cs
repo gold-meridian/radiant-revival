@@ -43,7 +43,7 @@ public static class AuroraReplacement
     private static void RenderIntoTargetLease()
     {
         using var _ = Main.spriteBatch.Scope();
-        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
+        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
 
         var solarActivity = MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0019f) * 0.5f + 0.5f;
         solarActivity = Interpolate.Lerp(solarActivity, 0f, 0.6f);
