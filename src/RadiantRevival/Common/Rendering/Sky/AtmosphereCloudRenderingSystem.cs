@@ -136,6 +136,12 @@ public static class AtmosphereCloudRenderingSystem
     } = InitializeDefaultProfile();
 
     /// <summary>
+    ///     The fixed relative screen size of the game from
+    ///     the perspective of this system.
+    /// </summary>
+    public static Vector2 FixedScreenSize => new(2560f, 1440f);
+
+    /// <summary>
     ///     The size of the cloud box in the sky.
     /// </summary>
     public static Vector3 CloudSize => new(6300f, 1700f, 850f);
@@ -351,7 +357,6 @@ public static class AtmosphereCloudRenderingSystem
         var wavelengthNanometers = new Vector3(690f, 550f, 440f);
         var wavelengthMeters = wavelengthNanometers * 1e-9f;
 
-        var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
 
         var s = 1f + profile.AtmosphereSaturationBoost;
@@ -370,7 +375,7 @@ public static class AtmosphereCloudRenderingSystem
         shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
         shader.Parameters.zoom = Vector2.One;
         shader.Parameters.screenPosition = Main.screenPosition;
-        shader.Parameters.screenSize = viewportSize;
+        shader.Parameters.screenSize = FixedScreenSize;
         shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, 3000f) * 16f;
         shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
         shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
@@ -496,12 +501,11 @@ public static class AtmosphereCloudRenderingSystem
                 Main.cloud[i].active = false;
         }
 
-        var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
-        var trueBodyPosition = Main.LastCelestialBodyPosition * viewportSize;
+        var trueBodyPosition = Main.LastCelestialBodyPosition * FixedScreenSize;
         if (CelestialBodyPosition == Vector2.Zero || Main.dayTime)
             CelestialBodyPosition = trueBodyPosition;
 
-        var origin = viewportSize * 0.5f;
+        var origin = FixedScreenSize * 0.5f;
         var trueOffset = (trueBodyPosition - origin).SafeNormalize(Vector2.UnitY);
         var currentOffset = (CelestialBodyPosition - origin).SafeNormalize(Vector2.UnitY);
         var offsetOrthogonality = Math.Clamp(Vector2.Dot(trueOffset, currentOffset), -1f, 1f);
