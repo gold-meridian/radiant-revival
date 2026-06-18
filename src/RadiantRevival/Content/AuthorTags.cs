@@ -32,3 +32,5 @@ internal sealed class ZoeyTag : CommonAuthorTag
         base.DrawIcon(spriteBatch, position);
     }
 }
+
+internal sealed class SprunoliaTag : CommonAuthorTag;
