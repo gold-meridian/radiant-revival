@@ -20,6 +20,8 @@ namespace RadiantRevival.Common.Rendering.Sky;
 /// </summary>
 public static class AtmosphereCloudRenderingSystem
 {
+    private static RenderTargetLease? atmosphereLease;
+
     // When it goes from day to night, or vice versa, the
     // position of the celestial body discretely and awkawrdly
     // jumps from on side of the screen to another.
@@ -352,40 +354,49 @@ public static class AtmosphereCloudRenderingSystem
     /// <param name="sunMoonWorldPosition">The world position of the sun/moon, depending on whichever is active currently.</param>
     private static void RenderSkyGradient(SkyProfile profile, Vector2 sunMoonWorldPosition)
     {
-        var darkeningFactor = Utils.GetLerpValue(0f, 0.06f, DayProgress, true) * Utils.GetLerpValue(1f, 0.94f, DayProgress, true);
+        atmosphereLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
+        using (atmosphereLease.Scope(clearColor: Color.Transparent))
+        {
+            using var _ = Main.spriteBatch.Scope();
+            Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
 
-        var wavelengthNanometers = new Vector3(690f, 550f, 440f);
-        var wavelengthMeters = wavelengthNanometers * 1e-9f;
+            var darkeningFactor = Utils.GetLerpValue(0f, 0.06f, DayProgress, true) * Utils.GetLerpValue(1f, 0.94f, DayProgress, true);
 
-        var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+            var wavelengthNanometers = new Vector3(690f, 550f, 440f);
+            var wavelengthMeters = wavelengthNanometers * 1e-9f;
 
-        var s = 1f + profile.AtmosphereSaturationBoost;
-        var inverseS = 1f - s;
-        var luminanceVector = new Vector3(0.3f, 0.6f, 0.1f);
-        var r = Vector3.One * luminanceVector.X * inverseS + Vector3.UnitX * s;
-        var g = Vector3.One * luminanceVector.Y * inverseS + Vector3.UnitY * s;
-        var b = Vector3.One * luminanceVector.Z * inverseS + Vector3.UnitZ * s;
-        var saturationMatrix = new Matrix(
-            r.X, r.Y, r.Z, 0f,
-            g.X, g.Y, g.Z, 0f,
-            b.X, b.Y, b.Z, 0f,
-            0f, 0f, 0f, 1f);
+            var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
 
-        var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
-        shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
-        shader.Parameters.zoom = Vector2.One;
-        shader.Parameters.screenPosition = Main.screenPosition;
-        shader.Parameters.screenSize = FixedScreenSize;
-        shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, 3000f) * 16f;
-        shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
-        shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
-        shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
-        shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(wavelengthMeters, 1.00037f);
-        shader.Parameters.saturationBoostMatrix = saturationMatrix;
-        shader.Apply();
+            var s = 1f + profile.AtmosphereSaturationBoost;
+            var inverseS = 1f - s;
+            var luminanceVector = new Vector3(0.3f, 0.6f, 0.1f);
+            var r = Vector3.One * luminanceVector.X * inverseS + Vector3.UnitX * s;
+            var g = Vector3.One * luminanceVector.Y * inverseS + Vector3.UnitY * s;
+            var b = Vector3.One * luminanceVector.Z * inverseS + Vector3.UnitZ * s;
+            var saturationMatrix = new Matrix(
+                r.X, r.Y, r.Z, 0f,
+                g.X, g.Y, g.Z, 0f,
+                b.X, b.Y, b.Z, 0f,
+                0f, 0f, 0f, 1f);
 
-        var pixel = TextureAssets.MagicPixel.Value;
-        Main.spriteBatch.Draw(pixel, viewportArea, Color.White * darkeningFactor);
+            var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
+            shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
+            shader.Parameters.zoom = Vector2.One;
+            shader.Parameters.screenPosition = Main.screenPosition;
+            shader.Parameters.screenSize = FixedScreenSize;
+            shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, 3000f) * 16f;
+            shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
+            shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
+            shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
+            shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(wavelengthMeters, 1.00037f);
+            shader.Parameters.saturationBoostMatrix = saturationMatrix;
+            shader.Apply();
+
+            var pixel = TextureAssets.MagicPixel.Value;
+            Main.spriteBatch.Draw(pixel, viewportArea, Color.White * darkeningFactor);
+        }
+
+        Main.spriteBatch.Draw(atmosphereLease.Target, new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height), Color.White);
     }
 
     /// <summary>
