@@ -46,7 +46,7 @@ public static class AuroraReplacement
 
         // Oxygen exists primarily within the 100-200km range
         // and creates red and greenish colors upon excitement.
-        shader.Parameters.redExcitementHeightKilometers = 211f + MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0074f) * 11f - MathF.Sqrt(hueMixingA) * 20f;
+        shader.Parameters.redExcitementHeightKilometers = 172f + MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0074f) * 11f - MathF.Sqrt(hueMixingA) * 20f;
         shader.Parameters.greenExcitementHeightKilometers = 110f + MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0095f) * 8f;
 
         // Nitrogen exists lower down, within the approximately
