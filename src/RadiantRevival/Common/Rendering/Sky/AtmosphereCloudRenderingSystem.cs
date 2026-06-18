@@ -144,6 +144,25 @@ public static class AtmosphereCloudRenderingSystem
     public static Vector2 FixedScreenSize => new(2560f, 1440f);
 
     /// <summary>
+    ///     The position of the screen.
+    /// </summary>
+    /// <remarks>
+    ///     Unlike <see cref="Main.screenPosition"/>, this
+    ///     property works equivalently with this system on the game
+    ///     menu.
+    /// </remarks>
+    public static Vector2 ScreenPosition
+    {
+        get
+        {
+            if (Main.gameMenu)
+                return new Vector2(Main.maxTilesX * 16f, Main.maxTilesY * 16f) * new Vector2(0.5f, 0.145f);
+
+            return Main.screenPosition;
+        }
+    }
+
+    /// <summary>
     ///     The size of the cloud box in the sky.
     /// </summary>
     public static Vector3 CloudSize => new(6300f, 1700f, 850f);
@@ -202,7 +221,7 @@ public static class AtmosphereCloudRenderingSystem
         Main.spriteBatch.End(out var ss);
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.BackgroundViewMatrix.EffectMatrix);
 
-        var sunWorldPosition = CelestialBodyPosition + Main.screenPosition;
+        var sunWorldPosition = CelestialBodyPosition + ScreenPosition;
         RenderSkyGradient(Profile, sunWorldPosition);
 
         Rainbows.Render(Profile);
@@ -382,7 +401,7 @@ public static class AtmosphereCloudRenderingSystem
             var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
             shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
             shader.Parameters.zoom = Vector2.One;
-            shader.Parameters.screenPosition = Main.screenPosition;
+            shader.Parameters.screenPosition = ScreenPosition;
             shader.Parameters.screenSize = FixedScreenSize;
             shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, 3000f) * 16f;
             shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
@@ -413,7 +432,7 @@ public static class AtmosphereCloudRenderingSystem
         var skyline = Main.maxTilesY * 16f * 0.133f;
         var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         var cloudDrawPosition = viewportSize * new Vector2(0.5f, 0.22f);
-        cloudDrawPosition.Y += (skyline - Main.screenPosition.Y) * 0.12f;
+        cloudDrawPosition.Y += (skyline - ScreenPosition.Y) * 0.12f;
 
         Main.spriteBatch.End(out var ss);
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
@@ -449,13 +468,13 @@ public static class AtmosphereCloudRenderingSystem
         skyColorHsl.Y *= profile.CloudSaturationFactor;
         skyColor = Main.hslToRgb(skyColorHsl);
 
-        var sunMoonWorldPosition = CelestialBodyPosition + Main.screenPosition;
+        var sunMoonWorldPosition = CelestialBodyPosition + ScreenPosition;
 
         var shader = AssetReferences.Assets.Sky.RealisticCloudShader.CreateAutoloadPass();
         shader.Parameters.densityPosterizationLevel = 15.4f;
         shader.Parameters.pixelationLevel = 3f;
-        shader.Parameters.horizontalScroll = Main.screenPosition.X / 30900f;
-        shader.Parameters.screenPosition = Main.screenPosition;
+        shader.Parameters.horizontalScroll = ScreenPosition.X / 30900f;
+        shader.Parameters.screenPosition = ScreenPosition;
         shader.Parameters.screenSize = viewportSize;
         shader.Parameters.cloudSize = CloudSize;
         shader.Parameters.sunlightFactor = skyColor.ToVector3() * new Vector3(0.91f, 1f, 1f) * tint;
