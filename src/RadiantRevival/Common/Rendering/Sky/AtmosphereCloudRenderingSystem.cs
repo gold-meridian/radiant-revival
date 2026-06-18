@@ -321,7 +321,7 @@ public static class AtmosphereCloudRenderingSystem
     /// </summary>
     /// <remarks>
     ///     Since the denominator of the equation used here is governed by
-    ///     the wavelength taken o the fourth power, larger wavelengths will
+    ///     the wavelength taken to the fourth power, larger wavelengths will
     ///     generally scatter away unless a ray travels a great enough
     ///     distance through the atmospheric medium, e.g. when the
     ///     sun is at a sunrise/sunset angle.
@@ -381,7 +381,7 @@ public static class AtmosphereCloudRenderingSystem
 
             var darkeningFactor = Utils.GetLerpValue(0f, 0.06f, DayProgress, true) * Utils.GetLerpValue(1f, 0.94f, DayProgress, true);
 
-            var wavelengthNanometers = new Vector3(690f, 550f, 440f);
+            var wavelengthNanometers = profile.ColorWavelengthsNanometers;
             var wavelengthMeters = wavelengthNanometers * 1e-9f;
 
             var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
