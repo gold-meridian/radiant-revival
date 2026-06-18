@@ -75,7 +75,7 @@ public static class RainReflections
         var distanceShader = Data.Instance.DistanceMapShader;
         var reflectionsShader = Data.Instance.ReflectionsShader;
 
-        var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+        var intensity = Rain.Intensity;
 
         var screenPosition = Main.screenPosition;
 

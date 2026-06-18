@@ -104,6 +104,20 @@ public static class Rain
      && Main.SceneMetrics.ZoneRain
      && Main.shimmerAlpha == 0f;
 
+    public static float Intensity
+    {
+        get
+        {
+            var snow = Utils.Clamp(Main.SceneMetrics.SnowTileCount / (float)SceneMetrics.SnowTileThreshold, 0f, 1f);
+
+            var intensity = Main.cloudAlpha;
+            intensity *= MathF.Pow(Main.atmo, 3);
+            intensity *= 1 - MathF.Pow(snow, 2);
+
+            return intensity;
+        }
+    }
+
     [OnLoad]
     private static void Load()
     {
@@ -139,7 +153,7 @@ public static class Rain
                 {
                     var backgroundShader = Data.Instance.BackgroundShader;
 
-                    var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+                    var intensity = Intensity;
                     var screenPosition = Main.screenPosition;
 
                     backgroundShader.Parameters.Intensity = intensity;
@@ -327,7 +341,7 @@ public static class Rain
             return;
         }
 
-        var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+        var intensity = Intensity;
 
         var chance = (int)MathHelper.Lerp(2, -2, intensity);
 
@@ -427,7 +441,7 @@ public static class Rain
             const int splash_spawn_chance = 3;
             const int ripple_chance = 2;
 
-            var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+            var intensity = Intensity;
 
             if (Main.rand.NextBool(splash_spawn_chance))
             {
@@ -475,7 +489,7 @@ public static class Rain
 
         const float top = 310f;
 
-        var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+        var intensity = Intensity;
 
         var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity()).RotatedByRandom(0.03f);
 
@@ -539,7 +553,7 @@ public static class Rain
 
         const float top = 20f;
 
-        var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+        var intensity = Intensity;
 
         var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity()).RotatedByRandom(0.03f);
 
@@ -608,7 +622,7 @@ public static class Rain
 
         var distortionShader = Data.Instance.DistortionShader;
 
-        var intensity = Main.cloudAlpha * MathF.Pow(Main.atmo, 3);
+        var intensity = Intensity;
 
         var sb = Main.spriteBatch;
         var device = Main.graphics.GraphicsDevice;
