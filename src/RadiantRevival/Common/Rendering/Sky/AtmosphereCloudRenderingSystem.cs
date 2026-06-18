@@ -5,6 +5,8 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
 using System;
+using System.Reflection;
+using Daybreak.Common.Features.Hooks;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.ID;
@@ -16,7 +18,7 @@ namespace RadiantRevival.Common.Rendering.Sky;
 ///     The system responsible for the management of
 ///     atmosphere and clouds rendering.
 /// </summary>
-public sealed class AtmosphereCloudRenderingSystem : ModSystem
+public static class AtmosphereCloudRenderingSystem
 {
     // When it goes from day to night, or vice versa, the
     // position of the celestial body discretely and awkawrdly
@@ -138,12 +140,23 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
     /// </summary>
     public static Vector3 CloudSize => new(6300f, 1700f, 850f);
 
-    public override void OnModLoad()
+    [OnLoad]
+    private static void Load()
     {
         IL_Main.SetBackColor += DisableTypicalSunriseSunsetLighting;
         IL_Main.DrawSurfaceBG += RemoveDefaultCloudBackground;
         On_Main.UpdateAtmosphereTransparencyToSkyColor += DisableAtmosphereBackgroundDarkening;
         On_Main.DrawSunAndMoon += Render;
+
+        MonoModHooks.Add(
+            typeof(SystemLoader).GetMethod(
+                nameof(SystemLoader.ModifySunLightColor),
+                BindingFlags.Public | BindingFlags.Static
+            ),
+            ModifySunlightColor
+        );
+        IL_Main.ApplyColorOfTheSkiesToTiles += _ => { };
+
         On_Main.Update += Update;
     }
 
@@ -451,7 +464,7 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
         Main.spriteBatch.Restart(ss);
     }
 
-    public override void ModifySunLightColor(ref Color backgroundColor, ref Color tileLightColor)
+    private static void ModifySunlightColor(SystemLoader.DelegateModifySunLightColor orig, ref Color backgroundColor, ref Color tileLightColor)
     {
         var darkeningBump = Utils.GetLerpValue(0f, 0.13f, DayProgress, true) * Utils.GetLerpValue(1f, 0.87f, DayProgress, true);
         var darkeningFactor = MathF.Pow(darkeningBump, 0.8f);
@@ -463,9 +476,12 @@ public sealed class AtmosphereCloudRenderingSystem : ModSystem
 
         tileLightColor = Color.Lerp(tileLightColor, Profile.LowSunTintColor, eveningColorBias);
         tileLightColor = Color.Lerp(tileLightColor, nightColor, 1f - darkeningFactor);
+
+        orig(ref backgroundColor, ref tileLightColor);
     }
 
-    public override void ClearWorld() => CelestialBodyPosition = Vector2.Zero;
+    [ModSystemHooks.ClearWorld]
+    private static void ClearWorld() => CelestialBodyPosition = Vector2.Zero;
 
     private static void Update(On_Main.orig_Update orig, Main self, GameTime gameTime)
     {
