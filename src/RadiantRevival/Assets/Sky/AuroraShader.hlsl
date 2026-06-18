@@ -26,13 +26,13 @@ float CalculateDensity(float3 p)
     // This isn't super important and is deliberately
     // subtle, but it helps break up the shape monotony
     // a little bit.
-    uv.y += sin(time * 30 + p.x * 20) * 0.03;
+    uv.y += sin(time * 30 + p.x * 20) * 0.02;
     
     for (int i = 0; i < 4; i++)
     {
-        float theta = 6.283 * i / 4 + time * 0.04;
+        float theta = 6.283 * i / 4 + time * 0.08;
         float2 scrollDirection = float2(cos(theta), sin(theta));
-        float2 scrollOffset = float2(noise * 0.25, time * -0.9) + scrollDirection * time * 0.6;
+        float2 scrollOffset = float2(noise * 0.25, time * -1.9) + scrollDirection * time * 0.85;
         
         float decay = pow(1.25, i);
         noise += tex2D(noiseTexture, uv * decay + scrollOffset) / decay;
@@ -42,7 +42,7 @@ float CalculateDensity(float3 p)
     // based on a sheet of scrolling noise.
     // This is used to break up the sameness in density
     // across the sky to create peaks and troughs.
-    float globalDissipation = tex2D(noiseTexture, uv * 0.8 + float2(0, time * -0.5));
+    float globalDissipation = tex2D(noiseTexture, uv * 0.8 + float2(0, time * 0.5));
     
     // The inverse of the globation dissipation is
     // taken as the basis of an ambient glow, however, to
@@ -103,7 +103,7 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
         
         // Ensure that colors further along taper
         // with an exponential decay term.
-        float attenuation = exp(raymarchProgress * -raymarchStepDecay - 3.33);
+        float attenuation = exp(raymarchProgress * -raymarchStepDecay - 3.56);
         
         float density = CalculateDensity(p);
         float4 sampleColor = CalculateColor(p) * density;

@@ -1,4 +1,5 @@
-﻿using Daybreak.Common.Mathematics;
+﻿using Daybreak.Common.Features.Hooks;
+using Daybreak.Common.Mathematics;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -6,7 +7,6 @@ using MonoMod.Cil;
 using RadiantRevival.Core;
 using System;
 using System.Reflection;
-using Daybreak.Common.Features.Hooks;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.ID;
@@ -365,7 +365,6 @@ public static class AtmosphereCloudRenderingSystem
             g.X, g.Y, g.Z, 0f,
             b.X, b.Y, b.Z, 0f,
             0f, 0f, 0f, 1f);
-
 
         var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
         shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
