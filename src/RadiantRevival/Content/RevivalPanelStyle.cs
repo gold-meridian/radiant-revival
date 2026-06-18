@@ -149,48 +149,28 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         Main.RunOnMainThread(InitFireworkPatterns).GetAwaiter().GetResult();
     }
 
-    // TODO: Custom font visuals
     public sealed class ModName : UIText
     {
-        private readonly string originalText;
-
         public ModName(string text, float textScale = 1, bool large = false) : base(text, textScale, large)
         {
-            if (ChatManager.Regexes.Format.Count(text) != 0)
-            {
-                throw new InvalidOperationException("The text cannot contain formatting.");
-            }
+            SetText(" ");
 
-            originalText = text;
+            Assets.UI.ModPanel.ModName.Asset.Wait();
+
+            Width.Set(Assets.UI.ModPanel.ModName.Asset.Value.Width, 0f);
         }
 
         protected override void DrawSelf(SpriteBatch spriteBatch)
         {
-            var formattedText = GetAnimatedText(originalText, Main.GlobalTimeWrappedHourly);
-            SetText(formattedText);
+            // base.DrawSelf(spriteBatch);
 
-            base.DrawSelf(spriteBatch);
-        }
+            var texture = IsMouseHovering ? Assets.UI.ModPanel.ModName_Hover.Asset.Value : Assets.UI.ModPanel.ModName.Asset.Value;
 
-        public static string GetAnimatedText(string text, float time)
-        {
-            // [c/______:x]
-            const int character_length = 12;
+            var position = this.Dimensions.Left();
 
-            var sb = new StringBuilder(character_length * text.Length);
-            for (var i = 0; i < text.Length; i++)
-            {
-                /*
-                var wave = MathF.Sin(time * speed + i * offset);
+            var origin = new Vector2(0f, texture.Height * 0.5f);
 
-                // Factor normalized 0-1.
-                var color = Color.Lerp(lightPurple, darkPurple, (wave + 1f) / 2f);
-
-                sb.Append($"[c/{color.Hex3()}:{text[i]}]");
-                */
-            }
-
-            return sb.ToString();
+            spriteBatch.Draw(texture, position, null, Color.White, 0f, origin, 1f, SpriteEffects.None, 0f);
         }
     }
 
