@@ -40,11 +40,18 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
     float3 reflectionDirection = reflect(viewDirection, normal);
     float4 reflectedColor = CalculateScreenSpaceReflections(uv, reflectionDirection);
     
-    float3 color = lerp(baseColor.rgb, reflectedColor.rgb, reflectivityInterpolant * baseColor.a);
-    color += reflectedColor * reflectivityInterpolant * baseColor.a * 0.45;
+    float cosTheta = saturate(dot(viewDirection, normal));
+    float fresnel = pow(1 - cosTheta, 5);
+    float localReflectivity = reflectivityInterpolant * fresnel * baseColor.a;
     
+    float3 color = lerp(baseColor.rgb, reflectedColor.rgb, localReflectivity);
+    color += reflectedColor * localReflectivity * 1.1;
+    
+    // The influence of the light map becomes strongest
+    // The closer the Z position is to being level with the
+    // player. Background and foreground snowflakes
+    // are left alone.    
     float z = tex2D(positionTexture, uv).z;
-    
     float lightIntensity = smoothstep(1000, 540, z) * smoothstep(100, 200, z);
     float3 light = lerp(1, tex2D(lightMapTexture, (uv - 0.5) / zoom + 0.5).rgb, lightIntensity);
     

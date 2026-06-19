@@ -120,7 +120,7 @@ PixelShaderOutput PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor 
         
         // Ensure that colors further along taper
         // with an exponential decay term.
-        float attenuation = exp(raymarchProgress * -raymarchStepDecay - 3.56);
+        float attenuation = exp(raymarchProgress * -raymarchStepDecay - 3.66);
         
         float density = CalculateDensity(p);
         float4 sampleColor = CalculateColor(p, heightKilometers) * density * attenuation;
