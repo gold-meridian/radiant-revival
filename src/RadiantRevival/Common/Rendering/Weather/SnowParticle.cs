@@ -87,6 +87,8 @@ public sealed class SnowParticle
         if (Velocity.Length() >= 7f)
             Velocity *= 0.984f;
 
+        Velocity += Vector3.UnitY * MathF.Cos(Position.X * 0.005f + Position.Z * 0.009f) * 0.125f;
+
         Position += Velocity;
         Timer++;
     }
