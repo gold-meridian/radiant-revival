@@ -437,10 +437,25 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         var device = sb.GraphicsDevice;
 
         var dims = element.Dimensions;
+        var innerDims = element.InnerDimensions;
 
         var panelShader = Data.Instance.MaskShader;
 
         var scissor = device.ScissorRectangle;
+
+        drawDivider = false;
+
+        var dividerSize = new Rectangle(
+            innerDims.X + 5 + element._modIconAdjust, innerDims.Y + 30,
+            innerDims.Width - 10 - element._modIconAdjust, 4);
+
+        dividerSize.X -= dims.X;
+        dividerSize.Y -= dims.Y;
+
+        dividerSize.X /= 2;
+        dividerSize.Y /= 2;
+        dividerSize.Width /= 2;
+        dividerSize.Height /= 2;
 
         sb.End(out var ss);
 
@@ -448,7 +463,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         using (lease.Scope(clearColor: Color.Black))
         {
-            DrawPanelContents(sb, device);
+            DrawPanelContents(sb, device, dividerSize);
         }
 
         device.ScissorRectangle = scissor;
@@ -485,18 +500,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
         sb.Restart(in ss);
 
-        drawDivider = false;
-
-        var dividerTexture = Assets.UI.ModPanel.Divider.Asset.Value;
-
-        var innerDims = element.InnerDimensions;
-
-        var dividerSize = new Rectangle(
-            innerDims.X + 5 + element._modIconAdjust, innerDims.Y + 30,
-            innerDims.Width - 10 - element._modIconAdjust, 4);
-
-        sb.Draw(dividerTexture, dividerSize, Color.White);
-
         return false;
 
         static Vector4 Transform(Vector4 vector)
@@ -507,7 +510,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
-    private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device)
+    private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device, Rectangle dividerSize)
     {
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
         {
@@ -545,7 +548,15 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             sb.Draw(nebula, Vector2.Zero, nebulaColor);
         }
         sb.End();
-        
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var dividerTexture = Assets.UI.ModPanel.Divider.Asset.Value;
+
+            sb.Draw(dividerTexture, dividerSize, Color.White);
+        }
+        sb.End();
+
         DrawStars(sb);
 
         RenderModels(sb, device);
