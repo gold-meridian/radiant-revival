@@ -300,6 +300,81 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private sealed class ConfigButton() : BouncyHoverImage(Assets.UI.ModPanel.ModConfig.Asset, Assets.UI.ModPanel.ModConfig_Hover.Asset);
 
+    private sealed class DepsIcon : UIImage
+    {
+        private float diskProgress;
+        private float diskRotation;
+
+        public DepsIcon() : base(Assets.UI.ModPanel.Deps.Asset)
+        {
+            OverrideSamplerState = SamplerState.PointClamp;
+        }
+
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+
+            if (IsMouseHovering)
+            {
+                diskProgress += 0.1f;
+            }
+            else
+            {
+                diskProgress -= 0.06f;
+            }
+
+            if (diskProgress >= 1f)
+            {
+                diskRotation += 0.01f;
+            }
+
+            diskProgress = Math.Clamp(diskProgress, 0f, 1f);
+        }
+
+        public override void MouseOver(UIMouseEvent evt)
+        {
+            base.MouseOver(evt);
+
+            // do we want this
+            SoundEngine.PlaySound(SoundID.MenuTick);
+
+            if (diskProgress == 0f)
+            {
+                diskRotation = 0f;
+            }
+        }
+
+        protected override void DrawSelf(SpriteBatch spriteBatch)
+        {
+            var dims = this.Dimensions;
+
+            var deps = Assets.UI.ModPanel.Deps.Asset.Value;
+            var depsOutline = Assets.UI.ModPanel.Deps_Outline.Asset.Value;
+
+            var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
+            var diskOutline = Assets.UI.ModPanel.Deps_Disk_Outline.Asset.Value;
+
+            var time = Main.GlobalTimeWrappedHourly;
+
+            var position = dims.TopLeft();
+
+            var diskPosition = dims.TopLeft() + (deps.Size() * 0.5f);
+            diskPosition += Vector2.UnitX * disk.Width * 0.5f * MathF.Pow(diskProgress, 3f);
+
+            var diskOrigin = disk.Size() * 0.5f;
+
+            if (IsMouseHovering)
+            {
+                spriteBatch.Draw(depsOutline, position, Color.White);
+
+                spriteBatch.Draw(diskOutline, diskPosition, null, Color.White, diskRotation, diskOrigin, 1f, SpriteEffects.None, 0f);
+            }
+
+            spriteBatch.Draw(disk, diskPosition, null, Color.White, diskRotation, diskOrigin, 1f, SpriteEffects.None, 0f);
+            spriteBatch.Draw(deps, position, Color.White);
+        }
+    }
+
     public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = new()
     {
         { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
@@ -338,6 +413,12 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             {
                 element._configButton.OnLeftClick += element.OpenConfig;
             }
+        }
+
+        ReplaceElement(ref element._modReferenceIcon, new DepsIcon());
+        {
+            element._modReferenceIcon.Left.Pixels -= 1;
+            element._modReferenceIcon.Top.Pixels -= 4;
         }
 
         element._uiModStateText.PaddingLeft = element._uiModStateText.PaddingRight = 14f;
