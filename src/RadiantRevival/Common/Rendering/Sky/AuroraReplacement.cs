@@ -139,7 +139,7 @@ public static class AuroraReplacement
     {
         if (SkyManager.Instance["Aurora"] is AuroraSky { _opacity: var opacity } && opacity > 0f)
         {
-            var colorTint = new Color(153, 235, 60);
+            var colorTint = new Color(53, 223, 76);
             var profile = AtmosphereCloudRenderingSystem.Profile;
             foreach (var influence in profile.Influences)
             {
