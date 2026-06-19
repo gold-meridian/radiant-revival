@@ -17,6 +17,12 @@ float3 greenContributionCoefficients;
 float3 blueContributionCoefficients;
 float3 colorBandWidths;
 
+struct PixelShaderOutput
+{
+    float4 Color : SV_Target0;
+    float4 Depth : SV_Target1;
+};
+
 float3 Hash33(float3 p3)
 {
     float3 uv = frac(p3 * float3(.1031, .11369, .13787));
@@ -60,10 +66,8 @@ float CalculateDensity(float3 p)
     return noise * pow(globalDissipation, 2) * 6 + ambientGlow;
 }
 
-float4 CalculateColor(float3 p)
-{
-    float heightKilometers = 370 - p.y * 300 + p.z * 60;
-    
+float4 CalculateColor(float3 p, float heightKilometers)
+{    
     // Each component excitement value gets its own
     // corresponding height band where it peaks.
     float redExcitement = exp(-pow((heightKilometers - redExcitementHeightKilometers) / colorBandWidths.r, 2));
@@ -87,13 +91,15 @@ float4 CalculateColor(float3 p)
     return float4(red, green, blue, 0);
 }
 
-float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) : COLOR0
+PixelShaderOutput PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) : COLOR0
 {
     float3 boxSize = 1;
     float3 rayOrigin = 0;
     
     float3 rayDirection = normalize(float3(uv * 2 - 1, 0.5));
     float4 colorSum = 0;
+    
+    float depth = 0;
     
     for (float i = 0; i < 32; i++)
     {
@@ -107,6 +113,7 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
         float extension = extensionNumerator / extensionDenominator;
         
         float3 p = rayDirection * extension;
+        float heightKilometers = 370 - p.y * 300 + p.z * 60;
         
         // Please, evil banding, go away...
         p += Hash33(p * 80) * 0.002;
@@ -116,8 +123,11 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
         float attenuation = exp(raymarchProgress * -raymarchStepDecay - 3.56);
         
         float density = CalculateDensity(p);
-        float4 sampleColor = CalculateColor(p) * density;
-        colorSum += sampleColor * attenuation;
+        float4 sampleColor = CalculateColor(p, heightKilometers) * density * attenuation;
+        colorSum += sampleColor;
+        
+        float depthAtPoint = 1 - max(0, heightKilometers / 360);
+        depth = lerp(depth, depthAtPoint, length(sampleColor.rgb) * 0.25);
     }
 
     // Feed the color sum into a smoothstep to separate
@@ -125,7 +135,11 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
     // sharper.
     float4 sharpenedColor = smoothstep(0, 0.75, colorSum * 1.2);
     
-    return sharpenedColor * sampleColor;
+    PixelShaderOutput output = (PixelShaderOutput)0;
+    output.Color = sharpenedColor * sampleColor;
+    output.Depth = float4(depth, 0, 0, 1);
+    
+    return output;
 }
 
 BEGIN_TECHNIQUE(Technique1)
