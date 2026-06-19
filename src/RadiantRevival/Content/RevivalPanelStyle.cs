@@ -302,7 +302,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private sealed class DepsIcon : UIImage
     {
-        private float diskProgress;
+        public float DiskProgress;
+
         private float diskRotation;
 
         public DepsIcon() : base(Assets.UI.ModPanel.Deps.Asset)
@@ -316,19 +317,19 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
             if (IsMouseHovering)
             {
-                diskProgress += 0.1f;
+                DiskProgress += 0.1f;
             }
             else
             {
-                diskProgress -= 0.06f;
+                DiskProgress -= 0.06f;
             }
 
-            if (diskProgress >= 1f)
+            if (DiskProgress >= 1f)
             {
                 diskRotation += 0.01f;
             }
 
-            diskProgress = Math.Clamp(diskProgress, 0f, 1f);
+            DiskProgress = Math.Clamp(DiskProgress, 0f, 1f);
         }
 
         public override void MouseOver(UIMouseEvent evt)
@@ -338,7 +339,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             // do we want this
             SoundEngine.PlaySound(SoundID.MenuTick);
 
-            if (diskProgress == 0f)
+            if (DiskProgress == 0f)
             {
                 diskRotation = 0f;
             }
@@ -354,12 +355,10 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
             var diskOutline = Assets.UI.ModPanel.Deps_Disk_Outline.Asset.Value;
 
-            var time = Main.GlobalTimeWrappedHourly;
-
             var position = dims.TopLeft();
 
             var diskPosition = dims.TopLeft() + (deps.Size() * 0.5f);
-            diskPosition += Vector2.UnitX * disk.Width * 0.5f * MathF.Pow(diskProgress, 3f);
+            diskPosition += Vector2.UnitX * disk.Width * 0.5f * MathF.Pow(DiskProgress, 3f);
 
             var diskOrigin = disk.Size() * 0.5f;
 
@@ -386,6 +385,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         element.BorderColor = Color.Black;
 
+        element.OnUpdate += OnUpdate_MoveReloadRequiredText;
+
         element.OnUpdate += OnUpdate_Particles;
 
         element.OnUpdate += OnUpdate_Hover;
@@ -394,6 +395,27 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         element.OnUpdate += OnUpdate_Stars;
 
         return base.PreInitialize(element);
+    }
+
+    private static float priorLeft2ndLine;
+
+    private static void OnUpdate_MoveReloadRequiredText(UIElement affectedElement)
+    {
+        if (affectedElement is not UIModItem element
+         || element._modReferenceIcon is not DepsIcon deps
+         || deps.DiskProgress <= 0)
+        {
+            return;
+        }
+
+        var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
+
+        var offset = disk.Width * 0.5f * MathF.Pow(deps.DiskProgress, 3f);
+
+        element.left2ndLine = priorLeft2ndLine + offset;
+
+        // Technically irrelevant
+        element._translationModIcon?.Left.Pixels = element._uiModStateText.Left.Pixels + element._uiModStateText.Width.Pixels + 5f + element.left2ndLine;
     }
 
     public override void PostInitialize(UIModItem element)
@@ -415,6 +437,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             }
         }
 
+        priorLeft2ndLine = element.left2ndLine;
         ReplaceElement(ref element._modReferenceIcon, new DepsIcon());
         {
             element._modReferenceIcon.Left.Pixels -= 1;
