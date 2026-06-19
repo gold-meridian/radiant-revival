@@ -148,9 +148,9 @@ public static class CustomSnow
     }
 
     /// <summary>
-    ///     Whether any snowflakes are active this frame.
+    ///     How many snowflakes are active this frame.
     /// </summary>
-    private static bool anySnowflakesActive;
+    private static int activeSnowflakeCount;
 
     /// <summary>
     ///     A consistent CPU-bound cache for the holding
@@ -204,7 +204,8 @@ public static class CustomSnow
     [OnLoad]
     private static void Load()
     {
-        On_Main.DrawDust += Render;
+        On_Main.DoDraw_WallsTilesNPCs += RenderBackground;
+        On_Main.DrawDust += RenderForeground;
         On_Main.snowing += CreateSnowParticles;
     }
 
@@ -247,12 +248,12 @@ public static class CustomSnow
     [ModSystemHooks.PostUpdateDusts]
     private static void Update()
     {
-        Main.windSpeedCurrent = 0.96f;
-        Main.maxRaining = 0.7f;
+        Main.windSpeedCurrent = 1.09f;
+        Main.maxRaining = 0.85f;
         for (int i = 0; i < 50; i++)
             Main.npc[i].active = false;
 
-        anySnowflakesActive = false;
+        activeSnowflakeCount = 0;
 
         for (var i = 0; i < activity_bit_chunks.Length; i++)
         {
@@ -269,7 +270,7 @@ public static class CustomSnow
                 if (snowflake_particles[snowflakeIndex].KillIfNecessary())
                     activity_bit_chunks[i] ^= 1uL << bitIndex;
                 else
-                    anySnowflakesActive = true;
+                    activeSnowflakeCount++;
 
                 // Clear the lowest set bit, gradually
                 // whittling down until all active snowflakes
@@ -324,7 +325,7 @@ public static class CustomSnow
         activity_bit_chunks[chunkIndex] ^= 1uL << bitIndex;
     }
 
-    private static int PrepareRender()
+    private static void PrepareBuffers()
     {
         var snowflakeCounter = 0;
         for (var i = 0; i < activity_bit_chunks.Length; i++)
@@ -336,7 +337,6 @@ public static class CustomSnow
                 var snowflakeIndex = i * bits_per_chunk + bitIndex;
 
                 snowflake_particles[snowflakeIndex].PrepareRender(new Span<Vertex>(vertex_cache, snowflakeCounter * 4, 4));
-                anySnowflakesActive = true;
                 snowflakeCounter++;
 
                 // Clear the lowest set bit, gradually
@@ -347,10 +347,9 @@ public static class CustomSnow
         }
 
         Data.Instance.Vertices.SetData(vertex_cache, 0, snowflakeCounter * 4);
-        return snowflakeCounter;
     }
 
-    private static void RenderWithOverlayTexture(int snowflakeCount)
+    private static void PrepareTargets()
     {
         var gd = Main.instance.GraphicsDevice;
         var previousBindings = gd.GetRenderTargets();
@@ -386,20 +385,15 @@ public static class CustomSnow
 
         gd.Indices = Data.Instance.Indices;
         gd.SetVertexBuffer(Data.Instance.Vertices);
-        gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, snowflakeCount * 4, 0, snowflakeCount * 2);
+        gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, activeSnowflakeCount * 4, 0, activeSnowflakeCount * 2);
 
         gd.SetRenderTargets(previousBindings);
     }
 
-    private static void Render(On_Main.orig_DrawDust orig, Main self)
+    private static void Render(bool foreground)
     {
-        orig(self);
-
-        if (!anySnowflakesActive)
+        if (activeSnowflakeCount <= 0)
             return;
-
-        var snowflakeCount = PrepareRender();
-        RenderWithOverlayTexture(snowflakeCount);
 
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.EffectMatrix);
 
@@ -430,6 +424,7 @@ public static class CustomSnow
             Sampler = SamplerState.LinearClamp
         };
         shader.Parameters.reflectivityInterpolant = 0.72f;
+        shader.Parameters.renderOnlyForeground = foreground;
         shader.Parameters.zoom = Main.GameViewMatrix.Zoom;
         shader.Apply();
 
@@ -437,5 +432,28 @@ public static class CustomSnow
         Main.spriteBatch.Draw(Data.Instance.SnowflakeTarget.Target, viewportArea, Color.White);
 
         Main.spriteBatch.End();
+    }
+
+    private static void RenderBackground(On_Main.orig_DoDraw_WallsTilesNPCs orig, Main self)
+    {
+        if (activeSnowflakeCount <= 0)
+        {
+            orig(self);
+            return;
+        }
+
+        PrepareBuffers();
+        PrepareTargets();
+        {
+            using var _ = Main.spriteBatch.Scope();
+            Render(false);
+        }
+        orig(self);
+    }
+
+    private static void RenderForeground(On_Main.orig_DrawDust orig, Main self)
+    {
+        orig(self);
+        Render(true);
     }
 }

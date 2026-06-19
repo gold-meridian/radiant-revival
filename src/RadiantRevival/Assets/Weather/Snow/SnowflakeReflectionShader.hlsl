@@ -7,6 +7,7 @@ sampler2D reflectionDepthTexture : register(s3);
 sampler2D lightMapTexture : register(s4);
 sampler2D positionTexture : register(s5);
 
+bool renderOnlyForeground;
 float reflectivityInterpolant;
 float2 zoom;
 
@@ -55,7 +56,10 @@ float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) :
     float lightIntensity = smoothstep(1000, 540, z) * smoothstep(100, 200, z);
     float3 light = lerp(1, tex2D(lightMapTexture, (uv - 0.5) / zoom + 0.5).rgb, lightIntensity);
     
-    return float4(color * light, 0) * sampleColor * baseColor.a * 1.4;
+    bool inForeground = z <= 650;
+    bool correctGround = inForeground == renderOnlyForeground;
+    
+    return float4(color * light, 0) * sampleColor * baseColor.a * correctGround * 1.4;
 }
 
 BEGIN_TECHNIQUE(Technique1)
