@@ -55,7 +55,7 @@ public static class AuroraReplacement
         using var _ = Main.spriteBatch.Scope();
         var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.BackgroundViewMatrix.EffectMatrix);
-        Main.spriteBatch.Draw(auroraLease.Target, viewportArea, Color.White * skyOpacity);
+        Main.spriteBatch.Draw(auroraLease.Target, viewportArea, new Color(255, 255, 255, 0) * skyOpacity);
     }
 
     private static void RenderIntoTargets()

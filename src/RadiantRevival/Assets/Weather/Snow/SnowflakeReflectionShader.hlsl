@@ -4,8 +4,11 @@ sampler2D snowTexture : register(s0);
 sampler2D snowNormalTexture : register(s1);
 sampler2D reflectionColorTexture : register(s2);
 sampler2D reflectionDepthTexture : register(s3);
+sampler2D lightMapTexture : register(s4);
+sampler2D positionTexture : register(s5);
 
 float reflectivityInterpolant;
+float2 zoom;
 
 float4 CalculateScreenSpaceReflections(float2 start, float3 stepDirection)
 {
@@ -29,16 +32,23 @@ float4 CalculateScreenSpaceReflections(float2 start, float3 stepDirection)
 float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) : COLOR0
 {
     float4 baseColor = tex2D(snowTexture, uv);
+    baseColor *= length(baseColor.rgb) >= 0.001;
     
     float3 normal = normalize(tex2D(snowNormalTexture, uv).xyz);
+    
     float3 viewDirection = float3(0, 0, 1);
     float3 reflectionDirection = reflect(viewDirection, normal);
     float4 reflectedColor = CalculateScreenSpaceReflections(uv, reflectionDirection);
     
     float3 color = lerp(baseColor.rgb, reflectedColor.rgb, reflectivityInterpolant * baseColor.a);
-    color += reflectedColor * reflectivityInterpolant * 0.45;
+    color += reflectedColor * reflectivityInterpolant * baseColor.a * 0.45;
     
-    return float4(color, 0) * sampleColor * baseColor.a * 1.2;
+    float z = tex2D(positionTexture, uv).z;
+    
+    float lightIntensity = smoothstep(1000, 540, z) * smoothstep(100, 200, z);
+    float3 light = lerp(1, tex2D(lightMapTexture, (uv - 0.5) / zoom + 0.5).rgb, lightIntensity);
+    
+    return float4(color * light, 0) * sampleColor * baseColor.a * 1.4;
 }
 
 BEGIN_TECHNIQUE(Technique1)

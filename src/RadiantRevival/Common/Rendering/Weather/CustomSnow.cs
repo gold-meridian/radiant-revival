@@ -60,6 +60,16 @@ public static class CustomSnow
             init;
         }
 
+        /// <summary>
+        ///     The render target responsible for the containment
+        ///     of snowflakes position data on screen.
+        /// </summary>
+        public required RenderTargetLease SnowflakePositionTarget
+        {
+            get;
+            init;
+        }
+
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(() =>
@@ -85,7 +95,14 @@ public static class CustomSnow
                     Vertices = vertices,
                     Indices = indices,
                     SnowflakeTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
-                    SnowflakeNormalTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
+                    SnowflakeNormalTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
+                    {
+                        Format = SurfaceFormat.Vector4
+                    }),
+                    SnowflakePositionTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
+                    {
+                        Format = SurfaceFormat.Vector4
+                    }),
                 };
             }).GetAwaiter().GetResult();
         }
@@ -98,6 +115,7 @@ public static class CustomSnow
                 data.Indices.Dispose();
                 data.SnowflakeTarget.Dispose();
                 data.SnowflakeNormalTarget.Dispose();
+                data.SnowflakePositionTarget.Dispose();
             });
         }
     }
@@ -198,9 +216,6 @@ public static class CustomSnow
         if (Main.gamePaused || Main.SceneMetrics.SnowTileCount <= 0)
             return;
 
-        Main.windSpeedCurrent = 0.96f;
-        Main.maxRaining = 0.7f;
-
         var snowfallIntensity = MathF.Pow(Main.SceneMetrics.SnowTileCount / (float)SceneMetrics.SnowTileMax, 2.4f);
         var particleCount = (int)MathF.Round(snowfallIntensity * 3f + MathF.Abs(Main.windSpeedCurrent) * 7f + Main.cloudAlpha * 8f) + 2;
         var screenTop = new Vector3(Main.screenPosition + new Vector2(Main.screenWidth * 0.5f - Main.windSpeedCurrent * 900f, 0f), 0f);
@@ -232,6 +247,8 @@ public static class CustomSnow
     [ModSystemHooks.PostUpdateDusts]
     private static void Update()
     {
+        Main.windSpeedCurrent = 0.96f;
+        Main.maxRaining = 0.7f;
         for (int i = 0; i < 50; i++)
             Main.npc[i].active = false;
 
@@ -333,8 +350,17 @@ public static class CustomSnow
         return snowflakeCounter;
     }
 
-    private static void RenderWithOverlayTexture(bool normalMode, int snowflakeCount)
+    private static void RenderWithOverlayTexture(int snowflakeCount)
     {
+        var gd = Main.instance.GraphicsDevice;
+        var previousBindings = gd.GetRenderTargets();
+        gd.SetRenderTargets(
+        [
+            Data.Instance.SnowflakeTarget.Target,
+            Data.Instance.SnowflakeNormalTarget.Target,
+            Data.Instance.SnowflakePositionTarget.Target,
+        ]);
+
         var fov = MathF.PI * 0.5f;
         var cameraSize = Main.ScreenSize.ToVector2();
         var cameraPosition = new Vector3(Main.screenPosition + cameraSize * 0.5f, 0f);
@@ -344,14 +370,16 @@ public static class CustomSnow
         var projection = Matrix.CreatePerspectiveFieldOfView(fov, aspectRatio, 0.1f, 5000f);
         ActiveViewProjection = view * projection;
 
-        var gd = Main.instance.GraphicsDevice;
-
         var shader = AssetReferences.Assets.Weather.Snow.SnowflakeShader.CreateAutoloadPass();
         shader.Parameters.viewProjectionMatrix = ActiveViewProjection;
-        shader.Parameters.normalMode = normalMode;
         shader.Parameters.baseTexture = new HlslSampler2D
         {
-            Texture = normalMode ? Assets.Weather.Snow.SnowflakeNormal.Asset.Value : Assets.Weather.Snow.Snowflake.Asset.Value,
+            Texture = Assets.Weather.Snow.Snowflake.Asset.Value,
+            Sampler = SamplerState.LinearClamp
+        };
+        shader.Parameters.normalTexture = new HlslSampler2D
+        {
+            Texture = Assets.Weather.Snow.SnowflakeNormal.Asset.Value,
             Sampler = SamplerState.LinearClamp
         };
         shader.Apply();
@@ -359,6 +387,8 @@ public static class CustomSnow
         gd.Indices = Data.Instance.Indices;
         gd.SetVertexBuffer(Data.Instance.Vertices);
         gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, snowflakeCount * 4, 0, snowflakeCount * 2);
+
+        gd.SetRenderTargets(previousBindings);
     }
 
     private static void Render(On_Main.orig_DrawDust orig, Main self)
@@ -369,14 +399,7 @@ public static class CustomSnow
             return;
 
         var snowflakeCount = PrepareRender();
-        using (Data.Instance.SnowflakeTarget.Scope(clearColor: Color.Transparent))
-        {
-            RenderWithOverlayTexture(false, snowflakeCount);
-        }
-        using (Data.Instance.SnowflakeNormalTarget.Scope(clearColor: Color.Transparent))
-        {
-            RenderWithOverlayTexture(true, snowflakeCount);
-        }
+        RenderWithOverlayTexture(snowflakeCount);
 
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.EffectMatrix);
 
@@ -396,7 +419,18 @@ public static class CustomSnow
             Texture = AuroraReplacement.depthLease?.Target ?? TextureAssets.BlackTile.Value,
             Sampler = SamplerState.LinearClamp
         };
+        shader.Parameters.lightMapTexture = new HlslSampler2D
+        {
+            Texture = LightingEngine.TileSpaceBuffer.Target,
+            Sampler = SamplerState.LinearClamp
+        };
+        shader.Parameters.positionTexture = new HlslSampler2D
+        {
+            Texture = Data.Instance.SnowflakePositionTarget.Target,
+            Sampler = SamplerState.LinearClamp
+        };
         shader.Parameters.reflectivityInterpolant = 0.72f;
+        shader.Parameters.zoom = Main.GameViewMatrix.Zoom;
         shader.Apply();
 
         var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);

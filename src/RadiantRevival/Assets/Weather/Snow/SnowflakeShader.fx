@@ -1,8 +1,8 @@
 ﻿#include "../../common.h"
 
 sampler2D baseTexture : register(s1);
+sampler2D normalTexture : register(s2);
 
-bool normalMode;
 float4x4 viewProjectionMatrix;
 
 struct VertexShaderInput
@@ -19,12 +19,21 @@ struct VertexShaderOutput
     float4 Color : COLOR0;
     float4 Rotation : TEXCOORD0;
     float2 TextureCoordinates : TEXCOORD1;
+    float3 PositionCopy : TEXCOORD2;
+};
+
+struct PixelShaderOutput
+{
+    float4 Color : SV_Target0;
+    float4 Normal : SV_Target1;
+    float4 Position : SV_Target2;
 };
 
 VertexShaderOutput VertexShaderFunction(in VertexShaderInput input)
 {
     VertexShaderOutput output = (VertexShaderOutput)0;
     output.Position = mul(input.Position, viewProjectionMatrix);
+    output.PositionCopy = output.Position;
     output.Color = input.Color;
     output.Rotation = input.Rotation;
     output.TextureCoordinates = input.TextureCoordinates;
@@ -46,17 +55,22 @@ float3 QuaternionRotate(float3 v, float4 rotation)
     return result;
 }
 
-float4 PixelShaderFunction(VertexShaderOutput input) : COLOR0
+PixelShaderOutput PixelShaderFunction(VertexShaderOutput input)
 {
     float2 uv = input.TextureCoordinates;
     
     float4 baseResult = tex2D(baseTexture, uv);
     float4 coloredResult = baseResult * input.Color;
-    float4 normalResult = float4(normalize(tex2D(baseTexture, uv).xyz * 2 - 1), 1);
+    float4 normalResult = float4(normalize(tex2D(normalTexture, uv).xyz * 2 - 1), 1);
     normalResult.xyz = QuaternionRotate(normalResult.xyz, input.Rotation);
     normalResult *= coloredResult.a;
     
-    return lerp(tex2D(baseTexture, uv) * input.Color, normalResult, normalMode);
+    PixelShaderOutput result = (PixelShaderOutput)0;
+    result.Color = tex2D(baseTexture, uv) * input.Color;
+    result.Normal = normalResult;
+    result.Position = float4(input.PositionCopy, 0);
+    
+    return result;
 }
 
 BEGIN_TECHNIQUE(Technique1)
