@@ -248,11 +248,6 @@ public static class CustomSnow
     [ModSystemHooks.PostUpdateDusts]
     private static void Update()
     {
-        Main.windSpeedCurrent = 1.09f;
-        Main.maxRaining = 0.85f;
-        for (int i = 0; i < 50; i++)
-            Main.npc[i].active = false;
-
         activeSnowflakeCount = 0;
 
         for (var i = 0; i < activity_bit_chunks.Length; i++)
