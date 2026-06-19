@@ -159,6 +159,16 @@ public static class CustomSnow
     private const int bits_per_chunk = sizeof(ulong) * 8;
 
     /// <summary>
+    ///     The active view-projection matrix in use by this
+    ///     system.
+    /// </summary>
+    internal static Matrix ActiveViewProjection
+    {
+        get;
+        private set;
+    } = Matrix.Identity;
+
+    /// <summary>
     ///     The maximum amount of snowflakes supported
     ///     by this system.
     /// </summary>
@@ -332,11 +342,12 @@ public static class CustomSnow
         var view = Matrix.CreateLookAt(cameraPosition - Vector3.UnitZ, cameraPosition, -Vector3.UnitY) * zoom;
         var aspectRatio = Main.instance.GraphicsDevice.Viewport.AspectRatio;
         var projection = Matrix.CreatePerspectiveFieldOfView(fov, aspectRatio, 0.1f, 5000f);
+        ActiveViewProjection = view * projection;
 
         var gd = Main.instance.GraphicsDevice;
 
         var shader = AssetReferences.Assets.Weather.Snow.SnowflakeShader.CreateAutoloadPass();
-        shader.Parameters.viewProjectionMatrix = view * projection;
+        shader.Parameters.viewProjectionMatrix = ActiveViewProjection;
         shader.Parameters.normalMode = normalMode;
         shader.Parameters.baseTexture = new HlslSampler2D
         {

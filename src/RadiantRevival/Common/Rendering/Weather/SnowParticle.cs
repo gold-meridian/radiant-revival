@@ -107,6 +107,17 @@ public sealed class SnowParticle
         return false;
     }
 
+    private Vector2 CalculateWorldPosition()
+    {
+        var viewportSize = Main.ScreenSize.ToVector2();
+        var clip = Vector4.Transform(new Vector4(Position, 1f), CustomSnow.ActiveViewProjection);
+        var ndc = new Vector3(clip.X, clip.Y, clip.Z) / clip.W;
+
+        var screenX = (ndc.X * 0.5f + 0.5f) * viewportSize.X;
+        var screenY = (1f - (ndc.Y * 0.5f + 0.5f)) * viewportSize.Y;
+        return new Vector2(screenX, screenY) + Main.screenPosition;
+    }
+
     /// <summary>
     ///     Prepares this snowflake for rendering.
     /// </summary>
@@ -123,9 +134,12 @@ public sealed class SnowParticle
         var bottomLeft = Position - right + down;
         var bottomRight = Position + right + down;
 
+        var light = Lighting.GetColor(CalculateWorldPosition().ToTileCoordinates());
+        var color = Color.Lerp(light, Color.White, Utils.GetLerpValue(600f, 120f, Position.Z, true));
+
         var lifetimeRatio = Timer / (float)Lifetime;
-        var opacity = Utils.GetLerpValue(1f, 0.6f, lifetimeRatio, true) * 0.7f;
-        var color = Color.White * opacity;
+        var opacity = Utils.GetLerpValue(1f, 0.6f, lifetimeRatio, true) * 0.75f;
+        color *= opacity;
 
         span[0] = new(topLeft, color, rotation, Vector2.Zero);
         span[1] = new(topRight, color, rotation, Vector2.UnitX);
