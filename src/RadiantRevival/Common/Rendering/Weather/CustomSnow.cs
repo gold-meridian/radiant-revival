@@ -192,6 +192,12 @@ public static class CustomSnow
     /// </summary>
     public const int MAX_SNOWFLAKES = 4096;
 
+    // TODO -- Make this configurable by the player.
+    /// <summary>
+    ///     Whether foreground particles are allowed by this system.
+    /// </summary>
+    public static bool ForegroundParticlesAllowed => true;
+
     private static SnowParticle[] InitializeParticleArray()
     {
         var particles = new SnowParticle[MAX_SNOWFLAKES];

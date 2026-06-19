@@ -90,6 +90,13 @@ public sealed class SnowParticle
         Velocity += Vector3.UnitY * MathF.Cos(Position.X * 0.005f + Position.Z * 0.002f) * 0.125f;
 
         Position += Velocity;
+
+        if (Position.Z < 320f && !CustomSnow.ForegroundParticlesAllowed)
+        {
+            Position += Vector3.UnitZ * 12f;
+            Velocity *= new Vector3(1f, 1f, 0.9f);
+        }
+
         Timer++;
     }
 
