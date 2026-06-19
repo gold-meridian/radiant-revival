@@ -139,8 +139,17 @@ public static class AuroraReplacement
     {
         if (SkyManager.Instance["Aurora"] is AuroraSky { _opacity: var opacity } && opacity > 0f)
         {
-            var colorTint = new Color(12, 195, 123);
-            var tintInterpolant = opacity * 0.09f;
+            var colorTint = new Color(153, 235, 60);
+            var profile = AtmosphereCloudRenderingSystem.Profile;
+            foreach (var influence in profile.Influences)
+            {
+                var localTint = influence.AuroraBackgroundTintColor;
+                var alpha = localTint.A / 255f;
+                var influenceIntensity = influence.InfluenceFunction(Main.LocalPlayer) * alpha;
+                colorTint = Color.Lerp(colorTint, localTint, influenceIntensity);
+            }
+
+            var tintInterpolant = opacity * 0.125f;
             tileColor = Color.Lerp(tileColor, colorTint, tintInterpolant);
             backgroundColor = Color.Lerp(backgroundColor, colorTint, tintInterpolant);
         }

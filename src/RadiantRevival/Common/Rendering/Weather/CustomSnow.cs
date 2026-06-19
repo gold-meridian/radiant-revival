@@ -230,12 +230,13 @@ public static class CustomSnow
         {
             var dx = Main.rand.NextFloatDirection() * 1000f;
             var dy = Main.rand.NextFloat(-200f, 200f);
-            var z = Main.rand.NextFloat(300f, 700f);
+            var z = Main.rand.NextFloat(325f, 700f);
             var spawnPosition = screenTop + new Vector3(dx, dy, z);
             var scale = Main.rand.NextFloat(2f, 4f);
             var velocity = new Vector3(Main.rand.NextFloatDirection() * 1.6f, Main.rand.NextFloat(1f, 1.5f), Main.rand.NextFloatDirection() * 2.5f) / scale * 8f;
             velocity.X += Main.windSpeedCurrent * Main.rand.NextFloat(23.5f, 39.5f);
             velocity.Y += MathF.Abs(Main.windSpeedCurrent) * Main.rand.NextFloat(25f);
+            velocity.Z *= Utils.GetLerpValue(0.25f, 0.65f, MathF.Abs(Main.windSpeedCurrent), true);
 
             var rotation = Quaternion.CreateFromYawPitchRoll(Main.rand.NextFloat(MathF.Tau), Main.rand.NextFloat(MathF.Tau), Main.rand.NextFloat(MathF.Tau));
             var lifetime = (int)(scale * 50f) + Main.rand.Next(40, 75);
@@ -254,6 +255,13 @@ public static class CustomSnow
     [ModSystemHooks.PostUpdateDusts]
     private static void Update()
     {
+        Main.cloudAlpha = 0.1f;
+        Main.windSpeedCurrent = -0.5f;
+        for (var i = 0; i < 50; i++)
+            Main.npc[i].active = false;
+        for (var i = 0; i < Main.maxClouds; i++)
+            Main.cloud[i].active = false;
+
         activeSnowflakeCount = 0;
 
         for (var i = 0; i < activity_bit_chunks.Length; i++)

@@ -11,12 +11,6 @@ namespace RadiantRevival.Common.Rendering.Weather;
 public sealed class SnowParticle
 {
     /// <summary>
-    ///     Whether this snowflake exists in the
-    ///     foreground or not.
-    /// </summary>
-    public bool Foreground => Position.Z <= 0f;
-
-    /// <summary>
     ///     How long this snowflake has
     ///     existed, in frames.
     /// </summary>
@@ -87,7 +81,8 @@ public sealed class SnowParticle
         if (Velocity.Length() >= 7f)
             Velocity *= 0.984f;
 
-        Velocity += Vector3.UnitY * MathF.Cos(Position.X * 0.005f + Position.Z * 0.002f) * 0.125f;
+        var waveForce = Utils.GetLerpValue(0.1f, 0.6f, MathF.Abs(Main.windSpeedCurrent), true) * 0.125f;
+        Velocity += Vector3.UnitY * MathF.Cos(Position.X * 0.005f + Position.Z * 0.002f) * waveForce;
 
         Position += Velocity;
 
