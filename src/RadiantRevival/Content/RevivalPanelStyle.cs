@@ -300,6 +300,80 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private sealed class ConfigButton() : BouncyHoverImage(Assets.UI.ModPanel.ModConfig.Asset, Assets.UI.ModPanel.ModConfig_Hover.Asset);
 
+    private sealed class DepsIcon : UIImage
+    {
+        public float DiskProgress;
+
+        private float diskRotation;
+
+        public DepsIcon() : base(Assets.UI.ModPanel.Deps.Asset)
+        {
+            OverrideSamplerState = SamplerState.PointClamp;
+        }
+
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+
+            if (IsMouseHovering)
+            {
+                DiskProgress += 0.1f;
+            }
+            else
+            {
+                DiskProgress -= 0.06f;
+            }
+
+            if (DiskProgress >= 1f)
+            {
+                diskRotation += 0.01f;
+            }
+
+            DiskProgress = Math.Clamp(DiskProgress, 0f, 1f);
+        }
+
+        public override void MouseOver(UIMouseEvent evt)
+        {
+            base.MouseOver(evt);
+
+            // do we want this
+            SoundEngine.PlaySound(SoundID.MenuTick);
+
+            if (DiskProgress == 0f)
+            {
+                diskRotation = 0f;
+            }
+        }
+
+        protected override void DrawSelf(SpriteBatch spriteBatch)
+        {
+            var dims = this.Dimensions;
+
+            var deps = Assets.UI.ModPanel.Deps.Asset.Value;
+            var depsOutline = Assets.UI.ModPanel.Deps_Outline.Asset.Value;
+
+            var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
+            var diskOutline = Assets.UI.ModPanel.Deps_Disk_Outline.Asset.Value;
+
+            var position = dims.TopLeft();
+
+            var diskPosition = dims.TopLeft() + (deps.Size() * 0.5f);
+            diskPosition += Vector2.UnitX * disk.Width * 0.5f * MathF.Pow(DiskProgress, 3f);
+
+            var diskOrigin = disk.Size() * 0.5f;
+
+            if (IsMouseHovering)
+            {
+                spriteBatch.Draw(depsOutline, position, Color.White);
+
+                spriteBatch.Draw(diskOutline, diskPosition, null, Color.White, diskRotation, diskOrigin, 1f, SpriteEffects.None, 0f);
+            }
+
+            spriteBatch.Draw(disk, diskPosition, null, Color.White, diskRotation, diskOrigin, 1f, SpriteEffects.None, 0f);
+            spriteBatch.Draw(deps, position, Color.White);
+        }
+    }
+
     public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = new()
     {
         { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
@@ -311,6 +385,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         element.BorderColor = Color.Black;
 
+        element.OnUpdate += OnUpdate_MoveReloadRequiredText;
+
         element.OnUpdate += OnUpdate_Particles;
 
         element.OnUpdate += OnUpdate_Hover;
@@ -319,6 +395,27 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         element.OnUpdate += OnUpdate_Stars;
 
         return base.PreInitialize(element);
+    }
+
+    private static float priorLeft2ndLine;
+
+    private static void OnUpdate_MoveReloadRequiredText(UIElement affectedElement)
+    {
+        if (affectedElement is not UIModItem element
+         || element._modReferenceIcon is not DepsIcon deps
+         || deps.DiskProgress <= 0)
+        {
+            return;
+        }
+
+        var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
+
+        var offset = disk.Width * 0.5f * MathF.Pow(deps.DiskProgress, 3f);
+
+        element.left2ndLine = priorLeft2ndLine + offset;
+
+        // Technically irrelevant
+        element._translationModIcon?.Left.Pixels = element._uiModStateText.Left.Pixels + element._uiModStateText.Width.Pixels + 5f + element.left2ndLine;
     }
 
     public override void PostInitialize(UIModItem element)
@@ -338,6 +435,13 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             {
                 element._configButton.OnLeftClick += element.OpenConfig;
             }
+        }
+
+        priorLeft2ndLine = element.left2ndLine;
+        ReplaceElement(ref element._modReferenceIcon, new DepsIcon());
+        {
+            element._modReferenceIcon.Left.Pixels -= 1;
+            element._modReferenceIcon.Top.Pixels -= 4;
         }
 
         element._uiModStateText.PaddingLeft = element._uiModStateText.PaddingRight = 14f;
@@ -437,10 +541,25 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         var device = sb.GraphicsDevice;
 
         var dims = element.Dimensions;
+        var innerDims = element.InnerDimensions;
 
         var panelShader = Data.Instance.MaskShader;
 
         var scissor = device.ScissorRectangle;
+
+        drawDivider = false;
+
+        var dividerSize = new Rectangle(
+            innerDims.X + 5 + element._modIconAdjust, innerDims.Y + 30,
+            innerDims.Width - 10 - element._modIconAdjust, 4);
+
+        dividerSize.X -= dims.X;
+        dividerSize.Y -= dims.Y;
+
+        dividerSize.X /= 2;
+        dividerSize.Y /= 2;
+        dividerSize.Width /= 2;
+        dividerSize.Height /= 2;
 
         sb.End(out var ss);
 
@@ -448,7 +567,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
         using (lease.Scope(clearColor: Color.Black))
         {
-            DrawPanelContents(sb, device);
+            DrawPanelContents(sb, device, dividerSize);
         }
 
         device.ScissorRectangle = scissor;
@@ -485,18 +604,6 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
         sb.Restart(in ss);
 
-        drawDivider = false;
-
-        var dividerTexture = Assets.UI.ModPanel.Divider.Asset.Value;
-
-        var innerDims = element.InnerDimensions;
-
-        var dividerSize = new Rectangle(
-            innerDims.X + 5 + element._modIconAdjust, innerDims.Y + 30,
-            innerDims.Width - 10 - element._modIconAdjust, 4);
-
-        sb.Draw(dividerTexture, dividerSize, Color.White);
-
         return false;
 
         static Vector4 Transform(Vector4 vector)
@@ -507,7 +614,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         }
     }
 
-    private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device)
+    private static void DrawPanelContents(SpriteBatch sb, GraphicsDevice device, Rectangle dividerSize)
     {
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
         {
@@ -545,7 +652,15 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             sb.Draw(nebula, Vector2.Zero, nebulaColor);
         }
         sb.End();
-        
+
+        sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+        {
+            var dividerTexture = Assets.UI.ModPanel.Divider.Asset.Value;
+
+            sb.Draw(dividerTexture, dividerSize, Color.White);
+        }
+        sb.End();
+
         DrawStars(sb);
 
         RenderModels(sb, device);
