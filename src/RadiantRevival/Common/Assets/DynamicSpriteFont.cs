@@ -40,7 +40,7 @@ internal sealed class DynamicSpriteFontReader : XnbReader, IAssetReader
 
         await mainThreadCtx;
 
-        var result = base.FromStream<DynamicSpriteFont>(stream, mainThreadCtx);
+        var result = base.FromStream<DynamicSpriteFont>(stream, mainThreadCtx).GetAwaiter().GetResult();
 
         return (result as T)!;
     }

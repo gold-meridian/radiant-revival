@@ -14,7 +14,6 @@ using ReLogic.Content;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using Terraria;
 using Terraria.Audio;
 using Terraria.GameContent;
@@ -151,13 +150,26 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     public sealed class ModName : UIText
     {
-        public ModName(string text, float textScale = 1, bool large = false) : base(text, textScale, large)
-        {
-            SetText(" ");
+        private string versionText;
 
+        public ModName(string name, string version, float textScale = 1, bool large = false) : base($"{name} {version}", textScale, large)
+        {
+            versionText = version;
+
+            SetText(string.Empty);
+
+            Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Wait();
             Assets.UI.ModPanel.ModName.Asset.Wait();
 
-            Width.Set(Assets.UI.ModPanel.ModName.Asset.Value.Width, 0f);
+            const float offset = 6f;
+
+            var font = Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Value;
+
+            var size = font.MeasureString(versionText);
+
+            Width.Set(Assets.UI.ModPanel.ModName.Asset.Value.Width + size.X + offset, 0f);
+
+            OverrideSamplerState = SamplerState.PointClamp;
         }
 
         protected override void DrawSelf(SpriteBatch spriteBatch)
@@ -171,6 +183,54 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var origin = new Vector2(0f, texture.Height * 0.5f);
 
             spriteBatch.Draw(texture, position, null, Color.White, 0f, origin, 1f, SpriteEffects.None, 0f);
+
+            var font = Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Value;
+
+            const float offset = 6f;
+
+            var versionTextPosition = new Vector2(this.Dimensions.X + texture.Width + offset, this.Dimensions.Y + (int)(texture.Height * 0.5f) - 2f);
+
+            var size = font.MeasureString(versionText);
+
+            var versionTextOrigin = new Vector2(0f, (int)(size.Y * 0.5f));
+
+            if (IsMouseHovering)
+            {
+                DrawDoubleOutline();
+            }
+
+            ChatManager.DrawColorCodedStringWithShadow(
+                spriteBatch,
+                font,
+                versionText,
+                versionTextPosition,
+                Color.White,
+                background_nebula,
+                0f,
+                versionTextOrigin,
+                Vector2.One,
+                maxWidth: 999f
+            );
+
+            return;
+
+            void DrawDoubleOutline()
+            {
+                foreach (var vector in ChatManager.ShadowDirections)
+                {
+                    ChatManager.DrawColorCodedStringShadow(
+                        spriteBatch,
+                        font,
+                        versionText,
+                        versionTextPosition + (vector * 2f),
+                        outline_hover,
+                        0f,
+                        versionTextOrigin,
+                        Vector2.One,
+                        maxWidth: 999f
+                    );
+                }
+            }
         }
     }
 
@@ -300,6 +360,80 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     private sealed class ConfigButton() : BouncyHoverImage(Assets.UI.ModPanel.ModConfig.Asset, Assets.UI.ModPanel.ModConfig_Hover.Asset);
 
+    private sealed class DepsIcon : UIImage
+    {
+        public float DiskProgress;
+
+        private float diskRotation;
+
+        public DepsIcon() : base(Assets.UI.ModPanel.Deps.Asset)
+        {
+            OverrideSamplerState = SamplerState.PointClamp;
+        }
+
+        public override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+
+            if (IsMouseHovering)
+            {
+                DiskProgress += 0.1f;
+            }
+            else
+            {
+                DiskProgress -= 0.06f;
+            }
+
+            if (DiskProgress >= 1f)
+            {
+                diskRotation += 0.01f;
+            }
+
+            DiskProgress = Math.Clamp(DiskProgress, 0f, 1f);
+        }
+
+        public override void MouseOver(UIMouseEvent evt)
+        {
+            base.MouseOver(evt);
+
+            // do we want this
+            SoundEngine.PlaySound(SoundID.MenuTick);
+
+            if (DiskProgress == 0f)
+            {
+                diskRotation = 0f;
+            }
+        }
+
+        protected override void DrawSelf(SpriteBatch spriteBatch)
+        {
+            var dims = this.Dimensions;
+
+            var deps = Assets.UI.ModPanel.Deps.Asset.Value;
+            var depsOutline = Assets.UI.ModPanel.Deps_Outline.Asset.Value;
+
+            var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
+            var diskOutline = Assets.UI.ModPanel.Deps_Disk_Outline.Asset.Value;
+
+            var position = dims.TopLeft();
+
+            var diskPosition = dims.TopLeft() + (deps.Size() * 0.5f);
+            diskPosition += Vector2.UnitX * disk.Width * 0.5f * MathF.Pow(DiskProgress, 3f);
+
+            var diskOrigin = disk.Size() * 0.5f;
+
+            if (IsMouseHovering)
+            {
+                spriteBatch.Draw(depsOutline, position, Color.White);
+
+                spriteBatch.Draw(diskOutline, diskPosition, null, Color.White, diskRotation, diskOrigin, 1f, SpriteEffects.None, 0f);
+            }
+
+            spriteBatch.Draw(disk, diskPosition, null, Color.White, diskRotation, diskOrigin, 1f, SpriteEffects.None, 0f);
+            spriteBatch.Draw(deps, position, Color.White);
+        }
+    }
+
     public override Dictionary<TextureKind, Asset<Texture2D>> TextureOverrides { get; } = new()
     {
         { TextureKind.ModInfo, Assets.UI.ModPanel.ModInfo.Asset },
@@ -311,6 +445,8 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     {
         element.BorderColor = Color.Black;
 
+        element.OnUpdate += OnUpdate_MoveReloadRequiredText;
+
         element.OnUpdate += OnUpdate_Particles;
 
         element.OnUpdate += OnUpdate_Hover;
@@ -319,6 +455,27 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         element.OnUpdate += OnUpdate_Stars;
 
         return base.PreInitialize(element);
+    }
+
+    private static float priorLeft2ndLine;
+
+    private static void OnUpdate_MoveReloadRequiredText(UIElement affectedElement)
+    {
+        if (affectedElement is not UIModItem element
+         || element._modReferenceIcon is not DepsIcon deps
+         || deps.DiskProgress <= 0)
+        {
+            return;
+        }
+
+        var disk = Assets.UI.ModPanel.Deps_Disk.Asset.Value;
+
+        var offset = disk.Width * 0.5f * MathF.Pow(deps.DiskProgress, 3f);
+
+        element.left2ndLine = priorLeft2ndLine + offset;
+
+        // Technically irrelevant
+        element._translationModIcon?.Left.Pixels = element._uiModStateText.Left.Pixels + element._uiModStateText.Width.Pixels + 5f + element.left2ndLine;
     }
 
     public override void PostInitialize(UIModItem element)
@@ -338,6 +495,13 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             {
                 element._configButton.OnLeftClick += element.OpenConfig;
             }
+        }
+
+        priorLeft2ndLine = element.left2ndLine;
+        ReplaceElement(ref element._modReferenceIcon, new DepsIcon());
+        {
+            element._modReferenceIcon.Left.Pixels -= 1;
+            element._modReferenceIcon.Top.Pixels -= 4;
         }
 
         element._uiModStateText.PaddingLeft = element._uiModStateText.PaddingRight = 14f;
@@ -405,7 +569,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     public override UIText ModifyModName(UIModItem element, UIText modName)
     {
         var name = Mods.RadiantRevival.UI.ModIcon.ModName.GetTextValue();
-        return new ModName(name + $" v{element._mod.Version}")
+        return new ModName(name, $"v{element._mod.Version}")
         {
             Left = modName.Left,
             Top = modName.Top,
