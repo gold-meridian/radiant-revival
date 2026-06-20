@@ -14,7 +14,6 @@ using ReLogic.Content;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using Terraria;
 using Terraria.Audio;
 using Terraria.GameContent;
@@ -151,13 +150,26 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
 
     public sealed class ModName : UIText
     {
-        public ModName(string text, float textScale = 1, bool large = false) : base(text, textScale, large)
-        {
-            SetText(" ");
+        private string versionText;
 
+        public ModName(string name, string version, float textScale = 1, bool large = false) : base($"{name} {version}", textScale, large)
+        {
+            versionText = version;
+
+            SetText(string.Empty);
+
+            Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Wait();
             Assets.UI.ModPanel.ModName.Asset.Wait();
 
-            Width.Set(Assets.UI.ModPanel.ModName.Asset.Value.Width, 0f);
+            const float offset = 6f;
+
+            var font = Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Value;
+
+            var size = font.MeasureString(versionText);
+
+            Width.Set(Assets.UI.ModPanel.ModName.Asset.Value.Width + size.X + offset, 0f);
+
+            OverrideSamplerState = SamplerState.PointClamp;
         }
 
         protected override void DrawSelf(SpriteBatch spriteBatch)
@@ -171,6 +183,54 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             var origin = new Vector2(0f, texture.Height * 0.5f);
 
             spriteBatch.Draw(texture, position, null, Color.White, 0f, origin, 1f, SpriteEffects.None, 0f);
+
+            var font = Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Value;
+
+            const float offset = 6f;
+
+            var versionTextPosition = new Vector2(this.Dimensions.X + texture.Width + offset, this.Dimensions.Y + (int)(texture.Height * 0.5f) - 2f);
+
+            var size = font.MeasureString(versionText);
+
+            var versionTextOrigin = new Vector2(0f, (int)(size.Y * 0.5f));
+
+            if (IsMouseHovering)
+            {
+                DrawDoubleOutline();
+            }
+
+            ChatManager.DrawColorCodedStringWithShadow(
+                spriteBatch,
+                font,
+                versionText,
+                versionTextPosition,
+                Color.White,
+                background_nebula,
+                0f,
+                versionTextOrigin,
+                Vector2.One,
+                maxWidth: 999f
+            );
+
+            return;
+
+            void DrawDoubleOutline()
+            {
+                foreach (var vector in ChatManager.ShadowDirections)
+                {
+                    ChatManager.DrawColorCodedStringShadow(
+                        spriteBatch,
+                        font,
+                        versionText,
+                        versionTextPosition + (vector * 2f),
+                        outline_hover,
+                        0f,
+                        versionTextOrigin,
+                        Vector2.One,
+                        maxWidth: 999f
+                    );
+                }
+            }
         }
     }
 
@@ -509,7 +569,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
     public override UIText ModifyModName(UIModItem element, UIText modName)
     {
         var name = Mods.RadiantRevival.UI.ModIcon.ModName.GetTextValue();
-        return new ModName(name + $" v{element._mod.Version}")
+        return new ModName(name, $"v{element._mod.Version}")
         {
             Left = modName.Left,
             Top = modName.Top,
