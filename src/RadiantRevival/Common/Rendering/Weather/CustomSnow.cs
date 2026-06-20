@@ -255,13 +255,6 @@ public static class CustomSnow
     [ModSystemHooks.PostUpdateDusts]
     private static void Update()
     {
-        Main.cloudAlpha = 0.1f;
-        Main.windSpeedCurrent = -0.5f;
-        for (var i = 0; i < 50; i++)
-            Main.npc[i].active = false;
-        for (var i = 0; i < Main.maxClouds; i++)
-            Main.cloud[i].active = false;
-
         activeSnowflakeCount = 0;
 
         for (var i = 0; i < activity_bit_chunks.Length; i++)
@@ -272,11 +265,12 @@ public static class CustomSnow
                 var bitIndex = BitOperations.TrailingZeroCount(bits);
                 var snowflakeIndex = i * bits_per_chunk + bitIndex;
 
-                snowflake_particles[snowflakeIndex].Update();
+                ref var snowflake = ref snowflake_particles[snowflakeIndex];
+                snowflake.Update();
 
                 // Flip off the activity bit if this snowflake
                 // needs to restore honor to its ancestors and die.
-                if (snowflake_particles[snowflakeIndex].KillIfNecessary())
+                if (snowflake.KillIfNecessary())
                     activity_bit_chunks[i] ^= 1uL << bitIndex;
                 else
                     activeSnowflakeCount++;
@@ -322,7 +316,7 @@ public static class CustomSnow
         if (!index.HasValue)
             return;
 
-        var snowParticle = snowflake_particles[index.Value];
+        ref var snowParticle = ref snowflake_particles[index.Value];
         snowParticle.Position = spawnPosition;
         snowParticle.Velocity = velocity;
         snowParticle.Scale = scale;

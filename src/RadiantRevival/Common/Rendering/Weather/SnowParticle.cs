@@ -8,7 +8,7 @@ namespace RadiantRevival.Common.Rendering.Weather;
 /// <summary>
 ///     Represents an instance of a snow particle.
 /// </summary>
-public sealed class SnowParticle
+public struct SnowParticle
 {
     /// <summary>
     ///     How long this snowflake has
@@ -62,11 +62,10 @@ public sealed class SnowParticle
     /// <summary>
     ///     The rotation of this snowflake.
     /// </summary>
-    public Quaternion Rotation;
-
-    public SnowParticle()
+    public Quaternion Rotation
     {
-        Rotation = Quaternion.Identity;
+        get;
+        set;
     }
 
     /// <summary>
