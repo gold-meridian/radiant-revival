@@ -13,24 +13,58 @@ using Terraria.GameContent;
 using Terraria.GameContent.Shaders;
 using Terraria.Graphics.Effects;
 using Terraria.ModLoader;
+using static RadiantRevival.Core.AssetReferences.Assets.Weather.Rain;
+using BitOperations = System.Numerics.BitOperations;
 
 namespace RadiantRevival.Common;
 
 // TODO: Config, Retro Lighting, DrawCapture, Main Menu
 public static class Rain
 {
-    private record struct Droplet(Vector2 Position, Vector2 EndPosition, Vector2 Velocity, Color Color, float Scale, float Lifetime, bool Active);
-    private record struct Splash(Vector2 Position, Vector2 Velocity, Color Color, float Lifetime, bool Active);
+    private record struct Droplet(Vector2 Position, Vector2 EndPosition, Vector2 Velocity, Color Color, float Scale, float Lifetime)
+    {
+        public bool Update()
+        {
+            Position += Velocity;
+
+            Lifetime += lifetime_increment;
+
+            return Lifetime <= 1f;
+        }
+    }
+
+    private record struct Splash(Vector2 Position, Vector2 Velocity, Color Color, float Lifetime)
+    {
+        public bool Update()
+        {
+            const float gravity = 1f;
+
+            Position += Velocity;
+            Velocity += new Vector2(0, gravity);
+
+            Lifetime += lifetime_increment;
+
+            return Lifetime <= 1f && !(Collision.SolidCollision(Position, 1, 1) && Velocity.Y >= 0);
+        }
+    }
+
+    private const int bits_per_chunk = sizeof(ulong) * 8;
 
     private const float lifetime_increment = 0.03f;
 
-    private const int droplet_count = 500;
-    private static readonly Droplet[] droplets = new Droplet[droplet_count];
+    private const int max_droplets = 1024;
+    private const int max_splashes = 512;
 
-    private static readonly Droplet[] background_droplets = new Droplet[droplet_count / 2];
+    private static readonly Droplet[] rain = new Droplet[max_droplets];
+    private static readonly ulong[] rain_mask = new ulong[(int)Math.Ceiling((double)max_droplets / bits_per_chunk)];
 
-    private const int splash_count = 100;
-    private static readonly Splash[] splashes = new Splash[splash_count];
+    private static readonly Droplet[] background_rain = new Droplet[max_droplets];
+    private static readonly ulong[] background_rain_mask = new ulong[(int)Math.Ceiling((double)max_droplets / bits_per_chunk)];
+
+    private static readonly Splash[] splashes = new Splash[max_splashes];
+    private static readonly ulong[] splashes_mask = new ulong[(int)Math.Ceiling((double)max_splashes / bits_per_chunk)];
+
+    private static int activeParticles;
 
     private sealed class Data : IStatic<Data>
     {
@@ -129,83 +163,6 @@ public static class Rain
         IL_Main.DoDraw += DoDraw_DrawBackgroundRain;
     }
 
-    private static void DoDraw_DrawBackgroundRain(ILContext il)
-    {
-        var c = new ILCursor(il);
-
-        c.GotoNext(
-            MoveType.Before,
-            i => i.MatchLdcI4(1),
-            i => i.MatchCall<Main>(nameof(Main.DrawWaters))
-        );
-
-        c.GotoPrev(
-            MoveType.Before,
-            i => i.MatchLdsfld<Main>(nameof(Main.drawToScreen))
-        );
-
-        c.EmitDelegate(
-            static () =>
-            {
-                var sb = Main.spriteBatch;
-
-                using (sb.Scope())
-                {
-                    var backgroundShader = Data.Instance.BackgroundShader;
-
-                    var intensity = Intensity;
-                    var screenPosition = Main.screenPosition;
-
-                    backgroundShader.Parameters.Intensity = intensity;
-
-                    backgroundShader.Parameters.LightOffset = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
-                    backgroundShader.Parameters.OffscreenTiles = LightingEngine.BufferOffscreenTileRange;
-                    backgroundShader.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
-                    backgroundShader.Parameters.LightMap = new HlslSampler2D
-                    {
-                        Sampler = SamplerState.LinearClamp,
-                        Texture = LightingEngine.TileSpaceBuffer.Target,
-                    };
-
-                    backgroundShader.Apply();
-
-                    sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearWrap, DepthStencilState.None, Main.Rasterizer, backgroundShader.Shader, Main.Transform);
-                    {
-                        var dropletTexture = Assets.Weather.Rain.Droplet.Asset.Value;
-                        var dropletOrigin = new Vector2(11, 138);
-
-                        foreach (var droplet in background_droplets)
-                        {
-                            if (!droplet.Active)
-                            {
-                                continue;
-                            }
-
-                            var rotation = Angle.FromVector(droplet.Velocity) - Angle.HalfPi;
-
-                            var scale = new Vector2(droplet.Scale);
-                            scale.Y *= 1 + (7.5f * intensity);
-
-                            scale.X = MathF.Min(scale.X, 0.23f);
-
-                            sb.Draw(
-                                new DrawParameters(dropletTexture)
-                                {
-                                    Position = droplet.Position - Main.screenPosition,
-                                    Color = Color.Black,
-                                    Rotation = rotation,
-                                    Scale = scale,
-                                    Origin = dropletOrigin,
-                                }
-                            );
-                        }
-                    }
-                    sb.End();
-                }
-            }
-        );
-    }
-
     [ModSystemHooks.ResizeArrays]
     private static void ResizeArrays()
     {
@@ -263,7 +220,7 @@ public static class Rain
     {
         orig(self);
 
-        if (!droplets.Any(d => d.Active) && !splashes.Any(s => s.Active))
+        if (activeParticles <= 0)
         {
             return;
         }
@@ -334,6 +291,7 @@ public static class Rain
         }
     }
 
+#region Particles
     private static void MakeRain_Spawn(On_Rain.orig_MakeRain orig)
     {
         if (!Active || !FocusHelper.AllowRain)
@@ -351,7 +309,7 @@ public static class Rain
 
             for (var i = 0; i <= count; i++)
             {
-                SpawnDroplet();
+                SpawnDroplets();
             }
 
             return;
@@ -359,7 +317,19 @@ public static class Rain
 
         if (Main.rand.NextBool(chance))
         {
-            SpawnDroplet();
+            SpawnDroplets();
+        }
+
+        return;
+
+        static void SpawnDroplets()
+        {
+            CreateDroplet();
+
+            if (Main.rand.NextBool())
+            {
+                CreateBackgroundDroplet();
+            }
         }
     }
 
@@ -370,73 +340,85 @@ public static class Rain
             return;
         }
 
-        for (var i = 0; i < droplets.Length; i++)
+        activeParticles = 0;
+
+        for (var i = 0; i < rain_mask.Length; i++)
         {
-            ref var rain = ref droplets[i];
+            var bits = rain_mask[i];
 
-            if (!rain.Active)
+            while (bits != 0)
             {
-                continue;
+                var bitIndex = BitOperations.TrailingZeroCount(bits);
+                var index = i * bits_per_chunk + bitIndex;
+
+                ref var droplet = ref rain[index];
+
+                if (!droplet.Update())
+                {
+                    SplashEffect(droplet);
+
+                    rain_mask[i] ^= 1uL << bitIndex;
+                }
+                else
+                {
+                    activeParticles++;
+                }
+
+                bits &= bits - 1;
             }
-
-            rain.Position += rain.Velocity;
-            rain.Lifetime += lifetime_increment;
-
-            if (rain.Lifetime <= 1f)
-            {
-                continue;
-            }
-
-            rain.Active = false;
-
-            SplashEffect(rain);
         }
 
-        for (var i = 0; i < background_droplets.Length; i++)
+        for (var i = 0; i < background_rain_mask.Length; i++)
         {
-            ref var rain = ref background_droplets[i];
+            var bits = background_rain_mask[i];
 
-            if (!rain.Active)
+            while (bits != 0)
             {
-                continue;
+                var bitIndex = BitOperations.TrailingZeroCount(bits);
+                var index = i * bits_per_chunk + bitIndex;
+
+                ref var droplet = ref background_rain[index];
+
+                if (!droplet.Update())
+                {
+                    background_rain_mask[i] ^= 1uL << bitIndex;
+                }
+                else
+                {
+                    activeParticles++;
+                }
+
+                bits &= bits - 1;
             }
-
-            rain.Position += rain.Velocity;
-            rain.Lifetime += lifetime_increment;
-
-            if (rain.Lifetime <= 1f)
-            {
-                continue;
-            }
-
-            rain.Active = false;
         }
 
-        for (var i = 0; i < splashes.Length; i++)
+        for (var i = 0; i < splashes_mask.Length; i++)
         {
-            ref var splash = ref splashes[i];
+            var bits = splashes_mask[i];
 
-            if (!splash.Active)
+            while (bits != 0)
             {
-                continue;
-            }
+                var bitIndex = BitOperations.TrailingZeroCount(bits);
+                var index = i * bits_per_chunk + bitIndex;
 
-            const float gravity = 1f;
+                ref var splash = ref splashes[index];
 
-            splash.Position += splash.Velocity;
-            splash.Velocity += new Vector2(0, gravity);
+                if (!splash.Update())
+                {
+                    splashes_mask[i] ^= 1uL << bitIndex;
+                }
+                else
+                {
+                    activeParticles++;
+                }
 
-            splash.Lifetime += lifetime_increment;
-
-            if (splash.Lifetime > 1f || (Collision.SolidCollision(splash.Position, 1, 1) && splash.Velocity.Y >= 0))
-            {
-                splash.Active = false;
+                bits &= bits - 1;
             }
         }
 
         return;
 
-        static void SplashEffect(Droplet rain)
+        static void SplashEffect(Droplet droplet)
         {
             const int splash_spawn_chance = 3;
             const int ripple_chance = 2;
@@ -445,36 +427,50 @@ public static class Rain
 
             if (Main.rand.NextBool(splash_spawn_chance))
             {
-                var splashVelocity = rain.Velocity;
+                var splashVelocity = droplet.Velocity;
                 splashVelocity.X *= 0.3f;
                 splashVelocity.Y *= 0.8f;
                 splashVelocity *= Main.rand.NextFloat(0.07f, 0.2f);
 
                 splashVelocity = splashVelocity.RotatedByRandom(0.24f);
 
-                SpawnSplash(rain.EndPosition, splashVelocity, rain.Color);
+                CreateSplash(droplet.EndPosition, splashVelocity, droplet.Color);
             }
 
             if (Main.rand.NextBool(ripple_chance))
             {
-                var strength = MathF.Min(rain.Scale * 2.3f, 0.6f);
+                var strength = MathF.Min(droplet.Scale * 2.3f, 0.6f);
 
                 var scale = 1 - MathF.Pow(1 - intensity, 6);
                 scale *= 14f;
 
-                WaterShaderData.QueueRipple(rain.EndPosition, strength, new Vector2(scale), RippleShape.Circle);
+                WaterShaderData.QueueRipple(droplet.EndPosition, strength, new Vector2(scale), RippleShape.Circle);
             }
         }
     }
 
-    private static void SpawnDroplet()
+    private static int GetFirstInactive(ulong[] bitChunks)
     {
-        if (Main.rand.NextBool())
+        for (var i = 0; i < bitChunks.Length; i++)
         {
-            SpawnBackgroundDroplet();
+            var offset = BitOperations.TrailingZeroCount(~bitChunks[i]);
+
+            var allBitsAreOccupied = offset == bits_per_chunk;
+
+            if (allBitsAreOccupied)
+            {
+                continue;
+            }
+
+            return offset + i * bits_per_chunk;
         }
 
-        var index = Array.FindIndex(droplets, m => !m.Active);
+        return -1;
+    }
+
+    private static void CreateDroplet()
+    {
+        var index = GetFirstInactive(rain_mask);
 
         if (index == -1)
         {
@@ -512,7 +508,11 @@ public static class Rain
 
         var color = rainColors[Main.waterStyle];
 
-        droplets[index] = new Droplet(position, endPosition, velocity, color, scale, lifetime, true);
+        rain[index] = new Droplet(position, endPosition, velocity, color, scale, lifetime);
+
+        var chunkIndex = index / bits_per_chunk;
+        var bitIndex = index % bits_per_chunk;
+        rain_mask[chunkIndex] ^= 1uL << bitIndex;
 
         return;
 
@@ -536,9 +536,9 @@ public static class Rain
         }
     }
 
-    private static void SpawnBackgroundDroplet()
+    private static void CreateBackgroundDroplet()
     {
-        var index = Array.FindIndex(background_droplets, m => !m.Active);
+        var index = GetFirstInactive(background_rain_mask);
 
         if (index == -1)
         {
@@ -573,7 +573,12 @@ public static class Rain
         color *= 0.05f;
         color.A = byte.MaxValue;
 
-        background_droplets[index] = new Droplet(position, endPosition, velocity, color, scale, lifetime, true);
+        background_rain[index] = new Droplet(position, endPosition, velocity, color, scale, lifetime);
+
+        var chunkIndex = index / bits_per_chunk;
+        var bitIndex = index % bits_per_chunk;
+        background_rain_mask[chunkIndex] ^= 1uL << bitIndex;
+
     }
 
     private static Vector2 DropletPosition(float top)
@@ -599,9 +604,9 @@ public static class Rain
         return position;
     }
 
-    private static void SpawnSplash(Vector2 position, Vector2 velocity, Color color)
+    private static void CreateSplash(Vector2 position, Vector2 velocity, Color color)
     {
-        var index = Array.FindIndex(splashes, m => !m.Active);
+        var index = GetFirstInactive(splashes_mask);
 
         if (index == -1)
         {
@@ -610,12 +615,67 @@ public static class Rain
 
         velocity.Y = -velocity.Y;
 
-        splashes[index] = new Splash(position + velocity, velocity, color, 0f, true);
+        splashes[index] = new Splash(position + velocity, velocity, color, 0f);
+
+        var chunkIndex = index / bits_per_chunk;
+        var bitIndex = index % bits_per_chunk;
+        background_rain_mask[chunkIndex] ^= 1uL << bitIndex;
+    }
+#endregion
+
+    private static void DoDraw_DrawBackgroundRain(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        c.GotoNext(
+            MoveType.Before,
+            i => i.MatchLdcI4(1),
+            i => i.MatchCall<Main>(nameof(Main.DrawWaters))
+        );
+
+        c.GotoPrev(
+            MoveType.Before,
+            i => i.MatchLdsfld<Main>(nameof(Main.drawToScreen))
+        );
+
+        c.EmitDelegate(
+            static () =>
+            {
+                var sb = Main.spriteBatch;
+
+                using (sb.Scope())
+                {
+                    var backgroundShader = Data.Instance.BackgroundShader;
+
+                    var intensity = Intensity;
+                    var screenPosition = Main.screenPosition;
+
+                    backgroundShader.Parameters.Intensity = intensity;
+
+                    backgroundShader.Parameters.LightOffset = new Vector2(screenPosition.X % 16, screenPosition.Y % 16);
+                    backgroundShader.Parameters.OffscreenTiles = LightingEngine.BufferOffscreenTileRange;
+                    backgroundShader.Parameters.GlobalBrightness = Lighting.GlobalBrightness;
+                    backgroundShader.Parameters.LightMap = new HlslSampler2D
+                    {
+                        Sampler = SamplerState.LinearClamp,
+                        Texture = LightingEngine.TileSpaceBuffer.Target,
+                    };
+
+                    backgroundShader.Apply();
+
+                    sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearWrap, DepthStencilState.None, Main.Rasterizer, backgroundShader.Shader, Main.Transform);
+                    {
+                        DrawRain(sb, false);
+                    }
+                    sb.End();
+                }
+            }
+        );
     }
 
     private static bool ApplyShader(RenderTarget2D screen, RenderTarget2D screenSwap, Color color)
     {
-        if (!droplets.Any(d => d.Active) && !splashes.Any(s => s.Active))
+        if (activeParticles <= 0)
         {
             return false;
         }
@@ -632,57 +692,7 @@ public static class Rain
 
         sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         {
-            var dropletTexture = Assets.Weather.Rain.Droplet.Asset.Value;
-            var dropletOrigin = new Vector2(11, 138);
-
-            var splashTexture = Assets.Weather.Rain.Splash.Asset.Value;
-            var splashOrigin = splashTexture.Size() * 0.5f;
-
-            foreach (var droplet in droplets)
-            {
-                if (!droplet.Active)
-                {
-                    continue;
-                }
-
-                var rotation = Angle.FromVector(droplet.Velocity) - Angle.HalfPi;
-
-                var scale = new Vector2(droplet.Scale);
-                scale.Y *= 1 + (6.5f * intensity);
-
-                scale.X = MathF.Min(scale.X, 0.32f);
-
-                sb.Draw(
-                    new DrawParameters(dropletTexture)
-                    {
-                        Position = droplet.Position - Main.screenPosition,
-                        Color = droplet.Color,
-                        Rotation = rotation,
-                        Scale = scale,
-                        Origin = dropletOrigin,
-                    }
-                );
-            }
-
-            foreach (var splash in splashes)
-            {
-                if (!splash.Active)
-                {
-                    continue;
-                }
-
-                var scale = new Vector2(MathHelper.Lerp(0.4f, 0.9f, MathF.Pow(intensity, 2)));
-
-                sb.Draw(
-                    new DrawParameters(splashTexture)
-                    {
-                        Position = splash.Position - Main.screenPosition,
-                        Color = splash.Color,
-                        Scale = scale,
-                        Origin = splashOrigin,
-                    }
-                );
-            }
+            DrawRain(sb, true);
         }
         sb.End();
 
@@ -746,6 +756,90 @@ public static class Rain
         static bool IsIntegerOdd(float f)
         {
             return (int)f % 2 == 1;
+        }
+    }
+
+    private static void DrawRain(SpriteBatch sb, bool foreground)
+    {
+        var intensity = Intensity;
+
+        var rainParticles = foreground ? rain : background_rain;
+        var mask = foreground ? rain_mask : background_rain_mask;
+
+        var rainTexture = Assets.Weather.Rain.Droplet.Asset.Value;
+        var rainOrigin = new Vector2(11, 138);
+
+        var splashTexture = Assets.Weather.Rain.Splash.Asset.Value;
+        var splashOrigin = splashTexture.Size() * 0.5f;
+
+        var intensityMultiplier = foreground ? 6.5f : 7.5f;
+        var colorMultiplier = foreground ? Color.White : Color.Black;
+
+        for (var i = 0; i < mask.Length; i++)
+        {
+            var bits = mask[i];
+
+            while (bits != 0)
+            {
+                var bitIndex = BitOperations.TrailingZeroCount(bits);
+                var index = i * bits_per_chunk + bitIndex;
+
+                var droplet = rainParticles[index];
+
+                var rotation = Angle.FromVector(droplet.Velocity) - Angle.HalfPi;
+
+                var scale = new Vector2(droplet.Scale);
+                scale.Y *= 1 + (intensityMultiplier * intensity);
+
+                scale.X = MathF.Min(scale.X, 0.27f);
+
+                var color = droplet.Color.MultiplyRGB(colorMultiplier);
+
+                sb.Draw(
+                    new DrawParameters(rainTexture)
+                    {
+                        Position = droplet.Position - Main.screenPosition,
+                        Color = color,
+                        Rotation = rotation,
+                        Scale = scale,
+                        Origin = rainOrigin,
+                    }
+                );
+
+                bits &= bits - 1;
+            }
+        }
+
+        if (!foreground)
+        {
+            return;
+        }
+
+        for (var i = 0; i < splashes_mask.Length; i++)
+        {
+            var bits = splashes_mask[i];
+
+            while (bits != 0)
+            {
+                var bitIndex = BitOperations.TrailingZeroCount(bits);
+                var index = i * bits_per_chunk + bitIndex;
+
+                var splash = splashes[index];
+
+                var scale = new Vector2(MathHelper.Lerp(0.4f, 0.9f, MathF.Pow(intensity, 2)));
+
+                sb.Draw(
+                    new DrawParameters(splashTexture)
+                    {
+                        Position = splash.Position - Main.screenPosition,
+                        Color = splash.Color,
+                        Scale = scale,
+                        Origin = splashOrigin,
+                    }
+                );
+
+                bits &= bits - 1;
+            }
         }
     }
 }
