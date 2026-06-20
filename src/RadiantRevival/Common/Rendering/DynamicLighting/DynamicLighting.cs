@@ -1,7 +1,11 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Daybreak.Common.Features.Hooks;
+using Microsoft.Xna.Framework;
 using MonoMod.Cil;
 using System;
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Terraria;
 using Terraria.DataStructures;
 using Terraria.GameContent;
@@ -10,6 +14,10 @@ using Terraria.GameContent.LeashedEntities;
 using Terraria.Graphics.Light;
 using Terraria.Graphics.Renderers;
 using Terraria.ID;
+using Terraria.ModLoader;
+using Terraria.ModLoader.Default.Developer.Jofairden;
+using Terraria.ModLoader.Default.Patreon;
+using Terraria.ModLoader.UI;
 using BitOperations = System.Numerics.BitOperations;
 
 namespace RadiantRevival.Common;
@@ -56,158 +64,139 @@ public static class DynamicLighting
     private static readonly Light[] lights = new Light[max_lights];
     private static readonly ulong[] lights_mask = new ulong[(int)Math.Ceiling((double)max_lights / bits_per_chunk)];
 
+    private static readonly (Type, string)[] methods_to_rejit =
+    [
+        (typeof(DelegateMethods), nameof(DelegateMethods.CastLight)),
+        (typeof(DelegateMethods), nameof(DelegateMethods.CastLightOpen)),
+        (typeof(DelegateMethods), nameof(DelegateMethods.CastLightOpen_StopForSolids_ScaleWithDistance)),
+        (typeof(DelegateMethods), nameof(DelegateMethods.CastLightOpen_StopForSolids)),
+        (typeof(DelegateMethods), nameof(DelegateMethods.SpreadLightOpen_StopForSolids)),
+        (typeof(Dust), nameof(Dust.UpdateDust)),
+        (typeof(Gore), nameof(Gore.Update)),
+        (typeof(Gore), nameof(Gore.UpdateLightningBunnySparks)),
+        (typeof(Main), nameof(Main.DrawProj_DrawExtras)),
+        (typeof(Mount), nameof(Mount.Hover)),
+        (typeof(Mount), nameof(Mount.UpdateFrame)),
+        (typeof(Mount), nameof(Mount.UpdateEffects)),
+        (typeof(Mount), nameof(Mount.AimAbility)),
+        (typeof(NPC), nameof(NPC.VanillaAI_Inner)),
+        (typeof(NPC), nameof(NPC.AI_065_Butterflies)),
+        (typeof(NPC), nameof(NPC.AI_120_HallowBoss)),
+        (typeof(NPC), nameof(NPC.AI_037_Destroyer)),
+        (typeof(NPC), nameof(NPC.AI_117_BloodNautilus)),
+        (typeof(NPC), nameof(NPC.AI_112_FairyCritter)),
+        (typeof(NPC), nameof(NPC.AI_007_TownEntities)),
+        (typeof(NPC), nameof(NPC.AI_005_EaterOfSouls)),
+        (typeof(NPC), nameof(NPC.AI_002_FloatingEye)),
+        (typeof(NPC), nameof(NPC.AI_003_Fighters)),
+        (typeof(NPC), nameof(NPC.AI_001_Slimes)),
+        (typeof(NPC), nameof(NPC.AI_127_Pal)),
+        (typeof(NPC), nameof(NPC.AI_121_QueenSlime)),
+        (typeof(NPC), nameof(NPC.AI_026_Unicorns)),
+        (typeof(NPC), nameof(NPC.UpdateNPC_UpdateTrails)),
+        (typeof(NPC), nameof(NPC.UpdateNPC_BuffApplyVFX)),
+        (typeof(NPC), nameof(NPC.UpdateNPC_CastLights)),
+        (typeof(Player), nameof(Player.UpdateBuffs)),
+        (typeof(Player), nameof(Player.ApplyEquipFunctional)),
+        (typeof(Player), nameof(Player.Update)),
+        (typeof(Player), nameof(Player.UpdateArmorLights)),
+        (typeof(Player), nameof(Player.PlayerFrame)),
+        (typeof(Player), nameof(Player.DashMovement)),
+        (typeof(Player), nameof(Player.UpdateArmorSetsOld)),
+        (typeof(Player), nameof(Player.WingFrame)),
+        (typeof(Player), nameof(Player.ItemCheck_EmitUseVisuals)),
+        (typeof(Player), nameof(Player.ItemCheck_EmitHeldItemLight)),
+        (typeof(Projectile), nameof(Projectile.ProjLight)),
+        (typeof(Projectile), nameof(Projectile.EmitEnchantmentVisualsAt)),
+        (typeof(Projectile), nameof(Projectile.VanillaAI)),
+        (typeof(Projectile), nameof(Projectile.AI_003_Boomerang)),
+        (typeof(Projectile), nameof(Projectile.AI_001)),
+        (typeof(Projectile), nameof(Projectile.AI_026)),
+        (typeof(Projectile), nameof(Projectile.AI_075)),
+        (typeof(Projectile), nameof(Projectile.AI_205_RemoteControlCar)),
+        (typeof(Projectile), nameof(Projectile.AI_203_StormLightning)),
+        (typeof(Projectile), nameof(Projectile.AI_196_Petal)),
+        (typeof(Projectile), nameof(Projectile.AI_195_JimsDrone)),
+        (typeof(Projectile), nameof(Projectile.AI_191_TrueNightsEdge)),
+        (typeof(Projectile), nameof(Projectile.AI_190_NightsEdge)),
+        (typeof(Projectile), nameof(Projectile.AI_182_FinalFractal)),
+        (typeof(Projectile), nameof(Projectile.AI_167_SparkleGuitar)),
+        (typeof(Projectile), nameof(Projectile.AI_166_Dove)),
+        (typeof(Projectile), nameof(Projectile.AI_165_Whip)),
+        (typeof(Projectile), nameof(Projectile.AI_067_FreakingPirates)),
+        (typeof(Projectile), nameof(Projectile.AI_157_SharpTears)),
+        (typeof(Projectile), nameof(Projectile.AI_007_GrapplingHooks)),
+        (typeof(Projectile), nameof(Projectile.AI_147_Celeb2Rocket)),
+        (typeof(Projectile), nameof(Projectile.AI_130_FlameBurstTower)),
+        (typeof(Projectile), nameof(Projectile.AI_204_Digtoise)),
+        (typeof(Projectile), nameof(Projectile.AI_199_MeteorOre)),
+        (typeof(Projectile), nameof(Projectile.AI_105_SporeSac)),
+        (typeof(Projectile), nameof(Projectile.AI_113_TargetSticker)),
+        (typeof(Projectile), nameof(Projectile.AI_100_Medusa)),
+        (typeof(Projectile), nameof(Projectile.AI_120_StardustGuardian)),
+        (typeof(Projectile), nameof(Projectile.AI_019_Spears)),
+        (typeof(Projectile), nameof(Projectile.AI_138_ExplosiveTrap)),
+        (typeof(Projectile), nameof(Projectile.AI_140_MonkStaffT1)),
+        (typeof(Projectile), nameof(Projectile.AI_142_MonkStaffT2And3)),
+        (typeof(WaterfallManager), nameof(WaterfallManager.AddLight)),
+        (typeof(WorldItem), nameof(WorldItem.UpdateItem)),
+        (typeof(WorldItem), nameof(WorldItem.UpdateItem_VisualEffects)),
+        (typeof(BloodyExplosionParticle), nameof(BloodyExplosionParticle.Update)),
+        (typeof(GasParticle), nameof(GasParticle.Update)),
+        (typeof(PotionOfReturnGateHelper), nameof(PotionOfReturnGateHelper.Update)),
+        (typeof(VoidLensHelper), nameof(VoidLensHelper.Update)),
+        (typeof(FireflyLeashedCritter), nameof(FireflyLeashedCritter.AddLight)),
+        (typeof(HellButterflyLeashedCritter), "VisualEffects"),
+        (typeof(SnailLeashedCritter), "VisualEffects"),
+        (typeof(EmpressButterflyLeashedCritter), "VisualEffects"),
+        (typeof(FairyLeashedCritter), "VisualEffects"),
+        (typeof(TileDrawing), nameof(TileDrawing.DrawTrees)),
+        (typeof(OrianSetEffectPlayer), nameof(OrianSetEffectPlayer.PostUpdate)),
+        (typeof(JofairdenArmorEffectPlayer), nameof(JofairdenArmorEffectPlayer.PostUpdate)),
+        (typeof(ArmorSetBonuses.Benefits), nameof(ArmorSetBonuses.Benefits.Forbidden)),
+        (typeof(ParticleOrchestrator), nameof(ParticleOrchestrator.Spawn_StormLightning)),
+        (typeof(ParticleOrchestrator), nameof(ParticleOrchestrator.Spawn_LeafCrystalShot)),
+        (typeof(ParticleOrchestrator), nameof(ParticleOrchestrator.Spawn_BlueLightningSmall)),
+    ];
+
 #pragma warning disable CA2255
     [ModuleInitializer]
     public static void Initialize()
     {
         // It's never enough.
         IL_Lighting.AddLight_int_int_float_float_float += AddLight_TileCoords;
-        {
-            IL_DelegateMethods.CastLight += _ => { };
-            IL_DelegateMethods.CastLightOpen += _ => { };
-            IL_DelegateMethods.CastLightOpen_StopForSolids_ScaleWithDistance += _ => { };
-            IL_DelegateMethods.CastLightOpen_StopForSolids += _ => { };
-            IL_DelegateMethods.SpreadLightOpen_StopForSolids += _ => { };
-            IL_Dust.UpdateDust += _ => { };
-            IL_Gore.Update += _ => { };
-            IL_Main.DrawProj_DrawExtras += _ => { };
-            IL_Mount.Hover += _ => { };
-            IL_Mount.UpdateFrame += _ => { };
-            IL_Mount.UpdateEffects += _ => { };
-            IL_Mount.AimAbility += _ => { };
-            IL_NPC.VanillaAI_Inner += _ => { };
-            IL_NPC.AI_065_Butterflies += _ => { };
-            IL_NPC.AI_037_Destroyer += _ => { };
-            IL_NPC.AI_005_EaterOfSouls += _ => { };
-            IL_NPC.AI_002_FloatingEye += _ => { };
-            IL_NPC.AI_003_Fighters += _ => { };
-            IL_NPC.AI_001_Slimes += _ => { };
-            IL_NPC.UpdateNPC_UpdateTrails += _ => { };
-            IL_NPC.UpdateNPC_BuffApplyVFX += _ => { };
-            IL_NPC.UpdateNPC_CastLights += _ => { };
-            IL_Player.UpdateBuffs += _ => { };
-            IL_Player.ApplyEquipFunctional += _ => { };
-            IL_Player.Update += _ => { };
-            IL_Player.UpdateArmorLights += _ => { };
-            IL_Player.PlayerFrame += _ => { };
-            IL_Player.ItemCheck_EmitUseVisuals += _ => { };
-            IL_Projectile.ProjLight += _ => { };
-            IL_Projectile.VanillaAI += _ => { };
-            IL_Projectile.AI_003_Boomerang += _ => { };
-            IL_Projectile.AI_001 += _ => { };
-            IL_Projectile.AI_026 += _ => { };
-            IL_Projectile.AI_075 += _ => { };
-            IL_WaterfallManager.AddLight += _ => { };
-            IL_WorldItem.UpdateItem_VisualEffects += _ => { };
-            IL_FireflyLeashedCritter.AddLight += _ => { };
-            IL_HellButterflyLeashedCritter.VisualEffects += _ => { };
-            IL_SnailLeashedCritter.VisualEffects += _ => { };
-            IL_TileDrawing.DrawTrees += _ => { };
-        }
-
         IL_Lighting.AddLight_int_int_int_float += AddLight_TileCoords;
-        {
-            IL_Dust.UpdateDust += _ => { };
-        }
-
         IL_Lighting.AddLight_Vector2_Vector3 += AddLight_WorldCoords_Vector3;
-        {
-            IL_Dust.UpdateDust += _ => { };
-            IL_Mount.UpdateEffects += _ => { };
-            IL_NPC.VanillaAI_Inner += _ => { };
-            IL_NPC.AI_065_Butterflies += _ => { };
-            IL_NPC.AI_120_HallowBoss += _ => { };
-            IL_NPC.AI_117_BloodNautilus += _ => { };
-            IL_NPC.AI_112_FairyCritter += _ => { };
-            IL_NPC.AI_007_TownEntities += _ => { };
-            IL_NPC.AI_003_Fighters += _ => { };
-            IL_Player.DashMovement += _ => { };
-            IL_Player.ItemCheck_EmitUseVisuals += _ => { };
-            IL_Player.ItemCheck_EmitHeldItemLight += _ => { };
-            IL_Projectile.ProjLight += _ => { };
-            IL_Projectile.EmitEnchantmentVisualsAt += _ => { };
-            IL_Projectile.VanillaAI += _ => { };
-            IL_Projectile.AI_205_RemoteControlCar += _ => { };
-            IL_Projectile.AI_203_StormLightning += _ => { };
-            IL_Projectile.AI_196_Petal += _ => { };
-            IL_Projectile.AI_195_JimsDrone += _ => { };
-            IL_Projectile.AI_191_TrueNightsEdge += _ => { };
-            IL_Projectile.AI_190_NightsEdge += _ => { };
-            IL_Projectile.AI_182_FinalFractal += _ => { };
-            IL_Projectile.AI_167_SparkleGuitar += _ => { };
-            IL_Projectile.AI_166_Dove += _ => { };
-            IL_Projectile.AI_165_Whip += _ => { };
-            IL_Projectile.AI_067_FreakingPirates += _ => { };
-            IL_Projectile.AI_157_SharpTears += _ => { };
-            IL_Projectile.AI_007_GrapplingHooks += _ => { };
-            IL_Projectile.AI_147_Celeb2Rocket += _ => { };
-            IL_Projectile.AI_001 += _ => { };
-            IL_Projectile.AI_130_FlameBurstTower += _ => { };
-            IL_WorldItem.UpdateItem_VisualEffects += _ => { };
-            // Terraria.ModLoader.Default.Patreon.OrianSetEffectPlayer.PostUpdate
-            // Terraria.ModLoader.Default.Developer.Jofairden.JofairdenArmorEffectPlayer.PostUpdate
-            IL_EmpressButterflyLeashedCritter.VisualEffects += _ => { };
-            IL_FairyLeashedCritter.VisualEffects += _ => { };
-            IL_ParticleOrchestrator.Spawn_LeafCrystalShot += _ => { };
-            IL_ParticleOrchestrator.Spawn_BlueLightningSmall += _ => { };
-        }
-
         IL_Lighting.AddLight_Vector2_float_float_float += AddLight_WorldCoords_RGB;
-        {
-            IL_Dust.UpdateDust += _ => { };
-            IL_Gore.UpdateLightningBunnySparks += _ => { };
-            IL_Gore.Update += _ => { };
-            IL_Main.DrawProj_DrawExtras += _ => { };
-            IL_Mount.UpdateFrame += _ => { };
-            IL_Mount.UpdateEffects += _ => { };
-            IL_NPC.VanillaAI_Inner += _ => { };
-            IL_NPC.AI_127_Pal += _ => { };
-            IL_NPC.AI_121_QueenSlime += _ => { };
-            IL_NPC.AI_007_TownEntities += _ => { };
-            IL_NPC.AI_003_Fighters += _ => { };
-            IL_NPC.AI_001_Slimes += _ => { };
-            IL_NPC.AI_026_Unicorns += _ => { };
-            IL_NPC.UpdateNPC_CastLights += _ => { };
-            IL_Player.UpdateArmorSetsOld += _ => { };
-            IL_Player.WingFrame += _ => { };
-            IL_Player.ItemCheck_EmitHeldItemLight += _ => { };
-            IL_Projectile.VanillaAI += _ => { };
-            IL_Projectile.AI_204_Digtoise += _ => { };
-            IL_Projectile.AI_199_MeteorOre += _ => { };
-            IL_Projectile.AI_105_SporeSac += _ => { };
-            IL_Projectile.AI_113_TargetSticker += _ => { };
-            IL_Projectile.AI_100_Medusa += _ => { };
-            IL_Projectile.AI_120_StardustGuardian += _ => { };
-            IL_Projectile.AI_019_Spears += _ => { };
-            IL_Projectile.AI_067_FreakingPirates += _ => { };
-            IL_Projectile.AI_007_GrapplingHooks += _ => { };
-            IL_Projectile.AI_001 += _ => { };
-            IL_Projectile.AI_026 += _ => { };
-            IL_Projectile.AI_062 += _ => { };
-            IL_Projectile.AI_075 += _ => { };
-            IL_Projectile.AI_138_ExplosiveTrap += _ => { };
-            IL_Projectile.AI_140_MonkStaffT1 += _ => { };
-            IL_Projectile.AI_142_MonkStaffT2And3 += _ => { };
-            IL_WorldItem.UpdateItem += _ => { };
-            IL_WorldItem.UpdateItem_VisualEffects += _ => { };
-            IL_BloodyExplosionParticle.Update += _ => { };
-            IL_GasParticle.Update += _ => { };
-            IL_PotionOfReturnGateHelper.Update += _ => { };
-            IL_VoidLensHelper.Update += _ => { };
-            IL_ParticleOrchestrator.Spawn_StormLightning += _ => { };
-            IL_ArmorSetBonuses.Benefits.Forbidden += _ => { };
-            IL_FireflyLeashedCritter.AddLight += _ => { };
-        }
-
         IL_Lighting.AddLight_Vector2_int += AddLight_WorldCoords_Torch;
-        {
-            IL_NPC.AI_001_Slimes += _ => { };
-            IL_WorldItem.UpdateItem_VisualEffects += _ => { };
-        }
 
         IL_Main.DoDraw += DoDraw_DrawDynamicLights;
     }
 #pragma warning restore CA2255
+
+    [OnLoad]
+    private static void Load()
+    {
+        Parallel.ForEach(
+            methods_to_rejit,
+            static value =>
+            {
+                var (type, name) = value;
+
+                Interface.loadMods.SubProgressText = $"{type}::{name}";
+
+                MonoModHooks.Modify(
+                    type.GetMethod(
+                        name,
+                        BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
+                    ),
+                    _ => { }
+                );
+            }
+        );
+
+        Interface.loadMods.SubProgressText = string.Empty;
+    }
 
     private static void DoDraw_DrawDynamicLights(ILContext il)
     {
