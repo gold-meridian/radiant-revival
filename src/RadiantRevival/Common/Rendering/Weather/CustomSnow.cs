@@ -9,6 +9,8 @@ using System;
 using System.Runtime.InteropServices;
 using Terraria;
 using Terraria.GameContent;
+using Terraria.GameContent.Skies;
+using Terraria.Graphics.Effects;
 using Terraria.ModLoader;
 using BitOperations = System.Numerics.BitOperations;
 
@@ -398,6 +400,10 @@ public static class CustomSnow
         if (activeSnowflakeCount <= 0)
             return;
 
+        var skyOpacity = 0f;
+        if (SkyManager.Instance["Aurora"] is AuroraSky { _opacity: var opacity })
+            skyOpacity = opacity;
+
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.GameViewMatrix.EffectMatrix);
 
         var shader = Assets.Weather.Snow.SnowflakeReflectionShader.CreateAutoloadPass();
@@ -426,7 +432,7 @@ public static class CustomSnow
             Texture = Data.Instance.SnowflakePositionTarget.Target,
             Sampler = SamplerState.LinearClamp
         };
-        shader.Parameters.reflectivityInterpolant = 0.72f;
+        shader.Parameters.reflectivityInterpolant = skyOpacity * 0.72f;
         shader.Parameters.renderOnlyForeground = foreground;
         shader.Parameters.zoom = Main.GameViewMatrix.Zoom;
         shader.Apply();
