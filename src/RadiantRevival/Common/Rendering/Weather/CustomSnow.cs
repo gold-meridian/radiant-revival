@@ -272,14 +272,14 @@ public static class CustomSnow
                 // needs to restore honor to its ancestors and die.
                 if (snowflake.KillIfNecessary())
                     activity_bit_chunks[i] ^= 1uL << bitIndex;
-                else
-                    activeSnowflakeCount++;
 
                 // Clear the lowest set bit, gradually
                 // whittling down until all active snowflakes
                 // are accounted for.
                 bits &= bits - 1;
             }
+
+            activeSnowflakeCount += BitOperations.PopCount(activity_bit_chunks[i]);
         }
     }
 
