@@ -7,13 +7,11 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
 using System;
-using System.Linq;
 using Terraria;
 using Terraria.GameContent;
 using Terraria.GameContent.Shaders;
 using Terraria.Graphics.Effects;
 using Terraria.ModLoader;
-using static RadiantRevival.Core.AssetReferences.Assets.Weather.Rain;
 using BitOperations = System.Numerics.BitOperations;
 
 namespace RadiantRevival.Common;
