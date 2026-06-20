@@ -219,6 +219,7 @@ public static class CustomSnow
 
     private static void CreateSnowParticles(On_Main.orig_snowing orig)
     {
+        Main.windSpeedTarget = -0.85f;
         if (Main.remixWorld)
             return;
 
@@ -226,7 +227,7 @@ public static class CustomSnow
             return;
 
         var snowfallIntensity = MathF.Pow(Main.SceneMetrics.SnowTileCount / (float)SceneMetrics.SnowTileMax, 2.4f);
-        var particleCount = (int)MathF.Round(snowfallIntensity * 3f + MathF.Abs(Main.windSpeedCurrent) * 7f + Main.cloudAlpha * 8f) + 2;
+        var particleCount = (int)MathF.Round(snowfallIntensity * 2f + MathF.Abs(Main.windSpeedCurrent) * 7f + Main.cloudAlpha * 8f) + 1;
         var screenTop = new Vector3(Main.screenPosition + new Vector2(Main.screenWidth * 0.5f - Main.windSpeedCurrent * 900f, 0f), 0f);
         for (var i = 0; i < particleCount; i++)
         {
@@ -235,10 +236,13 @@ public static class CustomSnow
             var z = Main.rand.NextFloat(325f, 700f);
             var spawnPosition = screenTop + new Vector3(dx, dy, z);
             var scale = Main.rand.NextFloat(2f, 4f);
+            scale *= Utils.Remap(MathF.Abs(Main.windSpeedCurrent), 0f, 0.25f, 0.66f, 1f);
+
             var velocity = new Vector3(Main.rand.NextFloatDirection() * 1.6f, Main.rand.NextFloat(1f, 1.5f), Main.rand.NextFloatDirection() * 2.5f) / scale * 8f;
             velocity.X += Main.windSpeedCurrent * Main.rand.NextFloat(23.5f, 39.5f);
             velocity.Y += MathF.Abs(Main.windSpeedCurrent) * Main.rand.NextFloat(25f);
             velocity.Z *= Utils.GetLerpValue(0.25f, 0.65f, MathF.Abs(Main.windSpeedCurrent), true);
+            velocity *= Utils.Remap(MathF.Abs(Main.windSpeedCurrent), 0f, 0.25f, 0.5f, 1f);
 
             var rotation = Quaternion.CreateFromYawPitchRoll(Main.rand.NextFloat(MathF.Tau), Main.rand.NextFloat(MathF.Tau), Main.rand.NextFloat(MathF.Tau));
             var lifetime = (int)(scale * 50f) + Main.rand.Next(40, 75);
