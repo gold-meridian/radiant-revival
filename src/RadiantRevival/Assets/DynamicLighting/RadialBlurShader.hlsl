@@ -33,7 +33,7 @@ float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : 
     
     float size = baseColor.a;
     
-    float2 dtc = (diff / SampleCount);
+    float2 dtc = (normalize(diff) / SampleCount) / SampleCount;
     
     float occ = 0;
     
@@ -42,18 +42,27 @@ float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : 
     [unroll(16)]
     for (int i = 0; i < SampleCount; i++)
     {
-        offset += dtc;
+        /*if (length(offset) > length(diff))
+        {
+            occ += SampleCount - i;
+            
+            break;
+        }*/
         
         float light = tex2D(LightTexture, textureUv + offset).r;
         
-        float2 tileUv = UvToScreenSpace(svPos, textureUv, textureUv + offset) / ViewportSize;
+        float2 tileUv = textureUv + (offset / (ViewportSize / max(ViewportSize.y, ViewportSize.x)));
+        
+        tileUv = UvToScreenSpace(svPos, textureUv, tileUv) / ViewportSize;
     
-        occ += (light - (tex2D(TileTexture, tileUv).a * TileOcclusionStrength));
+        occ += (1 - (tex2D(TileTexture, tileUv).a * TileOcclusionStrength));
+        
+        offset += dtc;
     }
     
     occ /= SampleCount;
     
-    return occ * (1-length(diff));
+    return abs(occ);  // (1 - length(diff));
     
     float4 color = 0;
     

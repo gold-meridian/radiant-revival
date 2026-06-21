@@ -453,9 +453,9 @@ public static class DynamicLighting
 
         using (LightTarget.Scope(clearColor: Color.Transparent))
         {
-            radialBlurShader.Parameters.SampleCount = 8;
+            radialBlurShader.Parameters.SampleCount = 16;
             radialBlurShader.Parameters.DecayMult = 0.99f;
-            radialBlurShader.Parameters.TileOcclusionStrength = 0.7f;
+            radialBlurShader.Parameters.TileOcclusionStrength = 1f;
 
             radialBlurShader.Parameters.TileTexture = new HlslSampler2D
             {
