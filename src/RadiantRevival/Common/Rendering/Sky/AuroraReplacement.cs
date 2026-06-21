@@ -3,6 +3,7 @@ using Daybreak.Common.Mathematics;
 using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using MonoMod.Cil;
 using RadiantRevival.Core;
 using System;
 using Terraria;
@@ -26,6 +27,7 @@ public static class AuroraReplacement
     {
         On_AuroraSky.DrawAuroraSky += ReplaceAurora;
         On_AuroraSky.Update += MakeFadeoutSlower;
+        IL_Main.DrawSurfaceBG += RemoveHallowRainbow;
     }
 
     private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
@@ -114,6 +116,24 @@ public static class AuroraReplacement
             const float new_fadeout_rate = 0.18f;
             self._opacity += (float)(gameTime.ElapsedGameTime.TotalSeconds * (base_fadeout_rate - new_fadeout_rate));
         }
+    }
+
+    private static void RemoveHallowRainbow(ILContext il)
+    {
+        var c = new ILCursor(il);
+        c.GotoNext(i => i.MatchLdcI4(18),
+                   i => i.MatchCallOrCallvirt<Main>(nameof(Main.LoadBackground)));
+
+        c.GotoNext(MoveType.After, i => i.MatchLdfld<Main>(nameof(Main.bgLoops)));
+        c.EmitDelegate((int originalLoopCount) =>
+        {
+            // Is there an aurora? Well then the rainbow
+            // has gotta GO! DIE! IT LOOKS SO BAD!!!
+            if (SkyManager.Instance["Aurora"] is AuroraSky { _opacity: var opacity } && opacity > 0f)
+                return 0;
+
+            return originalLoopCount;
+        });
     }
 
     [ModSystemHooks.ModifySunLightColor]
