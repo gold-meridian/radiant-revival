@@ -398,12 +398,14 @@ public static class AtmosphereCloudRenderingSystem
                 b.X, b.Y, b.Z, 0f,
                 0f, 0f, 0f, 1f);
 
+            var depth = Main.gameMenu ? 1485f : 3000f;
+
             var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
             shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
             shader.Parameters.zoom = Vector2.One;
             shader.Parameters.screenPosition = ScreenPosition;
             shader.Parameters.screenSize = FixedScreenSize;
-            shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, 3000f) * 16f;
+            shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, depth) * 16f;
             shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
             shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
             shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
