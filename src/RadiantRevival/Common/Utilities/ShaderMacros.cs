@@ -16,4 +16,6 @@ internal static class ShaderMacros
 
         return new Vector2(tex.Width, tex.Height);
     }
+
+    public static Vector2 ViewportSize => Main.graphics.GraphicsDevice.Viewport.Bounds.Size();
 }

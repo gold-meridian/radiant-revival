@@ -1,4 +1,4 @@
-#ifndef TMLBUILD_HLSL
+﻿#ifndef TMLBUILD_HLSL
 #define TMLBUILD_HLSL
 
 #include "syntax.h"
