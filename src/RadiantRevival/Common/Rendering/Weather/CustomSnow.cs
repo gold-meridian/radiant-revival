@@ -392,9 +392,12 @@ public static class CustomSnow
         };
         shader.Apply();
 
+        var previousRasterizer = gd.RasterizerState;
+        gd.RasterizerState = RasterizerState.CullNone;
         gd.Indices = Data.Instance.Indices;
         gd.SetVertexBuffer(Data.Instance.Vertices);
         gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, activeSnowflakeCount * 4, 0, activeSnowflakeCount * 2);
+        gd.RasterizerState = previousRasterizer;
 
         gd.SetRenderTargets(previousBindings);
     }
