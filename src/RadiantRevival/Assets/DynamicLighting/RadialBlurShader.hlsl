@@ -18,55 +18,61 @@ float Map(float value, float start1, float stop1, float start2, float stop2)
     return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
 }
 
-float2 UvToScreenSpace(float2 svPos, float2 textureUv, float2 uv)
+float2 LightUvToTileUv(float2 svPos, float2 textureUv, float2 uv)
 {
     float2 topLeft = svPos - (textureUv * LightTextureSize);
 
-    return topLeft + (uv * LightTextureSize);
+    return (topLeft + (uv * LightTextureSize)) / ViewportSize;
 }
 
 float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
 {
     const float2 light_position = 0.5;
 
-    float2 diff = (light_position - textureUv);
+    float2 diff = light_position - textureUv;
     
-    float size = baseColor.a;
+    int samples = max(SampleCount, 4);
     
-    float2 dtc = (normalize(diff) / SampleCount) / SampleCount;
+    float2 dtc = normalize(diff) / samples;
+    dtc *= 0.1;
     
-    float occ = 0;
+    float4 accumulated = 0;
     
     float2 offset = 0;
     
-    [unroll(16)]
-    for (int i = 0; i < SampleCount; i++)
+    [unroll(32)]
+    for (int i = 0; i < samples; i++)
     {
-        /*if (length(offset) > length(diff))
-        {
-            occ += SampleCount - i;
-            
-            break;
-        }*/
-        
-        float light = tex2D(LightTexture, textureUv + offset).r;
-        
-        float2 tileUv = textureUv + (offset / (ViewportSize / max(ViewportSize.y, ViewportSize.x)));
-        
-        tileUv = UvToScreenSpace(svPos, textureUv, tileUv) / ViewportSize;
+        bool pastCenter = length(offset) > length(diff * 0.5f);
     
-        occ += (1 - (tex2D(TileTexture, tileUv).a * TileOcclusionStrength));
+        float light = pastCenter
+          ? 1
+          : tex2D(LightTexture, textureUv + offset).r;
+          
+        float2 tileUv = textureUv + (offset / (ViewportSize / max(ViewportSize.y, ViewportSize.x)));
+        tileUv = LightUvToTileUv(svPos, textureUv, pastCenter ? 0.5 : tileUv);
         
-        offset += dtc;
+        float occ = tex2D(TileTexture, tileUv).a;
+        
+        if (!pastCenter)
+        {
+            light -= occ;
+        }
+    
+        accumulated += light;
+    
+        if (!pastCenter)
+        {
+            offset += dtc * (1 - (occ * TileOcclusionStrength));
+        }
     }
     
-    occ /= SampleCount;
+    accumulated /= samples;
     
-    return abs(occ);  // (1 - length(diff));
+    return accumulated;
     
     float4 color = 0;
-    
-    color.rgb = baseColor.rgb * occ;
+    color.rgb = baseColor.rgb * accumulated * baseColor.a;
     color.a = 0;
     
     return color;
