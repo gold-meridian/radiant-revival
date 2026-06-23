@@ -19,17 +19,31 @@ internal sealed class TomatTag : Daybreak.Content.Authorship.TomatTag;
 
 internal sealed class ZoeyTag : CommonAuthorTag
 {
-    private static readonly Color glow_color = new(179, 133, 255);
+    private static readonly Color glow_color = new(255, 0, 0);
 
-    public override void DrawIcon(SpriteBatch spriteBatch, Vector2 position)
+    public override void DrawIcon(SpriteBatch sb, Vector2 position)
     {
-        var glowPosition = new Vector2(position.X, position.Y - 2);
-        var glowColor = glow_color * MathF.Sin(Main.GlobalTimeWrappedHourly);
-        {
-            spriteBatch.Draw(Assets.Authorship.Zoey_Glow.Asset.Value, glowPosition, glowColor);
-        }
+        var fade = MathF.Sin(Main.GlobalTimeWrappedHourly);
 
-        base.DrawIcon(spriteBatch, position);
+        var frame = new Rectangle((int)position.X, (int)position.Y - 2, 26, 26);
+
+        var color = Color.White * (1 - fade);
+        color.A = byte.MaxValue;
+
+        sb.Draw(
+            Assets.Authorship.Zoey.Asset.Value,
+            frame,
+            color
+        );
+
+        var glowColor = glow_color * (1 - MathF.Pow(1 - fade, 3f));
+        {
+            sb.Draw(
+                Assets.Authorship.Zoey_Glow.Asset.Value,
+                frame,
+                glowColor
+            );
+        }
     }
 }
 
@@ -90,3 +104,5 @@ internal sealed class LucilleTag : CommonAuthorTag
         // base.DrawIcon(spriteBatch, position);
     }
 }
+
+internal sealed class IncattusTag : CommonAuthorTag;

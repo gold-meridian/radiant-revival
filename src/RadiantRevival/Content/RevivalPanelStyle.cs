@@ -159,7 +159,9 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             SetText(string.Empty);
 
             Assets.UI.ModPanel.NokiaCellphoneFC.Asset.Wait();
+
             Assets.UI.ModPanel.ModName.Asset.Wait();
+            Assets.UI.ModPanel.ModName_Hover.Asset.Wait();
 
             const float offset = 6f;
 
@@ -475,7 +477,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         element.left2ndLine = priorLeft2ndLine + offset;
 
         // Technically irrelevant
-        element._translationModIcon?.Left.Pixels = element._uiModStateText.Left.Pixels + element._uiModStateText.Width.Pixels + 5f + element.left2ndLine;
+        element._translationModIcon?.Left.Pixels = element._uiModStateText.Left.Pixels + element._uiModStateText.Width.Pixels + 5f + element.left2ndLine - 28f;
     }
 
     public override void PostInitialize(UIModItem element)
@@ -502,6 +504,9 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         {
             element._modReferenceIcon.Left.Pixels -= 1;
             element._modReferenceIcon.Top.Pixels -= 4;
+
+            element._modReferenceIcon.Width.Pixels = 30;
+            element._modReferenceIcon.Height.Pixels = 30;
         }
 
         element._uiModStateText.PaddingLeft = element._uiModStateText.PaddingRight = 14f;
