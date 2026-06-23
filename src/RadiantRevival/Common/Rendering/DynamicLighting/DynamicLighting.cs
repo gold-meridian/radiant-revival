@@ -451,7 +451,7 @@ public static class DynamicLighting
             sb.End();
         }
 
-        using (LightTarget.Scope(clearColor: Color.Black))
+        using (LightTarget.Scope(clearColor: Color.Transparent))
         {
             radialBlurShader.Parameters.SampleCount = 16;
             radialBlurShader.Parameters.DecayMult = 0.99f;

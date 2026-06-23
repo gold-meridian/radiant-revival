@@ -34,7 +34,7 @@ float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : 
     int samples = max(SampleCount, 4);
     
     float2 dtc = normalize(diff) / samples;
-    dtc *= 0.1;
+    dtc *= 0.04;
     
     float4 accumulated = 0;
     
@@ -43,7 +43,7 @@ float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : 
     [unroll(32)]
     for (int i = 0; i < samples; i++)
     {
-        bool pastCenter = length(offset) > length(diff * 0.5f);
+        bool pastCenter = length(offset) > length(diff) * 0.1f;
     
         float light = pastCenter
           ? 1
