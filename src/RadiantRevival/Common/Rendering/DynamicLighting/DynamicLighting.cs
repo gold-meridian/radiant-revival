@@ -443,8 +443,17 @@ public static class DynamicLighting
         {
             sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointWrap, DepthStencilState.None, RasterizerState.CullNone);
             {
-                var position = Main.tileTarget.Position - Main.screenPosition;
+                var tilePos = Main.tileTarget.Position;
+
+                var position = tilePos - Main.screenPosition;
                 position *= 0.5f;
+
+                var tileOffset = new Vector2(
+                    IsIntegerOdd(tilePos.X) ? -0.25f : 0,
+                    IsIntegerOdd(tilePos.Y) ? -0.25f : 0
+                );
+
+                position += tileOffset;
 
                 sb.Draw(Main.tileTarget.Texture, position, null, Color.White, 0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
             }
@@ -455,7 +464,7 @@ public static class DynamicLighting
         {
             radialBlurShader.Parameters.SampleCount = 16;
             radialBlurShader.Parameters.DecayMult = 0.99f;
-            radialBlurShader.Parameters.TileOcclusionStrength = 1f;
+            radialBlurShader.Parameters.TileOcclusionStrength = 0.5f;
 
             radialBlurShader.Parameters.TileTexture = new HlslSampler2D
             {
@@ -478,6 +487,11 @@ public static class DynamicLighting
         }
 
         return;
+
+        static bool IsIntegerOdd(float f)
+        {
+            return (int)f % 2 == 1;
+        }
 
         void DrawLights()
         {

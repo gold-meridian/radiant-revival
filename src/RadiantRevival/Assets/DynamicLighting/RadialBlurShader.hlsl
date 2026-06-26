@@ -27,6 +27,8 @@ float2 LightUvToTileUv(float2 svPos, float2 textureUv, float2 uv)
 
 float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
 {
+    const float magic_number = 0.1;
+    
     const float2 light_position = 0.5;
 
     float2 diff = light_position - textureUv;
@@ -34,22 +36,24 @@ float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : 
     int samples = max(SampleCount, 4);
     
     float2 dtc = normalize(diff) / samples;
-    dtc *= 0.04;
+    dtc *= magic_number * baseColor.a;
     
-    float4 accumulated = 0;
+    float accumulated = 0;
     
     float2 offset = 0;
     
     [unroll(32)]
     for (int i = 0; i < samples; i++)
     {
-        bool pastCenter = length(offset) > length(diff) * 0.1f;
+        bool pastCenter = length(offset) > (length(diff) * magic_number * baseColor.a);
     
         float light = pastCenter
           ? 1
           : tex2D(LightTexture, textureUv + offset).r;
           
-        float2 tileUv = textureUv + (offset / (ViewportSize / max(ViewportSize.y, ViewportSize.x)));
+        light = 1;
+          
+        float2 tileUv = textureUv + offset;
         tileUv = LightUvToTileUv(svPos, textureUv, pastCenter ? 0.5 : tileUv);
         
         float occ = tex2D(TileTexture, tileUv).a;
@@ -69,11 +73,8 @@ float4 RadialBlurShaderFragment(float2 svPos : SV_POSITION0, float2 textureUv : 
     
     accumulated /= samples;
     
-    return accumulated;
-    
-    float4 color = 0;
-    color.rgb = baseColor.rgb * accumulated * baseColor.a;
-    color.a = 0;
+    float4 color = baseColor;
+    color.rgb *= accumulated * color.a * (1 - length(diff * 2));
     
     return color;
 }
