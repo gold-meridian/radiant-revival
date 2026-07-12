@@ -373,13 +373,19 @@ public static class AtmosphereCloudRenderingSystem
     /// <param name="sunMoonWorldPosition">The world position of the sun/moon, depending on whichever is active currently.</param>
     private static void RenderSkyGradient(SkyProfile profile, Vector2 sunMoonWorldPosition)
     {
+        const float day_length = (float)Main.dayLength;
+
+        const float dawn_time = 9200f / day_length;
+        const float dusk_start_time = 33000f / day_length;
+
         atmosphereLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
         using (atmosphereLease.Scope(clearColor: Color.Transparent))
         {
             using var _ = Main.spriteBatch.Scope();
             Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
 
-            var darkeningFactor = Utils.GetLerpValue(0f, 0.06f, DayProgress, true) * Utils.GetLerpValue(1f, 0.94f, DayProgress, true);
+            var darkeningFactor = Utils.GetLerpValue(0f, dawn_time, DayProgress, true) * Utils.GetLerpValue(1f, dusk_start_time, DayProgress, true);
+            darkeningFactor = MathF.Pow(darkeningFactor, 1.5f);
 
             var wavelengthNanometers = profile.ColorWavelengthsNanometers;
             var wavelengthMeters = wavelengthNanometers * 1e-9f;

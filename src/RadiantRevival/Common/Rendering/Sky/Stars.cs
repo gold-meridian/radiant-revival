@@ -167,7 +167,7 @@ public static class Stars
 
             if (time < dawn_time)
             {
-                alpha = 1f - time / dawn_time;
+                alpha = 1f - (time / dawn_time);
             }
             else if (time > dusk_start_time)
             {
@@ -177,7 +177,7 @@ public static class Stars
 
         alpha += Main.shimmerAlpha;
 
-        alpha *= 1f - Main.GraveyardVisualIntensity * graveyard_alpha;
+        alpha *= 1f - (Main.GraveyardVisualIntensity * graveyard_alpha);
 
         var atmosphericBoost = MathF.Pow(1f - Main.atmo, 3) * atmo_multiplier;
 
