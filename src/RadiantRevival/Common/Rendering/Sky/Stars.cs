@@ -152,7 +152,7 @@ public static class Stars
     {
         const float dawn_time = 7700f;
         const float dusk_start_time = 41000f;
-        const float day_length = 54000f;
+        const float day_length = (float)Main.dayLength;
 
         const float graveyard_alpha = 1.4f;
         const float atmo_multiplier = 1.13f;
