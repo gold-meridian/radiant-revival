@@ -1,7 +1,7 @@
 ﻿#include "../common.h"
 
 sampler2D TileTexture : register(s0);
-sampler2D SourceTexture : register(s1);
+sampler2D UnpaintedTexture : register(s1);
 
 #define EPSILON (1e-10)
 
@@ -12,6 +12,11 @@ float MinHue;
 float MaxHue;
 
 float4 LightColor;
+float2 LightPosition;
+
+float4 Source;
+
+SCREEN_SIZE(ScreenSize)
 
 float3 RGBtoHCV(float3 color)
 {
@@ -40,26 +45,41 @@ float3 RGBtoHSL(float3 color)
     return float3(hcv.x, s, l);
 }
 
-float4 NatureLightingShaderFragment(float2 textureUv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
+float Map(float value, float start1, float stop1, float start2, float stop2)
 {
-    const float hue_leniance = 0.0;
-    const float saturation_leniance = 0.0;
+    value = clamp(value, start1, stop1);
+    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+}
 
+float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv : TEXCOORD0, float4 baseColor : COLOR0) : COLOR0
+{
     float4 base = tex2D(TileTexture, textureUv) * baseColor;
     
-    float4 source = tex2D(TileTexture, textureUv);
+    float4 unpainted = tex2D(UnpaintedTexture, textureUv);
     
-    float3 hsl = RGBtoHSL(source.rgb);
+    float3 hsl = RGBtoHSL(unpainted.rgb);
     
     bool inRange =
-        hsl.x > max(MinHue - hue_leniance, 0) && hsl.x < min(MaxHue + hue_leniance, 1)
-     && hsl.y > max(MinSat - saturation_leniance, 0) && hsl.y < min(MaxSat + saturation_leniance, 1);
+        hsl.x > MinHue && hsl.x < MaxHue
+     && hsl.y > MinSat && hsl.y < MaxSat;
     
-    float lightness = (hsl.z - 0.2) * 2.3;
+    float lightness = (hsl.z - 0.2) * 1.5;
     
-    lightness = pow(1 - lightness, 6) * 0.7;
+    lightness = 1 - lightness;
     
-    float4 light = LightColor * lightness * inRange * base.a;
+    float2 lightDir = (Source.zw - LightPosition) / ScreenSize;
+    
+    float2 lightUv = (svPos - Source.zw) / Source.xy;
+    lightUv -= 0.5;
+    
+    lightUv *= 2;
+    
+    float lightFactor = 1 - saturate(dot(normalize(lightDir), normalize(lightUv)) * length(lightUv));
+    lightness *= lightFactor;
+    
+    lightness = pow(lightness, 7);
+    
+    float4 light = LightColor * saturate(lightness) * inRange * unpainted.a * LightColor.a;
     
     return base + light;
 }

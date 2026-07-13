@@ -5,12 +5,14 @@ using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Terraria;
 using Terraria.DataStructures;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
+using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
@@ -115,6 +117,14 @@ public static class NatureLighting
 
     private static Texture2D GetTileDrawTexture_GetBaseTexture(On_TileDrawing.orig_GetTileDrawTexture_TileVariationkey orig, TileDrawing self, TilePaintSystemV2.TileVariationkey key)
     {
+        // Exclude vines as they don't play nicely with this effect.
+        if (TileID.Sets.IsVine[key.TileType]
+         || TileID.Sets.VineThreads[key.TileType]
+         || TileID.Sets.ReverseVineThreads[key.TileType])
+        {
+            return orig(self, key);
+        }
+
         baseTexture = TextureAssets.Tile[key.TileType].Value;
 
         return orig(self, key);
@@ -144,6 +154,36 @@ public static class NatureLighting
 
         var effect = Data.Instance.NatureLightingShader;
 
+        HorizonHelper.GetCelestialBodyColors(out var sunColor, out var _);
+
+        sunColor = sunColor.MultiplyRGB(Color.Khaki);
+
+        NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
+
+        var color = sunColor;
+
+        var num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
+
+        color *= num;
+
+        if (color is not { R: > 0, G: > 0, B: > 0 })
+        {
+            return;
+        }
+
+        var skyColor = Main.ColorOfTheSkies;
+
+        var screenSize = new Vector2(Main.screenWidth, Main.screenHeight);
+
+        var lightPosition = Main.LastCelestialBodyPosition * screenSize;
+
+        if (Main.GameViewMatrix.Effects.HasFlag(SpriteEffects.FlipVertically))
+        {
+            lightPosition.Y = screenSize.Y - lightPosition.Y;
+        }
+
+        lightPosition = lightPosition.Transform(Matrix.Invert(Main.Transform));
+
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
         {
             foreach (var (drawData, unpainted, treeSettings, ignoreLighting) in data)
@@ -158,7 +198,7 @@ public static class NatureLighting
                     continue;
                 }
 
-                effect.Parameters.SourceTexture = new HlslSampler2D
+                effect.Parameters.UnpaintedTexture = new HlslSampler2D
                 {
                     Sampler = SamplerState.PointClamp,
                     Texture = unpainted,
@@ -169,6 +209,21 @@ public static class NatureLighting
 
                 effect.Parameters.MinHue = treeSettings?.SpecialGroupMinimalHueValue ?? 0;
                 effect.Parameters.MaxHue = treeSettings?.SpecialGroupMaximumHueValue ?? 1;
+
+                var lightColor = drawData.Color;
+
+                var lightness = MathF.Min(lightColor.Lightness / skyColor.Lightness, 1f);
+                lightness *= Utils.Remap(lightColor.Lightness, skyColor.Lightness, 1f, 1f, 0.5f);
+
+                lightColor = color * lightness;
+
+                effect.Parameters.LightColor = lightColor.ToVector4();
+
+                effect.Parameters.LightPosition = lightPosition;
+
+                var position = drawData.Position - drawData.Origin;
+
+                effect.Parameters.Source = new Vector4(drawData.Size, position.X, position.Y);
 
                 effect.Apply();
 
