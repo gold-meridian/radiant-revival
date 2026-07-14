@@ -327,6 +327,16 @@ public static class NatureLighting
             lightPosition.Y = screenSize.Y - lightPosition.Y;
         }
 
+        if (Main.screenPosition.Y >= Main.worldSurface * 16.0 + 16.0
+         || !Main.ShouldDrawSurfaceBackground()
+         || !Main.HorizonHelper.SunVisibilityEnabled
+         || !Main.ForegroundSunlightEffects)
+        {
+            SimpleDraw();
+
+            return;
+        }
+
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
         {
             foreach (var (drawData, unpainted, treeSettings, contrast, ignoreLighting) in data)
@@ -403,6 +413,22 @@ public static class NatureLighting
             }
         }
         sb.End();
+
+        return;
+
+        void SimpleDraw()
+        {
+            sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
+            {
+                foreach (var (drawData, unpainted, treeSettings, contrast, ignoreLighting) in data)
+                {
+                    sb.spriteEffect.CurrentTechnique.Passes[0].Apply();
+
+                    sb.Draw(drawData);
+                }
+            }
+            sb.End();
+        }
     }
 }
 

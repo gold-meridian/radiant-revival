@@ -48,6 +48,11 @@ public static class Godrays
         }
     }
 
+    private static bool ShouldDraw => Main.screenPosition.Y < Main.worldSurface * 16.0 + 16.0
+                                   && Main.ShouldDrawSurfaceBackground()
+                                   && Main.HorizonHelper.SunVisibilityEnabled
+                                   && Main.ForegroundSunlightEffects;
+
     private static RenderTargetLease CelestialBodyTarget => Data.Instance.CelestialBodyTarget;
 
     [OnLoad]
@@ -68,7 +73,7 @@ public static class Godrays
         c.EmitDelegate(
             static (ref RenderTargetScope? scope) =>
             {
-                if (!Main.dayTime || !Main.ForegroundSunlightEffects || Main.screenTarget is null)
+                if (!Main.dayTime || !ShouldDraw || Main.screenTarget is null)
                 {
                     return;
                 }
@@ -121,7 +126,7 @@ public static class Godrays
 
     private static void DrawLensFlare_Godrays(On_Main.orig_DrawLensFlare orig)
     {
-        if (!Main.dayTime || !Main.ForegroundSunlightEffects || Main.screenTarget is null)
+        if (!Main.dayTime || !ShouldDraw || Main.screenTarget is null)
         {
             orig();
             return;
