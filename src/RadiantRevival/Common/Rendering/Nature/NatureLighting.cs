@@ -156,7 +156,7 @@ public static class NatureLighting
 
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var _);
 
-        sunColor = sunColor.MultiplyRGB(Color.Khaki);
+        sunColor = sunColor.MultiplyRGB(Color.Gold);
 
         NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
 
@@ -165,11 +165,6 @@ public static class NatureLighting
         var num = Math.Max(sunsetVisibility, sunriseVisibility) * celestialVisibility;
 
         color *= num;
-
-        if (color is not { R: > 0, G: > 0, B: > 0 })
-        {
-            return;
-        }
 
         var skyColor = Main.ColorOfTheSkies;
 
@@ -182,14 +177,13 @@ public static class NatureLighting
             lightPosition.Y = screenSize.Y - lightPosition.Y;
         }
 
-        lightPosition = lightPosition.Transform(Matrix.Invert(Main.Transform));
-
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
         {
             foreach (var (drawData, unpainted, treeSettings, ignoreLighting) in data)
             {
-                if (ignoreLighting ||
-                    unpainted is null)
+                if (ignoreLighting
+                 || unpainted is null
+                 || color is { R: <= 0, G: <= 0, B: <= 0 })
                 {
                     sb.spriteEffect.CurrentTechnique.Passes[0].Apply();
 
@@ -210,12 +204,7 @@ public static class NatureLighting
                 effect.Parameters.MinHue = treeSettings?.SpecialGroupMinimalHueValue ?? 0;
                 effect.Parameters.MaxHue = treeSettings?.SpecialGroupMaximumHueValue ?? 1;
 
-                var lightColor = drawData.Color;
-
-                var lightness = MathF.Min(lightColor.Lightness / skyColor.Lightness, 1f);
-                lightness *= Utils.Remap(lightColor.Lightness, skyColor.Lightness, 1f, 1f, 0.5f);
-
-                lightColor = color * lightness;
+                var lightColor = color * (1f - MathF.Pow(1f - skyColor.Lightness, 3f));
 
                 effect.Parameters.LightColor = lightColor.ToVector4();
 
@@ -224,6 +213,8 @@ public static class NatureLighting
                 var position = drawData.Position - drawData.Origin;
 
                 effect.Parameters.Source = new Vector4(drawData.Size, position.X, position.Y);
+
+                effect.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
 
                 effect.Apply();
 

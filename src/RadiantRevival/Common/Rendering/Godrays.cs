@@ -162,7 +162,7 @@ public static class Godrays
 
         color *= num;
 
-        if (color is not { R: > 0, G: > 0, B: > 0 })
+        if (color is { R: <= 0, G: <= 0, B: <= 0 })
         {
             return;
         }

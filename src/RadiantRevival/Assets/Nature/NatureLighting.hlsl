@@ -5,6 +5,8 @@ sampler2D UnpaintedTexture : register(s1);
 
 #define EPSILON (1e-10)
 
+#define POSTERIZATION_STEPS (4)
+
 float MinSat;
 float MaxSat;
 
@@ -15,6 +17,8 @@ float4 LightColor;
 float2 LightPosition;
 
 float4 Source;
+
+float DrawZoom;
 
 SCREEN_SIZE(ScreenSize)
 
@@ -67,17 +71,35 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     lightness = 1 - lightness;
     
-    float2 lightDir = (Source.zw - LightPosition) / ScreenSize;
+    float2 lightPos = LightPosition / ScreenSize;
+    {
+        lightPos -= 0.5;
+        lightPos *= DrawZoom;
+        lightPos += 0.5;
+    }
     
-    float2 lightUv = (svPos - Source.zw) / Source.xy;
-    lightUv -= 0.5;
+    float2 lightUv = svPos / ScreenSize;
+    {
+        lightUv -= 0.5;
+        lightUv *= DrawZoom;
+        lightUv += 0.5;
+    }
     
-    lightUv *= 2;
+    float2 lightDirection = normalize(lightUv - lightPos);
     
-    float lightFactor = 1 - saturate(dot(normalize(lightDir), normalize(lightUv)) * length(lightUv));
-    lightness *= lightFactor;
+    float2 topLeft = Source.zw / ScreenSize;
+    
+    lightUv = (lightUv - topLeft) / (Source.xy / ScreenSize);
+    lightUv -= 0.5 - (lightDirection * 0.2);
+    lightUv *= 3;
+    
+    float lightFactor = 1 - pow(saturate(dot(lightDirection, lightUv) + (0.5 * length(lightUv))), 2);
     
     lightness = pow(lightness, 7);
+    
+    lightness *= lightFactor;
+    
+    lightness = floor(lightness * POSTERIZATION_STEPS) / POSTERIZATION_STEPS;
     
     float4 light = LightColor * saturate(lightness) * inRange * unpainted.a * LightColor.a;
     
