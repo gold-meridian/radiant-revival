@@ -521,6 +521,12 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
         where T : UIElement
     {
         var parent = element.Parent;
+
+        if (parent is null)
+        {
+            return;
+        }
+
         var idx = parent.Elements.IndexOf(element);
         element.Remove();
         parent.Elements.Insert(idx, newElement);
