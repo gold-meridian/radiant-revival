@@ -156,6 +156,19 @@ public static class NatureLighting
                 InvertSpecialGroupResult = true,
             }
         },
+
+        {
+            ([29], []), // VanityCherry
+            new TreePaintingSettings
+            {
+                UseSpecialGroups = true,
+                SpecialGroupMinimalHueValue = 0.02f,
+                SpecialGroupMaximumHueValue = 0.7f,
+                SpecialGroupMinimumSaturationValue = 0f,
+                SpecialGroupMaximumSaturationValue = 1f,
+                InvertSpecialGroupResult = true,
+            }
+        },
     };
 
     [OnLoad]
