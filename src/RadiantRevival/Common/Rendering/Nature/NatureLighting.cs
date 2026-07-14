@@ -204,6 +204,16 @@ public static class NatureLighting
             ([15, 21], [2, 6]), // PalmTreeHallow
             (0.2f, 0.7f)
         },
+
+        {
+            ([29], []), // VanityCherry
+            (0.47f, 0.5f)
+        },
+
+        {
+            ([30], []), // VanityYellowWillow
+            (0.5f, 1.15f)
+        },
     };
 
     private static Texture2D? baseTexture;
@@ -321,8 +331,7 @@ public static class NatureLighting
             {
                 if (ignoreLighting
                  || unpainted is null
-                 || color is { R: <= 0, G: <= 0, B: <= 0 }
-                 || treeSettings?.UseSpecialGroups is not true)
+                 || color is { R: <= 0, G: <= 0, B: <= 0 })
                 {
                     sb.spriteEffect.CurrentTechnique.Passes[0].Apply();
 
@@ -337,10 +346,19 @@ public static class NatureLighting
                     Texture = unpainted,
                 };
 
+                var usesGroup = treeSettings?.UseSpecialGroups is true;
+
                 var invert = treeSettings?.InvertSpecialGroupResult ?? false;
 
                 var minHue = treeSettings?.SpecialGroupMinimalHueValue ?? 0f;
                 var maxHue = treeSettings?.SpecialGroupMaximumHueValue ?? 1f;
+
+                if (!usesGroup)
+                {
+                    minHue = 0f;
+                    maxHue = 1f;
+                }
+
                 effect.Parameters.MinHue = minHue;
                 effect.Parameters.MaxHue = maxHue;
                 effect.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
@@ -348,6 +366,13 @@ public static class NatureLighting
 
                 var minSat = treeSettings?.SpecialGroupMinimumSaturationValue ?? 0f;
                 var maxSat = treeSettings?.SpecialGroupMaximumSaturationValue ?? 1f;
+
+                if (!usesGroup)
+                {
+                    minSat = 0f;
+                    maxSat = 1f;
+                }
+
                 effect.Parameters.MinSat = minSat;
                 effect.Parameters.MaxSat = maxSat;
                 effect.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
