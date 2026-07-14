@@ -14,7 +14,6 @@ using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
 using Terraria.ID;
 using Terraria.ModLoader;
-using static Terraria.DataStructures.GameDifficultyData.LinearCurve;
 
 namespace RadiantRevival.Common;
 
@@ -42,6 +41,7 @@ public static class NatureLighting
         DrawParameters DrawData,
         Texture2D? UnpaintedTexture,
         TreePaintingSettings? TreeSettings,
+        (float Base, float Multiplier)? ContrastRange,
         bool IgnoreLighting
     );
 
@@ -64,6 +64,7 @@ public static class NatureLighting
                 },
                 baseTexture,
                 priorSettings,
+                contrastRange,
                 false
             );
 
@@ -71,6 +72,7 @@ public static class NatureLighting
 
             baseTexture = null;
             priorSettings = null;
+            contrastRange = null;
         }
 
         public void DrawGlowmask(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layerDepth)
@@ -88,6 +90,7 @@ public static class NatureLighting
                 },
                 null,
                 null,
+                null,
                 true
             );
 
@@ -101,9 +104,6 @@ public static class NatureLighting
             drawData.Clear();
         }
     }
-
-    private static Texture2D? baseTexture;
-    private static TreePaintingSettings? priorSettings;
 
     // The shader we have seems unable to accurately mask based on the vanilla hue/sat limiters.
     private static readonly Dictionary<(int[] Indices, int[] Styles), TreePaintingSettings> tree_settings_overrides = new()
@@ -145,6 +145,18 @@ public static class NatureLighting
         },
 
         {
+            ([1], []),
+            new TreePaintingSettings
+            {
+                UseSpecialGroups = true,
+                SpecialGroupMinimalHueValue = 0.5f,
+                SpecialGroupMaximumHueValue = 1f,
+                SpecialGroupMinimumSaturationValue = 0.2f,
+                SpecialGroupMaximumSaturationValue = 1f,
+            }
+        },
+
+        {
             ([3, 19, 29], []), // WoodHallow
             new TreePaintingSettings
             {
@@ -170,6 +182,33 @@ public static class NatureLighting
             }
         },
     };
+
+    private static readonly Dictionary<(int[] Indices, int[] Styles), (float Base, float Multiplier)> contrast_overrides = new()
+    {
+        {
+            ([1], []), // WoodCorruption
+            (0.28f, 1.3f)
+        },
+
+        {
+            ([5], []), // WoodCrimson
+            (0.34f, 0.95f)
+        },
+
+        {
+            ([15, 21], [3, 7]), // PalmTreeCorruption
+            (0.25f, 0.4f)
+        },
+
+        {
+            ([15, 21], [2, 6]), // PalmTreeHallow
+            (0.2f, 0.7f)
+        },
+    };
+
+    private static Texture2D? baseTexture;
+    private static TreePaintingSettings? priorSettings;
+    private static (float Base, float Multiplier)? contrastRange;
 
     [OnLoad]
     private static void Load()
@@ -213,6 +252,11 @@ public static class NatureLighting
             priorSettings = settingsOverride;
         }
 
+        if (contrast_overrides.TryGetValue(possibleKey, out var range))
+        {
+            contrastRange = range;
+        }
+
         return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
     }
 
@@ -230,6 +274,11 @@ public static class NatureLighting
         if (tree_settings_overrides.TryGetValue(possibleKey, out var settingsOverride))
         {
             priorSettings = settingsOverride;
+        }
+
+        if (contrast_overrides.TryGetValue(possibleKey, out var range))
+        {
+            contrastRange = range;
         }
 
         return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
@@ -268,7 +317,7 @@ public static class NatureLighting
 
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
         {
-            foreach (var (drawData, unpainted, treeSettings, ignoreLighting) in data)
+            foreach (var (drawData, unpainted, treeSettings, contrast, ignoreLighting) in data)
             {
                 if (ignoreLighting
                  || unpainted is null
@@ -303,6 +352,8 @@ public static class NatureLighting
                 effect.Parameters.MaxSat = maxSat;
                 effect.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
 
+                effect.Parameters.Contrast = new Vector2(contrast?.Base ?? 0.2f, contrast?.Multiplier ?? 1.5f);
+
                 var lightColor = color * (1f - MathF.Pow(1f - skyColor.Lightness, 3f));
 
                 effect.Parameters.LightColor = lightColor.ToVector4();
@@ -311,7 +362,11 @@ public static class NatureLighting
 
                 var position = drawData.Position - drawData.Origin;
 
-                effect.Parameters.Source = new Vector4(drawData.Size, position.X, position.Y);
+                effect.Parameters.Destination = new Vector4(drawData.Size, position.X, position.Y);
+
+                var source = drawData.Source ?? drawData.Texture.Bounds;
+
+                effect.Parameters.Source = new Vector4(source.Size() / drawData.Texture.Size(), source.X / (float)drawData.Texture.Width, source.Y / (float)drawData.Texture.Height);
 
                 effect.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
 

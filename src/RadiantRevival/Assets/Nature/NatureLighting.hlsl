@@ -21,9 +21,14 @@ bool InvertSat;
 float4 LightColor;
 float2 LightPosition;
 
+float4 Destination;
 float4 Source;
 
 float DrawZoom;
+
+float2 Contrast;
+
+TEXTURE_SIZE(TextureSize, 1)
 
 SCREEN_SIZE(ScreenSize)
 
@@ -74,7 +79,7 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
         InvertHue != (hue >= MinHue && hue <= MaxHue)
      && InvertSat != (hsl.y >= MinSat && hsl.y <= MaxSat);
     
-    float lightness = (hsl.z - 0.2) * 1.5;
+    float lightness = (hsl.z - Contrast.x) * Contrast.y;
     
     lightness = 1 - lightness;
     
@@ -85,18 +90,18 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
         lightPos += 0.5;
     }
     
-    float2 lightUv = svPos / ScreenSize;
-    {
-        lightUv -= 0.5;
-        lightUv *= DrawZoom;
-        lightUv += 0.5;
-    }
+    float2 topLeft = Destination.zw / ScreenSize;
     
-    float2 lightDirection = normalize(lightUv - lightPos);
+    float2 center = topLeft + 0.5 * (Destination.xy / ScreenSize);
     
-    float2 topLeft = Source.zw / ScreenSize;
+    float2 lightDirection = normalize(center - lightPos);
     
-    lightUv = (lightUv - topLeft) / (Source.xy / ScreenSize);
+    float2 pixel = TextureSize / 2;
+    
+    float2 lightUv = floor(textureUv * pixel) / pixel;
+    
+    lightUv = (lightUv - Source.zw) / Source.xy;
+    
     lightUv -= 0.5 - (lightDirection * 0.2);
     lightUv *= 3;
     
