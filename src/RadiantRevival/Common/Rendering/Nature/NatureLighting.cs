@@ -252,6 +252,7 @@ public static class NatureLighting
         priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
 
         var possibleKey = tree_settings_overrides.Keys
+                                                 .Concat(contrast_overrides.Keys)
                                                  .FirstOrDefault(
                                                       key => key.Indices.Contains(treeTextureIndex)
                                                           && key.Styles.Contains(treeTextureStyle)
@@ -276,6 +277,7 @@ public static class NatureLighting
         priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
 
         var possibleKey = tree_settings_overrides.Keys
+                                                 .Concat(contrast_overrides.Keys)
                                                  .FirstOrDefault(
                                                       key => key.Indices.Contains(treeTextureIndex)
                                                           && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
