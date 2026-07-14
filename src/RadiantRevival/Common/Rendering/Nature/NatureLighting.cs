@@ -14,6 +14,7 @@ using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
 using Terraria.ID;
 using Terraria.ModLoader;
+using static Terraria.DataStructures.GameDifficultyData.LinearCurve;
 
 namespace RadiantRevival.Common;
 
@@ -104,6 +105,59 @@ public static class NatureLighting
     private static Texture2D? baseTexture;
     private static TreePaintingSettings? priorSettings;
 
+    // The shader we have seems unable to accurately mask based on the vanilla hue/sat limiters.
+    private static readonly Dictionary<(int[] Indices, int[] Styles), TreePaintingSettings> tree_settings_overrides = new()
+    {
+        {
+            ([15, 21], [0, 4]), // PalmTreePurity
+            new TreePaintingSettings
+            {
+                UseSpecialGroups = true,
+                SpecialGroupMinimalHueValue = 11f / 72f,
+                SpecialGroupMaximumHueValue = 0.25f,
+                SpecialGroupMinimumSaturationValue = 0.3f,
+                SpecialGroupMaximumSaturationValue = 1f,
+            }
+        },
+
+        {
+            ([15, 21], [3, 7]), // PalmTreeCorruption
+            new TreePaintingSettings
+            {
+                UseSpecialGroups = true,
+                SpecialGroupMinimalHueValue = 0.5f,
+                SpecialGroupMaximumHueValue = 0.7f,
+                SpecialGroupMinimumSaturationValue = 0.19f,
+                SpecialGroupMaximumSaturationValue = 1f,
+            }
+        },
+
+        {
+            ([15, 21], [1, 5]), // PalmTreeCrimson
+            new TreePaintingSettings
+            {
+                UseSpecialGroups = true,
+                SpecialGroupMinimalHueValue = 0f,
+                SpecialGroupMaximumHueValue = 0.2f,
+                SpecialGroupMinimumSaturationValue = 0.19f,
+                SpecialGroupMaximumSaturationValue = 1f,
+            }
+        },
+
+        {
+            ([3, 19, 29], []), // WoodHallow
+            new TreePaintingSettings
+            {
+                UseSpecialGroups = true,
+                SpecialGroupMinimalHueValue = 0f,
+                SpecialGroupMaximumHueValue = 1f,
+                SpecialGroupMinimumSaturationValue = 0f,
+                SpecialGroupMaximumSaturationValue = 0.38f,
+                InvertSpecialGroupResult = true,
+            }
+        },
+    };
+
     [OnLoad]
     private static void Load()
     {
@@ -135,6 +189,17 @@ public static class NatureLighting
         baseTexture = TextureAssets.TreeBranch[treeTextureIndex].Value;
         priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
 
+        var possibleKey = tree_settings_overrides.Keys
+                                                 .FirstOrDefault(
+                                                      key => key.Indices.Contains(treeTextureIndex)
+                                                          && key.Styles.Contains(treeTextureStyle)
+                                                  );
+
+        if (tree_settings_overrides.TryGetValue(possibleKey, out var settingsOverride))
+        {
+            priorSettings = settingsOverride;
+        }
+
         return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
     }
 
@@ -142,6 +207,17 @@ public static class NatureLighting
     {
         baseTexture = TextureAssets.TreeTop[treeTextureIndex].Value;
         priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
+
+        var possibleKey = tree_settings_overrides.Keys
+                                                 .FirstOrDefault(
+                                                      key => key.Indices.Contains(treeTextureIndex)
+                                                          && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
+                                                  );
+
+        if (tree_settings_overrides.TryGetValue(possibleKey, out var settingsOverride))
+        {
+            priorSettings = settingsOverride;
+        }
 
         return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
     }
@@ -156,7 +232,7 @@ public static class NatureLighting
 
         HorizonHelper.GetCelestialBodyColors(out var sunColor, out var _);
 
-        sunColor = sunColor.MultiplyRGB(Color.Gold);
+        sunColor = sunColor.MultiplyRGB(Color.Khaki * 0.9f);
 
         NextHorizonRenderer.GetVisibilities(out var sunsetVisibility, out var sunriseVisibility, out var celestialVisibility);
 
@@ -183,7 +259,8 @@ public static class NatureLighting
             {
                 if (ignoreLighting
                  || unpainted is null
-                 || color is { R: <= 0, G: <= 0, B: <= 0 })
+                 || color is { R: <= 0, G: <= 0, B: <= 0 }
+                 || treeSettings?.UseSpecialGroups is not true)
                 {
                     sb.spriteEffect.CurrentTechnique.Passes[0].Apply();
 
@@ -198,11 +275,20 @@ public static class NatureLighting
                     Texture = unpainted,
                 };
 
-                effect.Parameters.MinSat = treeSettings?.SpecialGroupMinimumSaturationValue ?? 0;
-                effect.Parameters.MaxSat = treeSettings?.SpecialGroupMaximumSaturationValue ?? 1;
+                var invert = treeSettings?.InvertSpecialGroupResult ?? false;
 
-                effect.Parameters.MinHue = treeSettings?.SpecialGroupMinimalHueValue ?? 0;
-                effect.Parameters.MaxHue = treeSettings?.SpecialGroupMaximumHueValue ?? 1;
+                var minHue = treeSettings?.SpecialGroupMinimalHueValue ?? 0f;
+                var maxHue = treeSettings?.SpecialGroupMaximumHueValue ?? 1f;
+                effect.Parameters.MinHue = minHue;
+                effect.Parameters.MaxHue = maxHue;
+                effect.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
+                effect.Parameters.HueOffset = treeSettings?.HueTestOffset ?? 0;
+
+                var minSat = treeSettings?.SpecialGroupMinimumSaturationValue ?? 0f;
+                var maxSat = treeSettings?.SpecialGroupMaximumSaturationValue ?? 1f;
+                effect.Parameters.MinSat = minSat;
+                effect.Parameters.MaxSat = maxSat;
+                effect.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
 
                 var lightColor = color * (1f - MathF.Pow(1f - skyColor.Lightness, 3f));
 

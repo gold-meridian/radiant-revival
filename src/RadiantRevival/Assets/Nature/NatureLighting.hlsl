@@ -5,13 +5,18 @@ sampler2D UnpaintedTexture : register(s1);
 
 #define EPSILON (1e-10)
 
-#define POSTERIZATION_STEPS (4)
+#define POSTERIZATION_STEPS (3)
 
 float MinSat;
 float MaxSat;
 
 float MinHue;
 float MaxHue;
+
+float HueOffset;
+
+bool InvertHue;
+bool InvertSat;
 
 float4 LightColor;
 float2 LightPosition;
@@ -63,9 +68,11 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     float3 hsl = RGBtoHSL(unpainted.rgb);
     
+    float hue = (hsl.x + HueOffset) % 1;
+    
     bool inRange =
-        hsl.x > MinHue && hsl.x < MaxHue
-     && hsl.y > MinSat && hsl.y < MaxSat;
+        InvertHue != (hue >= MinHue && hue <= MaxHue)
+     && InvertSat != (hsl.y >= MinSat && hsl.y <= MaxSat);
     
     float lightness = (hsl.z - 0.2) * 1.5;
     
@@ -93,7 +100,7 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     lightUv -= 0.5 - (lightDirection * 0.2);
     lightUv *= 3;
     
-    float lightFactor = 1 - pow(saturate(dot(lightDirection, lightUv) + (0.5 * length(lightUv))), 2);
+    float lightFactor = 1 - pow(saturate(dot(lightDirection, lightUv) + (0.5 * length(lightUv))), 1.4);
     
     lightness = pow(lightness, 7);
     
