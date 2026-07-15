@@ -94,7 +94,7 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     float2 center = topLeft + 0.5 * (Destination.xy / ScreenSize);
     
-    float2 lightDirection = normalize(center - lightPos);
+    float2 lightDirection = normalize(0.5 - lightPos);
     
     float2 pixel = TextureSize / 2;
     
