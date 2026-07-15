@@ -196,8 +196,23 @@ public static class NatureLighting
         },
 
         {
+            ([3, 19, 20], []), // WoodHallow
+            (0.27f, 1.5f)
+        },
+
+        {
+            ([2, 11, 13], []), // WoodJungle
+            (0.13f, 1.24f)
+        },
+
+        {
+            ([15, 21], [0, 4]), // PalmTreePurity
+            (0.18f, 1.3f)
+        },
+
+        {
             ([15, 21], [3, 7]), // PalmTreeCorruption
-            (0.25f, 0.4f)
+            (0.23f, 1.2f)
         },
 
         {

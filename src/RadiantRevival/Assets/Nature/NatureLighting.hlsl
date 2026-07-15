@@ -102,20 +102,21 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     lightUv = (lightUv - Source.zw) / Source.xy;
     
-    lightUv -= 0.5 + (lightDirection * 0.2);
+    lightUv -= 0.5 + (lightDirection * 0.175);
     lightUv *= 3;
     
     float lightFactor = pow(saturate(dot(lightDirection, lightUv) + 0.4 + (0.5 * length(lightUv))), 1.3);
+    lightFactor += pow(length(lightUv), 3) * 0.06;
     
-    lightness = pow(lightness, 7);
+    lightness = pow(saturate(lightness), 7);
     
     lightness *= lightFactor;
     
     lightness = floor(lightness * POSTERIZATION_STEPS) / POSTERIZATION_STEPS;
     
-    float4 light = LightColor * saturate(lightness) * inRange * unpainted.a * LightColor.a;
+    lightness = saturate(lightness) * inRange * unpainted.a * LightColor.a;
     
-    return base + light;
+    return base + LightColor * lightness;
 }
 
 BEGIN_TECHNIQUE(Technique1)
