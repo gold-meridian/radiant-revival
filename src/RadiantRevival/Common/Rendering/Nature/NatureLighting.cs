@@ -157,7 +157,7 @@ public static class NatureLighting
         },
 
         {
-            ([3, 19, 29], []), // WoodHallow
+            ([3, 19, 20], []), // WoodHallow
             new TreePaintingSettings
             {
                 UseSpecialGroups = true,
@@ -255,7 +255,7 @@ public static class NatureLighting
                                                  .Concat(contrast_overrides.Keys)
                                                  .FirstOrDefault(
                                                       key => key.Indices.Contains(treeTextureIndex)
-                                                          && key.Styles.Contains(treeTextureStyle)
+                                                          && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
                                                   );
 
         if (tree_settings_overrides.TryGetValue(possibleKey, out var settingsOverride))
