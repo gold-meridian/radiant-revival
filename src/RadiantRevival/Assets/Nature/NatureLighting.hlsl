@@ -94,7 +94,7 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     float2 center = topLeft + 0.5 * (Destination.xy / ScreenSize);
     
-    float2 lightDirection = normalize(0.5 - lightPos);
+    float2 lightDirection = normalize(lightPos - 0.5);
     
     float2 pixel = TextureSize / 2;
     
@@ -102,10 +102,10 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     lightUv = (lightUv - Source.zw) / Source.xy;
     
-    lightUv -= 0.5 - (lightDirection * 0.2);
+    lightUv -= 0.5 + (lightDirection * 0.2);
     lightUv *= 3;
     
-    float lightFactor = pow(1 - saturate(dot(lightDirection, lightUv) + (0.5 * length(lightUv))), 1.3);
+    float lightFactor = pow(saturate(dot(lightDirection, lightUv) + 0.4 + (0.5 * length(lightUv))), 1.3);
     
     lightness = pow(lightness, 7);
     

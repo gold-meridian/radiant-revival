@@ -251,19 +251,24 @@ public static class NatureLighting
         baseTexture = TextureAssets.TreeBranch[treeTextureIndex].Value;
         priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
 
-        var possibleKey = tree_settings_overrides.Keys
-                                                 .Concat(contrast_overrides.Keys)
+        var settingsKey = tree_settings_overrides.Keys
                                                  .FirstOrDefault(
                                                       key => key.Indices.Contains(treeTextureIndex)
                                                           && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
                                                   );
 
-        if (tree_settings_overrides.TryGetValue(possibleKey, out var settingsOverride))
+        var contrastKey = contrast_overrides.Keys
+                                            .FirstOrDefault(
+                                                 key => key.Indices.Contains(treeTextureIndex)
+                                                     && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
+                                             );
+
+        if (tree_settings_overrides.TryGetValue(settingsKey, out var settingsOverride))
         {
             priorSettings = settingsOverride;
         }
 
-        if (contrast_overrides.TryGetValue(possibleKey, out var range))
+        if (contrast_overrides.TryGetValue(contrastKey, out var range))
         {
             contrastRange = range;
         }
@@ -276,19 +281,24 @@ public static class NatureLighting
         baseTexture = TextureAssets.TreeTop[treeTextureIndex].Value;
         priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
 
-        var possibleKey = tree_settings_overrides.Keys
-                                                 .Concat(contrast_overrides.Keys)
+        var settingsKey = tree_settings_overrides.Keys
                                                  .FirstOrDefault(
                                                       key => key.Indices.Contains(treeTextureIndex)
                                                           && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
                                                   );
 
-        if (tree_settings_overrides.TryGetValue(possibleKey, out var settingsOverride))
+        var contrastKey = contrast_overrides.Keys
+                                            .FirstOrDefault(
+                                                 key => key.Indices.Contains(treeTextureIndex)
+                                                     && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
+                                             );
+
+        if (tree_settings_overrides.TryGetValue(settingsKey, out var settingsOverride))
         {
             priorSettings = settingsOverride;
         }
 
-        if (contrast_overrides.TryGetValue(possibleKey, out var range))
+        if (contrast_overrides.TryGetValue(contrastKey, out var range))
         {
             contrastRange = range;
         }
