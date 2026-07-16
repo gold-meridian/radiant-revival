@@ -416,7 +416,13 @@ public static class NatureLighting
 
                 effect.Parameters.Contrast = new Vector2(contrast?.Base ?? 0.2f, contrast?.Multiplier ?? 1.5f);
 
+                var baseColor = drawData.Color;
+
                 var lightColor = color * (1f - MathF.Pow(1f - skyColor.Lightness, 3f));
+
+
+
+                lightColor *= Utils.Remap(baseColor.Lightness, 0f, skyColor.Lightness, 0f, 1f);
 
                 effect.Parameters.LightColor = lightColor.ToVector4();
 
@@ -445,10 +451,8 @@ public static class NatureLighting
         {
             sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
             {
-                foreach (var (drawData, unpainted, treeSettings, contrast, ignoreLighting) in data)
+                foreach (var (drawData, _, _, _, _) in data)
                 {
-                    sb.spriteEffect.CurrentTechnique.Passes[0].Apply();
-
                     sb.Draw(drawData);
                 }
             }

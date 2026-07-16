@@ -102,13 +102,17 @@ float4 NatureLightingShaderFragment(float2 svPos : SV_POSITION, float2 textureUv
     
     lightUv = (lightUv - Source.zw) / Source.xy;
     
+    float fade = saturate(1 - pow(lightUv.y + 0.0, 3));
+    
     lightUv -= 0.5 + (lightDirection * 0.175);
     lightUv *= 3;
     
-    float lightFactor = pow(saturate(dot(lightDirection, lightUv) + 0.4 + (0.5 * length(lightUv))), 1.3);
-    lightFactor += pow(length(lightUv), 3) * 0.06;
+    float dist = length(lightUv);
     
-    lightness = pow(saturate(lightness), 7);
+    float lightFactor = pow(saturate(dot(lightDirection, lightUv) + 0.4 + (0.5 * dist)), 1.3);
+    lightFactor += pow(dist, 3) * 0.06;
+    
+    lightness = pow(saturate(lightness * fade), 7);
     
     lightness *= lightFactor;
     
