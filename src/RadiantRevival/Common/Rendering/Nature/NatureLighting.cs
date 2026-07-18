@@ -7,6 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using Terraria;
 using Terraria.DataStructures;
@@ -23,12 +24,15 @@ public static class NatureLighting
     {
         public required WrapperShaderData<Assets.Nature.NatureLighting.Parameters> NatureLightingShader { get; init; }
 
+        public required WrapperShaderData<Assets.Nature.NaturePreprocessing.Parameters> NaturePreprocessingShader { get; init; }
+
         public static Data LoadData(Mod mod)
         {
             return Main.RunOnMainThread(
                 () => new Data
                 {
                     NatureLightingShader = Assets.Nature.NatureLighting.CreateNatureLightingShader(),
+                    NaturePreprocessingShader = Assets.Nature.NaturePreprocessing.CreateNaturePreprocessingShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -39,9 +43,7 @@ public static class NatureLighting
 
     private record struct NatureData(
         DrawParameters DrawData,
-        Texture2D? UnpaintedTexture,
-        TreePaintingSettings? TreeSettings,
-        (float Base, float Multiplier)? ContrastRange,
+        Texture2D? ProcessedTexture,
         bool IgnoreLighting
     );
 
@@ -62,17 +64,13 @@ public static class NatureLighting
                     Scale = new Vector2(scale),
                     Effects = effects,
                 },
-                baseTexture,
-                priorSettings,
-                contrastRange,
+                currentProcessedTexture,
                 false
             );
 
             drawData.Add(data);
 
-            baseTexture = null;
-            priorSettings = null;
-            contrastRange = null;
+            currentProcessedTexture = null;
         }
 
         public void DrawGlowmask(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layerDepth)
@@ -88,8 +86,6 @@ public static class NatureLighting
                     Scale = new Vector2(scale),
                     Effects = effects,
                 },
-                null,
-                null,
                 null,
                 true
             );
@@ -231,9 +227,9 @@ public static class NatureLighting
         },
     };
 
-    private static Texture2D? baseTexture;
-    private static TreePaintingSettings? priorSettings;
-    private static (float Base, float Multiplier)? contrastRange;
+    private static Texture2D? currentProcessedTexture;
+
+    private static readonly (float Base, float Multiplier) default_contrast = (0.2f, 1.5f);
 
     [OnLoad]
     private static void Load()
@@ -242,59 +238,144 @@ public static class NatureLighting
 
         On_TileDrawing.GetTreeTopTexture += GetTreeTopTexture_GetBaseTexture;
         On_TileDrawing.GetTreeBranchTexture += GetTreeBranchTexture_GetBaseTexture;
-
-        On_TileDrawing.GetTileDrawTexture_TileVariationkey += GetTileDrawTexture_GetBaseTexture;
     }
 
-    private static Texture2D GetTileDrawTexture_GetBaseTexture(On_TileDrawing.orig_GetTileDrawTexture_TileVariationkey orig, TileDrawing self, TilePaintSystemV2.TileVariationkey key)
+    private static Texture2D[]? treeBranchProcessed;
+
+    private static Texture2D[]? treeTopProcessed;
+
+    [ModSystemHooks.ResizeArrays]
+    private static void ResizeArrays()
     {
-        // Exclude vines as they don't play nicely with this effect.
-        if (TileID.Sets.IsVine[key.TileType]
-         || TileID.Sets.VineThreads[key.TileType]
-         || TileID.Sets.ReverseVineThreads[key.TileType])
+        Main.RunOnMainThread(ProcessTrees);
+    }
+
+    private static void ProcessTrees()
+    {
+        var device = Main.graphics.GraphicsDevice;
+        var sb = Main.spriteBatch;
+
+        var effect = Data.Instance.NaturePreprocessingShader;
+
+        using var _ = sb.Scope();
+
+        Branches();
+
+        //treetops TODO
+        // var palmTreeEdgeCase = i == 21 ? 4 : 0;
+
+
+        return;
+
+        void Branches()
         {
-            return orig(self, key);
+            treeBranchProcessed = new Texture2D[TextureAssets.TreeBranch.Length];
+
+            var branchFrame = new Vector2(42, 42);
+
+            for (var i = 0; i < treeBranchProcessed.Length; i++)
+            {
+                TextureAssets.TreeBranch[i].Wait();
+
+                var original = TextureAssets.TreeBranch[i].Value;
+
+                var target = new RenderTarget2D(device, original.Width, original.Height);
+
+                sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+                {
+                    for (var x = 0f; x < original.Width; x += branchFrame.X)
+                    {
+                        for (var y = 0f; y < original.Height; y += branchFrame.Y)
+                        {
+                            var style = (int)(y / (branchFrame.Y * 3));
+
+                            GetNatureSettings(i, style, out var settings, out var contrast);
+
+                            var source = new Rectangle((int)x, (int)y, (int)branchFrame.X, (int)branchFrame.Y);
+
+                            DrawFrame(original, source, settings, contrast ?? default_contrast);
+                        }
+                    }
+                }
+                sb.End();
+
+                treeBranchProcessed[i] = target;
+            }
         }
 
-        baseTexture = TextureAssets.Tile[key.TileType].Value;
+        void DrawFrame(Texture2D texture, Rectangle rect, TreePaintingSettings settings, (float Base, float Multiplier) contrast)
+        {
+            // Makes sure that the effect can properly grab the textures size when applied.
+            effect.Parameters.NatureTexture = new HlslSampler2D
+            {
+                Sampler = SamplerState.PointClamp,
+                Texture = texture,
+            };
 
-        return orig(self, key);
+            var usesGroup = settings.UseSpecialGroups;
+
+            var invert = settings.InvertSpecialGroupResult;
+
+            var minHue = settings.SpecialGroupMinimalHueValue;
+            var maxHue = settings.SpecialGroupMaximumHueValue;
+
+            if (!usesGroup)
+            {
+                minHue = 0f;
+                maxHue = 1f;
+            }
+
+            effect.Parameters.MinHue = minHue;
+            effect.Parameters.MaxHue = maxHue;
+            effect.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
+            effect.Parameters.HueOffset = settings.HueTestOffset;
+
+            var minSat = settings.SpecialGroupMinimumSaturationValue;
+            var maxSat = settings.SpecialGroupMaximumSaturationValue;
+
+            if (!usesGroup)
+            {
+                minSat = 0f;
+                maxSat = 1f;
+            }
+
+            effect.Parameters.MinSat = minSat;
+            effect.Parameters.MaxSat = maxSat;
+            effect.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
+
+            effect.Parameters.Contrast = new Vector2(contrast.Base, contrast.Multiplier);
+
+            effect.Parameters.Source = new Vector4(rect.X, rect.Y, rect.Width, rect.Height);
+
+            effect.Apply();
+
+            sb.Draw(texture, rect, rect, Color.White);
+        }
     }
 
     private static Texture2D GetTreeBranchTexture_GetBaseTexture(On_TileDrawing.orig_GetTreeBranchTexture orig, TileDrawing self, int treeTextureIndex, int treeTextureStyle, byte tileColor)
     {
-        baseTexture = TextureAssets.TreeBranch[treeTextureIndex].Value;
-        priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
-
-        var settingsKey = tree_settings_overrides.Keys
-                                                 .FirstOrDefault(
-                                                      key => key.Indices.Contains(treeTextureIndex)
-                                                          && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
-                                                  );
-
-        var contrastKey = contrast_overrides.Keys
-                                            .FirstOrDefault(
-                                                 key => key.Indices.Contains(treeTextureIndex)
-                                                     && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
-                                             );
-
-        if (tree_settings_overrides.TryGetValue(settingsKey, out var settingsOverride))
-        {
-            priorSettings = settingsOverride;
-        }
-
-        if (contrast_overrides.TryGetValue(contrastKey, out var range))
-        {
-            contrastRange = range;
-        }
+        currentProcessedTexture = treeBranchProcessed![treeTextureIndex];
 
         return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
     }
 
     private static Texture2D GetTreeTopTexture_GetBaseTexture(On_TileDrawing.orig_GetTreeTopTexture orig, TileDrawing self, int treeTextureIndex, int treeTextureStyle, byte tileColor)
     {
-        baseTexture = TextureAssets.TreeTop[treeTextureIndex].Value;
-        priorSettings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
+        currentProcessedTexture = treeBranchProcessed![treeTextureIndex];
+
+        return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
+    }
+
+    private static void GetNatureSettings(
+        int treeTextureIndex,
+        int treeTextureStyle,
+        out TreePaintingSettings settings,
+        out (float Base, float Multiplier)? contrast
+    )
+    {
+        settings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
+        contrast = null;
 
         var settingsKey = tree_settings_overrides.Keys
                                                  .FirstOrDefault(
@@ -310,15 +391,13 @@ public static class NatureLighting
 
         if (tree_settings_overrides.TryGetValue(settingsKey, out var settingsOverride))
         {
-            priorSettings = settingsOverride;
+            settings = settingsOverride;
         }
 
         if (contrast_overrides.TryGetValue(contrastKey, out var range))
         {
-            contrastRange = range;
+            contrast = range;
         }
-
-        return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
     }
 
     private static void DrawNatureData(IEnumerable<NatureData> data)
@@ -364,10 +443,10 @@ public static class NatureLighting
 
         sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
         {
-            foreach (var (drawData, unpainted, treeSettings, contrast, ignoreLighting) in data)
+            foreach (var (drawData, processed, ignoreLighting) in data)
             {
                 if (ignoreLighting
-                 || unpainted is null
+                 || processed is null
                  || color is { R: <= 0, G: <= 0, B: <= 0 })
                 {
                     sb.spriteEffect.CurrentTechnique.Passes[0].Apply();
@@ -380,61 +459,17 @@ public static class NatureLighting
                 effect.Parameters.UnpaintedTexture = new HlslSampler2D
                 {
                     Sampler = SamplerState.PointClamp,
-                    Texture = unpainted,
+                    Texture = processed,
                 };
-
-                var usesGroup = treeSettings?.UseSpecialGroups is true;
-
-                var invert = treeSettings?.InvertSpecialGroupResult ?? false;
-
-                var minHue = treeSettings?.SpecialGroupMinimalHueValue ?? 0f;
-                var maxHue = treeSettings?.SpecialGroupMaximumHueValue ?? 1f;
-
-                if (!usesGroup)
-                {
-                    minHue = 0f;
-                    maxHue = 1f;
-                }
-
-                effect.Parameters.MinHue = minHue;
-                effect.Parameters.MaxHue = maxHue;
-                effect.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
-                effect.Parameters.HueOffset = treeSettings?.HueTestOffset ?? 0;
-
-                var minSat = treeSettings?.SpecialGroupMinimumSaturationValue ?? 0f;
-                var maxSat = treeSettings?.SpecialGroupMaximumSaturationValue ?? 1f;
-
-                if (!usesGroup)
-                {
-                    minSat = 0f;
-                    maxSat = 1f;
-                }
-
-                effect.Parameters.MinSat = minSat;
-                effect.Parameters.MaxSat = maxSat;
-                effect.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
-
-                effect.Parameters.Contrast = new Vector2(contrast?.Base ?? 0.2f, contrast?.Multiplier ?? 1.5f);
 
                 var baseColor = drawData.Color;
 
                 var lightColor = color * (1f - MathF.Pow(1f - skyColor.Lightness, 3f));
 
-
-
                 lightColor *= Utils.Remap(baseColor.Lightness, 0f, skyColor.Lightness, 0f, 1f);
 
                 effect.Parameters.LightColor = lightColor.ToVector4();
-
                 effect.Parameters.LightPosition = lightPosition;
-
-                var position = drawData.Position - drawData.Origin;
-
-                effect.Parameters.Destination = new Vector4(drawData.Size, position.X, position.Y);
-
-                var source = drawData.Source ?? drawData.Texture.Bounds;
-
-                effect.Parameters.Source = new Vector4(source.Size() / drawData.Texture.Size(), source.X / (float)drawData.Texture.Width, source.Y / (float)drawData.Texture.Height);
 
                 effect.Parameters.DrawZoom = 1f / Main.GameZoomTarget;
 
@@ -451,7 +486,7 @@ public static class NatureLighting
         {
             sb.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, Main.Rasterizer, null, Main.Transform);
             {
-                foreach (var (drawData, _, _, _, _) in data)
+                foreach (var (drawData, _, _) in data)
                 {
                     sb.Draw(drawData);
                 }
