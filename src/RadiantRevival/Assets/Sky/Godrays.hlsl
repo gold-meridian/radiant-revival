@@ -1,4 +1,4 @@
-#include "../common.h"
+﻿#include "../common.h"
 
 sampler2D OccludersTexture : register(s0);
 sampler2D LightsTexture : register(s1);

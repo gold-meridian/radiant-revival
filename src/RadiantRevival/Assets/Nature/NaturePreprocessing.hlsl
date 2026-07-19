@@ -1,8 +1,11 @@
 ﻿#include "../common.h"
 
 sampler2D NatureTexture : register(s0);
+sampler2D MaskTexture : register(s1);
 
 #define EPSILON (1e-10)
+
+#define TAU (6.28318531)
 
 float MinHue;
 float MaxHue;
@@ -16,6 +19,8 @@ bool InvertSat;
 float2 Contrast;
 
 float4 Source;
+
+float2 FrameSize;
 
 TEXTURE_SIZE(TextureSize, 0)
 
@@ -54,7 +59,42 @@ float Map(float value, float start1, float stop1, float start2, float stop2)
 
 bool Sample(float2 uv)
 {
-    float4 base = tex2D(NatureTexture, uv);
+    return tex2D(MaskTexture, uv).r > 0;
+}
+
+float2 BruteForceDistance(float2 origUv)
+{
+    const int max_radius = 40;
+
+    float2 bounds = FrameSize / TextureSize.xy;
+    
+    float2 pixel = 2 / TextureSize;
+
+    float2 nearest = 999999;
+    
+    [loop]
+    for (int x = -max_radius; x < max_radius; x++)
+    {
+        [loop]
+        for (int y = -max_radius; y < max_radius; y++)
+        {
+            float2 offset = float2(x, y) * pixel;
+        
+            if (!Sample(origUv + offset) && length(offset) < length(nearest))
+            {
+                nearest = offset;
+            }
+        }
+    }
+    
+    nearest /= bounds;
+    
+    return nearest;
+}
+
+float4 NatureMaskShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
+{
+    float4 base = tex2D(NatureTexture, textureUv);
     
     if (base.a < 1)
     {
@@ -69,75 +109,66 @@ bool Sample(float2 uv)
         InvertHue != (hue >= MinHue && hue <= MaxHue)
      && InvertSat != (hsl.y >= MinSat && hsl.y <= MaxSat);
      
-    return inRange;
+    return float4(inRange, Contrast.x, Contrast.y, 0);
 }
 
-// Based on the spiral approach in https://shaderbits.com/blog/various-distance-field-generation-techniques
-float2 BruteForceDistance(float2 origUv)
-{
-    const int max_radius = 80;
-
-    float4 bounds = Source / TextureSize.xyxy;
-    
-    float2 pixel = 2 / TextureSize;
-
-    for (int i = 0; i < max_radius; i++)
-    {
-        float totneighbors = i * 8;
-        
-        for (int j = 0; j < totneighbors; j++)
-        {
-            float progress = j / totneighbors;
-            float2 offset = 0;
-            
-            offset.x = saturate(4 * progress) - saturate(4 * (progress - 0.5));
-            offset.y = saturate(4 * (progress - 0.25)) - saturate(4 * (progress - 0.75));
-            
-            offset = (offset * totneighbors * 0.25) - i;
-            
-            float2 uv = origUv + (offset * pixel);
-
-            if (!Sample(uv))
-            {
-                uv -= origUv;
-                uv /= bounds.zw;
-                uv *= 0.5;
-                uv += 0.5;
-
-                return uv;
-            }
-        }
-    }
-    
-    return 0;
-}
-
-float4 NaturePreprocessingShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
+float4 NatureDistanceFieldShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
 {
     float4 base = tex2D(NatureTexture, textureUv);
     
-    if (!Sample(textureUv))
+    float2 fieldUv = floor(textureUv * (TextureSize / 2)) / (TextureSize / 2);
+    
+    float4 mask = tex2D(MaskTexture, fieldUv);
+    
+    if (!Sample(fieldUv))
     {
         return 0;
     }
     
     float3 hsl = RGBtoHSL(base.rgb);
     
-    float2 dist = BruteForceDistance(textureUv);
+    float2 dist = BruteForceDistance(fieldUv);
     
-    float lightness = (hsl.z - Contrast.x) * Contrast.y;
+    float2 localUv = fieldUv * TextureSize;
+    localUv -= floor(localUv / FrameSize) * FrameSize;
+    localUv /= FrameSize;
+    
+    float fade = saturate(1 - pow(localUv.y, 4));
+    
+    /*
+    localUv -= 0.5;
+    localUv *= 2;
+    
+    float len = length(dist);
+    
+    const float angle_interpolant = 0.7;
+    
+    float localAng = atan2(localUv.y, localUv.x);
+    float origAng = atan2(dist.y, dist.x);
+    
+    float between = (TAU + localAng - origAng) % TAU;
+    between = localAng + (between * angle_interpolant);
+    
+    dist = float2(cos(between), sin(between)) * len;
+    */
+    
+    dist *= 0.5;
+    dist += 0.5;
+    
+    float lightness = (hsl.z - mask.y) * mask.z;
     
     lightness = 1 - lightness;
     
-    lightness = pow(saturate(lightness), 7);
+    lightness = saturate(lightness) * fade * base.a;
     
-    lightness = saturate(lightness) * base.a;
-    
-    return float4(dist, lightness, 0);
+    return float4(dist, lightness, 1);
 }
 
 BEGIN_TECHNIQUE(Technique1)
-    BEGIN_PASS(NaturePreprocessingShader)  
-        PIXEL_SHADER(compile ps_3_0 NaturePreprocessingShaderFragment())  
+    BEGIN_PASS(NatureMaskShader)   
+        PIXEL_SHADER(compile ps_3_0 NatureMaskShaderFragment())    
+    END_PASS
+    BEGIN_PASS(NatureDistanceFieldShader)  
+        PIXEL_SHADER(compile ps_3_0 NatureDistanceFieldShaderFragment())   
     END_PASS
 END_TECHNIQUE

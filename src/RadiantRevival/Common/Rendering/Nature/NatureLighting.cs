@@ -13,7 +13,6 @@ using Terraria;
 using Terraria.DataStructures;
 using Terraria.GameContent;
 using Terraria.GameContent.Drawing;
-using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace RadiantRevival.Common;
@@ -24,7 +23,9 @@ public static class NatureLighting
     {
         public required WrapperShaderData<Assets.Nature.NatureLighting.Parameters> NatureLightingShader { get; init; }
 
-        public required WrapperShaderData<Assets.Nature.NaturePreprocessing.Parameters> NaturePreprocessingShader { get; init; }
+        public required WrapperShaderData<Assets.Nature.NaturePreprocessing.Parameters> NatureMaskShader { get; init; }
+
+        public required WrapperShaderData<Assets.Nature.NaturePreprocessing.Parameters> NatureDistanceFieldShader { get; init; }
 
         public static Data LoadData(Mod mod)
         {
@@ -32,7 +33,8 @@ public static class NatureLighting
                 () => new Data
                 {
                     NatureLightingShader = Assets.Nature.NatureLighting.CreateNatureLightingShader(),
-                    NaturePreprocessingShader = Assets.Nature.NaturePreprocessing.CreateNaturePreprocessingShader(),
+                    NatureMaskShader = Assets.Nature.NaturePreprocessing.CreateNatureMaskShader(),
+                    NatureDistanceFieldShader = Assets.Nature.NaturePreprocessing.CreateNatureDistanceFieldShader(),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -241,7 +243,6 @@ public static class NatureLighting
     }
 
     private static Texture2D[]? treeBranchProcessed;
-
     private static Texture2D[]? treeTopProcessed;
 
     [ModSystemHooks.ResizeArrays]
@@ -250,22 +251,96 @@ public static class NatureLighting
         Main.RunOnMainThread(ProcessTrees);
     }
 
+    [OnUnload]
+    private static void Unload()
+    {
+        if (treeBranchProcessed is null
+         || treeTopProcessed is null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < treeBranchProcessed.Length; i++)
+        {
+            treeBranchProcessed[i].Dispose();
+            treeBranchProcessed[i] = null;
+        }
+
+        for (var i = 0; i < treeTopProcessed.Length; i++)
+        {
+            treeTopProcessed[i].Dispose();
+            treeTopProcessed[i] = null;
+        }
+    }
+
     private static void ProcessTrees()
     {
         var device = Main.graphics.GraphicsDevice;
         var sb = Main.spriteBatch;
 
-        var effect = Data.Instance.NaturePreprocessingShader;
+        var maskShader = Data.Instance.NatureMaskShader;
+        var distanceFieldShader = Data.Instance.NatureDistanceFieldShader;
 
         using var _ = sb.Scope();
 
         Branches();
-
-        //treetops TODO
-        // var palmTreeEdgeCase = i == 21 ? 4 : 0;
-
+        Tops();
 
         return;
+
+        void Tops()
+        {
+            treeTopProcessed = new Texture2D[TextureAssets.TreeTop.Length];
+
+            for (var i = 0; i < treeTopProcessed.Length; i++)
+            {
+                TextureAssets.TreeTop[i].Wait();
+
+                var original = TextureAssets.TreeTop[i].Value;
+
+                var frameSize = GetSingleFrameSize(original, i);
+
+                var target = new RenderTarget2D(device, original.Width, original.Height);
+                using var swapTarget = RenderTargetPool.Shared.Rent(device, original.Width, original.Height);
+
+                using (swapTarget.Scope(clearColor: Color.Transparent))
+                {
+                    for (var x = 0f; x < original.Width; x += frameSize.X)
+                    {
+                        for (var y = 0f; y < original.Height; y += frameSize.Y)
+                        {
+                            var style = (int)(y / frameSize.Y);
+
+                            GetNatureSettings(i, style, out var settings, out var contrast);
+
+                            var source = new Rectangle((int)x, (int)y, (int)frameSize.X, (int)frameSize.Y);
+
+                            DrawFrame(original, source, settings, contrast ?? default_contrast);
+                        }
+                    }
+                }
+
+                RenderDistanceField(original, target, swapTarget.Target, frameSize);
+
+                treeTopProcessed[i] = target;
+            }
+
+            return;
+
+            static Vector2 GetSingleFrameSize(Texture2D texture, int index)
+            {
+                // TODO: Impl that better supports ModTrees?
+                return index switch
+                {
+                    // Hallow trees
+                    3 or 19 => new Vector2(texture.Width / 9f, texture.Height),
+                    20 => new Vector2(texture.Width / 18f, texture.Height),
+                    // Palm trees
+                    15 or 21 => new Vector2(texture.Width / 3f, texture.Height / 4f),
+                    _ => new Vector2(texture.Width / 3f, texture.Height),
+                };
+            }
+        }
 
         void Branches()
         {
@@ -280,8 +355,9 @@ public static class NatureLighting
                 var original = TextureAssets.TreeBranch[i].Value;
 
                 var target = new RenderTarget2D(device, original.Width, original.Height);
+                using var swapTarget = RenderTargetPool.Shared.Rent(device, original.Width, original.Height);
 
-                sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+                using (swapTarget.Scope(clearColor: Color.Transparent))
                 {
                     for (var x = 0f; x < original.Width; x += branchFrame.X)
                     {
@@ -297,7 +373,8 @@ public static class NatureLighting
                         }
                     }
                 }
-                sb.End();
+
+                RenderDistanceField(original, target, swapTarget.Target, branchFrame);
 
                 treeBranchProcessed[i] = target;
             }
@@ -305,51 +382,80 @@ public static class NatureLighting
 
         void DrawFrame(Texture2D texture, Rectangle rect, TreePaintingSettings settings, (float Base, float Multiplier) contrast)
         {
-            // Makes sure that the effect can properly grab the textures size when applied.
-            effect.Parameters.NatureTexture = new HlslSampler2D
+            sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
             {
-                Sampler = SamplerState.PointClamp,
-                Texture = texture,
-            };
+                var usesGroup = settings.UseSpecialGroups;
 
-            var usesGroup = settings.UseSpecialGroups;
+                var invert = settings.InvertSpecialGroupResult;
 
-            var invert = settings.InvertSpecialGroupResult;
+                var minHue = settings.SpecialGroupMinimalHueValue;
+                var maxHue = settings.SpecialGroupMaximumHueValue;
 
-            var minHue = settings.SpecialGroupMinimalHueValue;
-            var maxHue = settings.SpecialGroupMaximumHueValue;
+                if (!usesGroup)
+                {
+                    minHue = 0f;
+                    maxHue = 1f;
+                }
 
-            if (!usesGroup)
-            {
-                minHue = 0f;
-                maxHue = 1f;
+                maskShader.Parameters.MinHue = minHue;
+                maskShader.Parameters.MaxHue = maxHue;
+                maskShader.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
+                maskShader.Parameters.HueOffset = settings.HueTestOffset;
+
+                var minSat = settings.SpecialGroupMinimumSaturationValue;
+                var maxSat = settings.SpecialGroupMaximumSaturationValue;
+
+                if (!usesGroup)
+                {
+                    minSat = 0f;
+                    maxSat = 1f;
+                }
+
+                maskShader.Parameters.MinSat = minSat;
+                maskShader.Parameters.MaxSat = maxSat;
+                maskShader.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
+
+                maskShader.Parameters.Contrast = new Vector2(contrast.Base, contrast.Multiplier);
+
+                maskShader.Parameters.NatureTexture = new HlslSampler2D
+                {
+                    Sampler = SamplerState.LinearClamp,
+                    Texture = texture,
+                };
+
+                maskShader.Apply();
+
+                sb.Draw(texture, rect, rect, Color.White);
             }
+            sb.End();
+        }
 
-            effect.Parameters.MinHue = minHue;
-            effect.Parameters.MaxHue = maxHue;
-            effect.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
-            effect.Parameters.HueOffset = settings.HueTestOffset;
-
-            var minSat = settings.SpecialGroupMinimumSaturationValue;
-            var maxSat = settings.SpecialGroupMaximumSaturationValue;
-
-            if (!usesGroup)
+        void RenderDistanceField(Texture2D texture, RenderTarget2D target, RenderTarget2D swapTarget, Vector2 frameSize)
+        {
+            using (target.Scope(clearColor: Color.Transparent))
             {
-                minSat = 0f;
-                maxSat = 1f;
+                sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+
+                distanceFieldShader.Parameters.FrameSize = frameSize;
+
+                distanceFieldShader.Parameters.NatureTexture = new HlslSampler2D
+                {
+                    Sampler = SamplerState.PointClamp,
+                    Texture = texture,
+                };
+
+                distanceFieldShader.Parameters.MaskTexture = new HlslSampler2D
+                {
+                    Sampler = SamplerState.LinearClamp,
+                    Texture = swapTarget,
+                };
+
+                distanceFieldShader.Apply();
+
+                sb.Draw(texture, Vector2.Zero, Color.White);
+
+                sb.End();
             }
-
-            effect.Parameters.MinSat = minSat;
-            effect.Parameters.MaxSat = maxSat;
-            effect.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
-
-            effect.Parameters.Contrast = new Vector2(contrast.Base, contrast.Multiplier);
-
-            effect.Parameters.Source = new Vector4(rect.X, rect.Y, rect.Width, rect.Height);
-
-            effect.Apply();
-
-            sb.Draw(texture, rect, rect, Color.White);
         }
     }
 
@@ -362,7 +468,7 @@ public static class NatureLighting
 
     private static Texture2D GetTreeTopTexture_GetBaseTexture(On_TileDrawing.orig_GetTreeTopTexture orig, TileDrawing self, int treeTextureIndex, int treeTextureStyle, byte tileColor)
     {
-        currentProcessedTexture = treeBranchProcessed![treeTextureIndex];
+        currentProcessedTexture = treeTopProcessed![treeTextureIndex];
 
         return orig(self, treeTextureIndex, treeTextureStyle, tileColor);
     }
@@ -456,7 +562,7 @@ public static class NatureLighting
                     continue;
                 }
 
-                effect.Parameters.UnpaintedTexture = new HlslSampler2D
+                effect.Parameters.ProcessedTexture = new HlslSampler2D
                 {
                     Sampler = SamplerState.PointClamp,
                     Texture = processed,
