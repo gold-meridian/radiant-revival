@@ -22,7 +22,7 @@ float4 Source;
 
 float2 FrameSize;
 
-TEXTURE_SIZE(TextureSize, 0)
+TEXTURE_SIZE(TextureSize, 1)
 
 float3 RGBtoHCV(float3 color)
 {
@@ -98,7 +98,7 @@ float4 NatureMaskShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
     
     if (base.a < 1)
     {
-        return false;
+        return 0;
     }
     
     float3 hsl = RGBtoHSL(base.rgb);
@@ -112,45 +112,58 @@ float4 NatureMaskShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
     return float4(inRange, Contrast.x, Contrast.y, 0);
 }
 
+float AngleLerp(float aAngle, float bAngle, float amount)
+{
+    float angle;
+    
+    if (bAngle < aAngle)
+    {
+        float num = bAngle + TAU;
+        angle = ((num - aAngle > aAngle - bAngle) ? lerp(aAngle, bAngle, amount) : lerp(aAngle, num, amount));
+    }
+    else
+    {
+        float num = bAngle - TAU;
+        angle = ((bAngle - aAngle > aAngle - num) ? lerp(aAngle, num, amount) : lerp(aAngle, bAngle, amount));
+    }
+    
+    return angle;
+}
+
 float4 NatureDistanceFieldShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
 {
     float4 base = tex2D(NatureTexture, textureUv);
     
-    float2 fieldUv = floor(textureUv * (TextureSize / 2)) / (TextureSize / 2);
+    float4 mask = tex2D(MaskTexture, textureUv);
     
-    float4 mask = tex2D(MaskTexture, fieldUv);
-    
-    if (!Sample(fieldUv))
+    if (!Sample(textureUv))
     {
         return 0;
     }
     
     float3 hsl = RGBtoHSL(base.rgb);
     
-    float2 dist = BruteForceDistance(fieldUv);
+    float2 dist = BruteForceDistance(textureUv);
     
-    float2 localUv = fieldUv * TextureSize;
+    float2 localUv = textureUv * TextureSize;
     localUv -= floor(localUv / FrameSize) * FrameSize;
     localUv /= FrameSize;
     
-    float fade = saturate(1 - pow(localUv.y, 4));
+    float fade = saturate(1 - pow(localUv.y - 0.02, 4.3));
     
-    /*
     localUv -= 0.5;
     localUv *= 2;
     
     float len = length(dist);
     
-    const float angle_interpolant = 0.7;
+    const float angle_interpolant = 0.2;
     
     float localAng = atan2(localUv.y, localUv.x);
     float origAng = atan2(dist.y, dist.x);
     
-    float between = (TAU + localAng - origAng) % TAU;
-    between = localAng + (between * angle_interpolant);
+    float between = AngleLerp(localAng, origAng, angle_interpolant);
     
     dist = float2(cos(between), sin(between)) * len;
-    */
     
     dist *= 0.5;
     dist += 0.5;

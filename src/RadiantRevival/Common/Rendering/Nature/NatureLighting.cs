@@ -300,7 +300,7 @@ public static class NatureLighting
 
                 var frameSize = GetSingleFrameSize(original, i);
 
-                var target = new RenderTarget2D(device, original.Width, original.Height);
+                var target = new RenderTarget2D(device, original.Width / 2, original.Height / 2);
                 using var swapTarget = RenderTargetPool.Shared.Rent(device, original.Width, original.Height);
 
                 using (swapTarget.Scope(clearColor: Color.Transparent))
@@ -354,7 +354,7 @@ public static class NatureLighting
 
                 var original = TextureAssets.TreeBranch[i].Value;
 
-                var target = new RenderTarget2D(device, original.Width, original.Height);
+                var target = new RenderTarget2D(device, original.Width / 2, original.Height / 2);
                 using var swapTarget = RenderTargetPool.Shared.Rent(device, original.Width, original.Height);
 
                 using (swapTarget.Scope(clearColor: Color.Transparent))
@@ -452,7 +452,7 @@ public static class NatureLighting
 
                 distanceFieldShader.Apply();
 
-                sb.Draw(texture, Vector2.Zero, Color.White);
+                sb.Draw(texture, device.Viewport.Bounds, null, Color.White);
 
                 sb.End();
             }
@@ -508,6 +508,31 @@ public static class NatureLighting
 
     private static void DrawNatureData(IEnumerable<NatureData> data)
     {
+        if (Main.GameUpdateCount % 540 == 0)
+        {
+            Main.NewText("grrr");
+
+            if (treeBranchProcessed is null
+             || treeTopProcessed is null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < treeBranchProcessed.Length; i++)
+            {
+                treeBranchProcessed[i].Dispose();
+                treeBranchProcessed[i] = null;
+            }
+
+            for (var i = 0; i < treeTopProcessed.Length; i++)
+            {
+                treeTopProcessed[i].Dispose();
+                treeTopProcessed[i] = null;
+            }
+
+            ProcessTrees();
+        }
+
         var sb = Main.spriteBatch;
 
         using var _ = sb.Scope();

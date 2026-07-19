@@ -5,7 +5,7 @@ sampler2D ProcessedTexture : register(s1);
 
 #define EPSILON (1e-10)
 
-#define POSTERIZATION_STEPS (4)
+#define POSTERIZATION_STEPS (3)
 
 #define PIXEL_SIZE (2)
 
@@ -18,7 +18,7 @@ float2 Contrast;
 
 SCREEN_SIZE(ScreenSize)
 
-TEXTURE_SIZE(TextureSize, 1)
+TEXTURE_SIZE(MaskSize, 1)
 
 float Map(float value, float start1, float stop1, float start2, float stop2)
 {
@@ -32,29 +32,22 @@ float4 NatureLightingShaderFragment(float2 textureUv : TEXCOORD0, float4 baseCol
     
     float4 processed = tex2D(ProcessedTexture, textureUv);
     
-    // return processed.xyxy;
+    float3 pixel = float3(1 / MaskSize, 0);
     
-    /*
-    float3 pixel = float3(PIXEL_SIZE / TextureSize, 0);
-    
-    float2 averageField = 0;
+    float mult = 1;
     {
-        float4 left = tex2D(ProcessedTexture, textureUv - pixel.xz);
-        float4 right = tex2D(ProcessedTexture, textureUv + pixel.xz);
-        float4 up = tex2D(ProcessedTexture, textureUv - pixel.zy);
-        float4 down = tex2D(ProcessedTexture, textureUv + pixel.zy);
+        float4 left = tex2D(ProcessedTexture, textureUv + float2(-pixel.x, 0));
+        float4 right = tex2D(ProcessedTexture, textureUv + float2(pixel.x, 0));
+        float4 up = tex2D(ProcessedTexture, textureUv + float2(0, -pixel.y));
+        float4 down = tex2D(ProcessedTexture, textureUv + float2(0, pixel.y));
         
-        float total = left.a + right.a + up.a + down.a;
+        float total = processed.a + left.a + right.a + up.a + down.a;
         
-        left *= left.a;
-        right *= right.a;
-        up *= up.a;
-        down *= down.a;
-        
-        averageField = processed.xy + left.xy + right.xy + up.xy + down.xy;
-        averageField /= total + processed.a;
+        if (total < 5)
+        {
+            mult = 0.93;
+        }
     }
-    */
     
     float2 lightPos = LightPosition / ScreenSize;
     {
@@ -71,18 +64,16 @@ float4 NatureLightingShaderFragment(float2 textureUv : TEXCOORD0, float4 baseCol
     
     normal = normalize(normal);
     
-    float lightness = processed.z;
+    float lightness = processed.z * mult;
     
-    float lightFactor = pow(saturate(dot(lightDirection, normal) + 1.3 + (0.3 * dist)), 1.3);
-    lightFactor *= pow(dist, 1);
+    float lightFactor = pow(saturate(dot(lightDirection, normal) + 0.6 + (0.3 * dist)), 1.3) + 0.09;
+    lightFactor *= 1-pow( 1-dist, 1.1);
     
-    lightness *= lightFactor;
+    lightness *= saturate(lightFactor);
     
-    lightness = pow(saturate(lightness), 7);
+    lightness = pow(saturate(lightness + 0.06), 16);
     
     lightness = floor(lightness * POSTERIZATION_STEPS) / POSTERIZATION_STEPS;
-    
-    lightness = 1 - pow(1 - lightness, 2.4);
     
     return base + (LightColor * lightness * LightColor.a);
 }
