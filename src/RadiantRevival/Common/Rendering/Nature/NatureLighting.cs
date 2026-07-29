@@ -508,31 +508,6 @@ public static class NatureLighting
 
     private static void DrawNatureData(IEnumerable<NatureData> data)
     {
-        if (Main.GameUpdateCount % 540 == 0)
-        {
-            Main.NewText("grrr");
-
-            if (treeBranchProcessed is null
-             || treeTopProcessed is null)
-            {
-                return;
-            }
-
-            for (var i = 0; i < treeBranchProcessed.Length; i++)
-            {
-                treeBranchProcessed[i].Dispose();
-                treeBranchProcessed[i] = null;
-            }
-
-            for (var i = 0; i < treeTopProcessed.Length; i++)
-            {
-                treeTopProcessed[i].Dispose();
-                treeTopProcessed[i] = null;
-            }
-
-            ProcessTrees();
-        }
-
         var sb = Main.spriteBatch;
 
         using var _ = sb.Scope();
