@@ -28,7 +28,6 @@ namespace RadiantRevival.Content;
 
 internal sealed class RevivalPanelStyle : ModPanelStyleExt
 {
-    [Autoload(Side = ModSide.Client)]
     private sealed class Data : IStatic<Data>
     {
         public required WrapperShaderData<Assets.UI.ModPanel.MaskShader.Parameters> MaskShader { get; init; }

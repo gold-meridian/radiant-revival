@@ -540,15 +540,12 @@ public static class AtmosphereCloudRenderingSystem
         orig(ref backgroundColor, ref tileLightColor);
     }
 
-    [ModSystemHooks.ClearWorld]
-    private static void ClearWorld() => CelestialBodyPosition = Vector2.Zero;
-
     private static void Update(On_Main.orig_Update orig, Main self, GameTime gameTime)
     {
         orig(self, gameTime);
 
         var gamePaused = Main.gamePaused && !Main.gameMenu;
-        if (Main.netMode == NetmodeID.Server || gamePaused)
+        if (gamePaused)
             return;
 
         if (!DensityFieldSystem.ShouldBeDisabled)
