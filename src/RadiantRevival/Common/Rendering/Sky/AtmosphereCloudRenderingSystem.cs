@@ -378,49 +378,67 @@ public static class AtmosphereCloudRenderingSystem
         const float dawn_time = 9200f / day_length;
         const float dusk_start_time = 33000f / day_length;
 
-        atmosphereLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
-        using (atmosphereLease.Scope(clearColor: Color.Transparent))
+        var sb = Main.spriteBatch;
+
+        using (sb.Scope())
         {
-            using var _ = Main.spriteBatch.Scope();
-            Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.identity);
+            atmosphereLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
+            using (atmosphereLease.Scope(clearColor: Color.Transparent))
+            {
+                using var _ = Main.spriteBatch.Scope();
+                Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
 
-            var darkeningFactor = Utils.GetLerpValue(0f, dawn_time, DayProgress, true) * Utils.GetLerpValue(1f, dusk_start_time, DayProgress, true);
-            darkeningFactor = MathF.Pow(darkeningFactor, 1.5f);
+                var darkeningFactor = Utils.GetLerpValue(0f, dawn_time, DayProgress, true) * Utils.GetLerpValue(1f, dusk_start_time, DayProgress, true);
+                darkeningFactor = MathF.Pow(darkeningFactor, 1.5f);
 
-            var wavelengthNanometers = profile.ColorWavelengthsNanometers;
-            var wavelengthMeters = wavelengthNanometers * 1e-9f;
+                var wavelengthNanometers = profile.ColorWavelengthsNanometers;
+                var wavelengthMeters = wavelengthNanometers * 1e-9f;
 
-            var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+                var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
 
-            var s = 1f + profile.AtmosphereSaturationBoost;
-            var inverseS = 1f - s;
-            var luminanceVector = new Vector3(0.3f, 0.6f, 0.1f);
-            var r = Vector3.One * luminanceVector.X * inverseS + Vector3.UnitX * s;
-            var g = Vector3.One * luminanceVector.Y * inverseS + Vector3.UnitY * s;
-            var b = Vector3.One * luminanceVector.Z * inverseS + Vector3.UnitZ * s;
-            var saturationMatrix = new Matrix(
-                r.X, r.Y, r.Z, 0f,
-                g.X, g.Y, g.Z, 0f,
-                b.X, b.Y, b.Z, 0f,
-                0f, 0f, 0f, 1f);
+                var s = 1f + profile.AtmosphereSaturationBoost;
+                var inverseS = 1f - s;
+                var luminanceVector = new Vector3(0.3f, 0.6f, 0.1f);
+                var r = Vector3.One * luminanceVector.X * inverseS + Vector3.UnitX * s;
+                var g = Vector3.One * luminanceVector.Y * inverseS + Vector3.UnitY * s;
+                var b = Vector3.One * luminanceVector.Z * inverseS + Vector3.UnitZ * s;
+                var saturationMatrix = new Matrix(
+                    r.X,
+                    r.Y,
+                    r.Z,
+                    0f,
+                    g.X,
+                    g.Y,
+                    g.Z,
+                    0f,
+                    b.X,
+                    b.Y,
+                    b.Z,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    1f
+                );
 
-            var depth = Main.gameMenu ? 1485f : 3000f;
+                var depth = Main.gameMenu ? 1485f : 3000f;
 
-            var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
-            shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
-            shader.Parameters.zoom = Vector2.One;
-            shader.Parameters.screenPosition = ScreenPosition;
-            shader.Parameters.screenSize = FixedScreenSize;
-            shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, depth) * 16f;
-            shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
-            shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
-            shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
-            shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(wavelengthMeters, 1.00037f);
-            shader.Parameters.saturationBoostMatrix = saturationMatrix;
-            shader.Apply();
+                var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
+                shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
+                shader.Parameters.zoom = Vector2.One;
+                shader.Parameters.screenPosition = ScreenPosition;
+                shader.Parameters.screenSize = FixedScreenSize;
+                shader.Parameters.worldSize = new Vector3(Main.maxTilesX, Main.maxTilesY, depth) * 16f;
+                shader.Parameters.radii = shader.Parameters.worldSize * new Vector3(25.2f, 1f, 1f) * 0.5f;
+                shader.Parameters.sunlightFactor = new Vector3(1f + LowSun * 0.4f, 0.9f - LowSun * 0.65f, 1f + LowSun * 0.6f) * CalculateBiomeColorInfluence();
+                shader.Parameters.sunPosition = new Vector3(sunMoonWorldPosition, 3300f);
+                shader.Parameters.scatterCoefficients = CalculateRayleighScatterCoefficients(wavelengthMeters, 1.00037f);
+                shader.Parameters.saturationBoostMatrix = saturationMatrix;
+                shader.Apply();
 
-            var pixel = TextureAssets.MagicPixel.Value;
-            Main.spriteBatch.Draw(pixel, viewportArea, Color.White * darkeningFactor);
+                var pixel = TextureAssets.MagicPixel.Value;
+                Main.spriteBatch.Draw(pixel, viewportArea, Color.White * darkeningFactor);
+            }
         }
 
         Main.spriteBatch.Draw(atmosphereLease.Target, new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height), Color.White);
