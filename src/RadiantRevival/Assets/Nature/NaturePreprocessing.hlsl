@@ -10,11 +10,10 @@ sampler2D MaskTexture : register(s1);
 float MinHue;
 float MaxHue;
 float HueOffset;
-bool InvertHue;
 
 float MinSat;
 float MaxSat;
-bool InvertSat;
+bool InvertMask;
 
 float2 Contrast;
 
@@ -24,31 +23,37 @@ float2 FrameSize;
 
 TEXTURE_SIZE(TextureSize, 1)
 
-float3 RGBtoHCV(float3 color)
+float2 GetVanillaHueSat(float3 color)
 {
-    float4 p = color.g < color.b
-        ? float4(color.bg, -1, 0.6666)
-        : float4(color.gb, 0, -0.3333);
+    float maximum = max(max(color.r, color.g), color.b);
+    float minimum = min(min(color.r, color.g), color.b);
+    float delta = maximum - minimum;
+
+    if (delta <= 0 || maximum <= 0)
+    {
+        return float2(0, 0);
+    }
+        
+    float redHue = ((color.g - color.b) / delta) + 6;
+    float greenHue = ((color.b - color.r) / delta) + 2;
+    float blueHue = ((color.r - color.g) / delta) + 4;
     
-    float4 q = color.r < p.x
-        ? float4(p.xyw, color.r)
-        : float4(color.r, p.yzx);
+    float hueSector = max(max(
+        redHue * (color.r >= maximum),
+        greenHue * (color.g >= maximum)),
+        blueHue * (color.b >= maximum)
+    );
+
+    float hue = frac(hueSector * (1 / 6));
+    float saturation = delta / maximum;
     
-    float C = q.x - min(q.w, q.y);
-    
-    float hue = abs((q.w - q.y) / (6 * C + EPSILON) + q.z);
-    
-    return float3(hue, C, q.x);
+    return float2(hue, saturation);
 }
 
-float3 RGBtoHSL(float3 color)
+float SignedFraction(float value)
 {
-    float3 hcv = RGBtoHCV(color);
-    
-    float l = hcv.z - hcv.y * 0.5;
-    float s = hcv.y / (1 - abs((l * 2) - 1) + EPSILON);
-    
-    return float3(hcv.x, s, l);
+    float fraction = frac(abs(value));
+    return fraction * sign(value);
 }
 
 float Map(float value, float start1, float stop1, float start2, float stop2)
@@ -101,15 +106,24 @@ float4 NatureMaskShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
         return 0;
     }
     
-    float3 hsl = RGBtoHSL(base.rgb);
+    float2 hueSat = GetVanillaHueSat(base.rgb);
+    float hue = SignedFraction(hueSat.x + HueOffset);
+    float saturation = hueSat.y;
+
+    float inside =
+        saturation >= MinSat &&
+        saturation <= MaxSat &&
+        hue >= MinHue &&
+        hue <= MaxHue
+            ? 1
+            : 0;
+
+    if (InvertMask > 0.5)
+    {
+        inside = 1 - inside;
+    }
     
-    float hue = (hsl.x + HueOffset) % 1;
-    
-    bool inRange =
-        InvertHue != (hue >= MinHue && hue <= MaxHue)
-     && InvertSat != (hsl.y >= MinSat && hsl.y <= MaxSat);
-     
-    return float4(inRange, Contrast.x, Contrast.y, 0);
+    return float4(inside, Contrast.x, Contrast.y, 0);
 }
 
 float AngleLerp(float aAngle, float bAngle, float amount)
@@ -141,7 +155,10 @@ float4 NatureDistanceFieldShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
         return 0;
     }
     
-    float3 hsl = RGBtoHSL(base.rgb);
+    float maximum = max(max(base.r, base.g), base.b);
+    float minimum = min(min(base.r, base.g), base.b);
+
+    float lightness = (minimum + maximum) / 2;
     
     float2 dist = BruteForceDistance(textureUv);
     
@@ -168,7 +185,7 @@ float4 NatureDistanceFieldShaderFragment(float2 textureUv : TEXCOORD0) : COLOR0
     dist *= 0.5;
     dist += 0.5;
     
-    float lightness = (hsl.z - mask.y) * mask.z;
+    lightness = (lightness - mask.y) * mask.z;
     
     lightness = 1 - lightness;
     

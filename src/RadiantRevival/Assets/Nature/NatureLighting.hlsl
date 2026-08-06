@@ -67,7 +67,7 @@ float4 NatureLightingShaderFragment(float2 textureUv : TEXCOORD0, float4 baseCol
     float lightness = processed.z * mult;
     
     float lightFactor = pow(saturate(dot(lightDirection, normal) + 0.6 + (0.3 * dist)), 1.3) + 0.09;
-    lightFactor *= 1-pow( 1-dist, 1.1);
+    lightFactor *= 1 - pow(1 - dist, 1.1);
     
     lightness *= saturate(lightFactor);
     

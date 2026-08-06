@@ -103,84 +103,6 @@ public static class NatureLighting
         }
     }
 
-    // The shader we have seems unable to accurately mask based on the vanilla hue/sat limiters.
-    private static readonly Dictionary<(int[] Indices, int[] Styles), TreePaintingSettings> tree_settings_overrides = new()
-    {
-        {
-            ([15, 21], [0, 4]), // PalmTreePurity
-            new TreePaintingSettings
-            {
-                UseSpecialGroups = true,
-                SpecialGroupMinimalHueValue = 11f / 72f,
-                SpecialGroupMaximumHueValue = 0.25f,
-                SpecialGroupMinimumSaturationValue = 0.3f,
-                SpecialGroupMaximumSaturationValue = 1f,
-            }
-        },
-
-        {
-            ([15, 21], [3, 7]), // PalmTreeCorruption
-            new TreePaintingSettings
-            {
-                UseSpecialGroups = true,
-                SpecialGroupMinimalHueValue = 0.5f,
-                SpecialGroupMaximumHueValue = 0.7f,
-                SpecialGroupMinimumSaturationValue = 0.19f,
-                SpecialGroupMaximumSaturationValue = 1f,
-            }
-        },
-
-        {
-            ([15, 21], [1, 5]), // PalmTreeCrimson
-            new TreePaintingSettings
-            {
-                UseSpecialGroups = true,
-                SpecialGroupMinimalHueValue = 0f,
-                SpecialGroupMaximumHueValue = 0.2f,
-                SpecialGroupMinimumSaturationValue = 0.19f,
-                SpecialGroupMaximumSaturationValue = 1f,
-            }
-        },
-
-        {
-            ([1], []),
-            new TreePaintingSettings
-            {
-                UseSpecialGroups = true,
-                SpecialGroupMinimalHueValue = 0.5f,
-                SpecialGroupMaximumHueValue = 1f,
-                SpecialGroupMinimumSaturationValue = 0.2f,
-                SpecialGroupMaximumSaturationValue = 1f,
-            }
-        },
-
-        {
-            ([3, 19, 20], []), // WoodHallow
-            new TreePaintingSettings
-            {
-                UseSpecialGroups = true,
-                SpecialGroupMinimalHueValue = 0f,
-                SpecialGroupMaximumHueValue = 1f,
-                SpecialGroupMinimumSaturationValue = 0f,
-                SpecialGroupMaximumSaturationValue = 0.38f,
-                InvertSpecialGroupResult = true,
-            }
-        },
-
-        {
-            ([29], []), // VanityCherry
-            new TreePaintingSettings
-            {
-                UseSpecialGroups = true,
-                SpecialGroupMinimalHueValue = 0.02f,
-                SpecialGroupMaximumHueValue = 0.7f,
-                SpecialGroupMinimumSaturationValue = 0f,
-                SpecialGroupMaximumSaturationValue = 1f,
-                InvertSpecialGroupResult = true,
-            }
-        },
-    };
-
     private static readonly Dictionary<(int[] Indices, int[] Styles), (float Base, float Multiplier)> contrast_overrides = new()
     {
         {
@@ -399,7 +321,6 @@ public static class NatureLighting
 
                 maskShader.Parameters.MinHue = minHue;
                 maskShader.Parameters.MaxHue = maxHue;
-                maskShader.Parameters.InvertHue = invert && (minHue > 0f || maxHue < 1f);
                 maskShader.Parameters.HueOffset = settings.HueTestOffset;
 
                 var minSat = settings.SpecialGroupMinimumSaturationValue;
@@ -413,7 +334,8 @@ public static class NatureLighting
 
                 maskShader.Parameters.MinSat = minSat;
                 maskShader.Parameters.MaxSat = maxSat;
-                maskShader.Parameters.InvertSat = invert && (minSat > 0f || maxSat < 1f);
+
+                maskShader.Parameters.InvertMask = invert;
 
                 maskShader.Parameters.Contrast = new Vector2(contrast.Base, contrast.Multiplier);
 
@@ -483,22 +405,11 @@ public static class NatureLighting
         settings = TreePaintSystemData.GetTreeFoliageSettings(treeTextureIndex, treeTextureStyle);
         contrast = null;
 
-        var settingsKey = tree_settings_overrides.Keys
-                                                 .FirstOrDefault(
-                                                      key => key.Indices.Contains(treeTextureIndex)
-                                                          && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
-                                                  );
-
         var contrastKey = contrast_overrides.Keys
                                             .FirstOrDefault(
                                                  key => key.Indices.Contains(treeTextureIndex)
                                                      && (key.Styles.Contains(treeTextureStyle) || key.Styles.Length <= 0)
                                              );
-
-        if (tree_settings_overrides.TryGetValue(settingsKey, out var settingsOverride))
-        {
-            settings = settingsOverride;
-        }
 
         if (contrast_overrides.TryGetValue(contrastKey, out var range))
         {
