@@ -219,7 +219,6 @@ public static class CustomSnow
 
     private static void CreateSnowParticles(On_Main.orig_snowing orig)
     {
-        Main.windSpeedTarget = -0.85f;
         if (Main.remixWorld)
             return;
 
