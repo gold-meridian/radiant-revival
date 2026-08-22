@@ -169,7 +169,7 @@ public static class AuroraReplacement
                 colorTint = Color.Lerp(colorTint, localTint, influenceIntensity);
             }
 
-            var tintInterpolant = opacity * 0.125f;
+            var tintInterpolant = opacity * 0.16f;
             tileColor = Color.Lerp(tileColor, colorTint, tintInterpolant);
             backgroundColor = Color.Lerp(backgroundColor, colorTint, tintInterpolant);
         }
