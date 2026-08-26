@@ -2,8 +2,6 @@
 
 # Radiant Revival
 
-> baby, do you know what you wanna hear?
-
 ---
 
 **Radiant Revival** is a work-in-progress visual overhaul mod for Terraria 1.4.5.
