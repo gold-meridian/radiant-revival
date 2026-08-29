@@ -71,6 +71,16 @@ public sealed record SkyProfileInfluence
     }
 
     /// <summary>
+    ///     The color that the background should be tinted
+    ///     as a result of the aurora.
+    /// </summary>
+    public Color AuroraBackgroundTintColor
+    {
+        get;
+        init;
+    }
+
+    /// <summary>
     ///     The color that natural rainbows should be tinted.
     /// </summary>
     public required Color RainbowTintColor

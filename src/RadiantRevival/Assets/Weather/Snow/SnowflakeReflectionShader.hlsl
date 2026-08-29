@@ -1,0 +1,69 @@
+﻿#include "../../common.h"
+
+sampler2D snowTexture : register(s0);
+sampler2D snowNormalTexture : register(s1);
+sampler2D reflectionColorTexture : register(s2);
+sampler2D reflectionDepthTexture : register(s3);
+sampler2D lightMapTexture : register(s4);
+sampler2D positionTexture : register(s5);
+
+bool renderOnlyForeground;
+float reflectivityInterpolant;
+float2 zoom;
+
+float4 CalculateScreenSpaceReflections(float2 start, float3 stepDirection)
+{
+    float2 uv = start;
+    float4 result = 0;
+
+    for (int i = 0; i < 64; i++)
+    {
+        float depth = tex2D(reflectionDepthTexture, uv).r;
+        float4 sampleColor = float4(tex2D(reflectionColorTexture, uv).rgb, 1);
+        bool validForSetting = depth >= 0.05 && result.a <= 0;
+        
+        result = lerp(result, sampleColor, validForSetting);
+        
+        uv += stepDirection.xy * 0.02;
+    }
+
+    return result;
+}
+
+float4 PixelShaderFunction(float2 uv : TEXCOORD0, float4 sampleColor : COLOR0) : COLOR0
+{
+    float4 baseColor = tex2D(snowTexture, uv);
+    baseColor *= length(baseColor.rgb) >= 0.001;
+    
+    float3 normal = normalize(tex2D(snowNormalTexture, uv).xyz);
+    
+    float3 viewDirection = float3(0, 0, 1);
+    float3 reflectionDirection = reflect(viewDirection, normal);
+    float4 reflectedColor = CalculateScreenSpaceReflections(uv, reflectionDirection);
+    
+    float cosTheta = saturate(dot(viewDirection, normal));
+    float fresnel = pow(1 - cosTheta, 5);
+    float localReflectivity = reflectivityInterpolant * fresnel * baseColor.a;
+    
+    float3 color = lerp(baseColor.rgb, reflectedColor.rgb, localReflectivity);
+    color += reflectedColor * localReflectivity * 1.1;
+    
+    // The influence of the light map becomes strongest
+    // The closer the Z position is to being level with the
+    // player. Background and foreground snowflakes
+    // are left alone.    
+    float z = tex2D(positionTexture, uv).z;
+    float lightIntensity = smoothstep(1000, 540, z) * smoothstep(100, 200, z);
+    float3 light = lerp(1, tex2D(lightMapTexture, (uv - 0.5) / zoom + 0.5).rgb, lightIntensity);
+    
+    bool inForeground = z <= 650;
+    bool correctGround = inForeground == renderOnlyForeground;
+    
+    return float4(color * light, 0) * sampleColor * baseColor.a * correctGround * 1.4;
+}
+
+BEGIN_TECHNIQUE(Technique1)
+    BEGIN_PASS(AutoloadPass) 
+        PIXEL_SHADER(compile ps_3_0 PixelShaderFunction()) 
+    END_PASS
+END_TECHNIQUE
