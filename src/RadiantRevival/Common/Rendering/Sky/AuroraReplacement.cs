@@ -20,7 +20,9 @@ namespace RadiantRevival.Common.Rendering.Sky;
 /// </summary>
 public static class AuroraReplacement
 {
-    private static RenderTargetLease? auroraLease;
+    internal static RenderTargetLease? auroraLease;
+
+    internal static RenderTargetLease? depthLease;
 
     [OnLoad]
     internal static void Load()
@@ -33,16 +35,32 @@ public static class AuroraReplacement
     private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
     {
         auroraLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
-        using (auroraLease.Scope(clearColor: Color.Transparent))
-            RenderIntoTargetLease();
+        depthLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2), RenderTargetDescriptor.Default with
+        {
+            Format = SurfaceFormat.Single
+        });
+
+        {
+            var gd = Main.instance.GraphicsDevice;
+            var previousBindings = gd.GetRenderTargets();
+            gd.SetRenderTargets(
+            [
+                auroraLease.Target,
+                depthLease.Target
+            ]);
+
+            RenderIntoTargets();
+
+            gd.SetRenderTargets(previousBindings);
+        }
 
         using var _ = Main.spriteBatch.Scope();
         var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
         Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.BackgroundViewMatrix.EffectMatrix);
-        Main.spriteBatch.Draw(auroraLease.Target, viewportArea, Color.White * skyOpacity);
+        Main.spriteBatch.Draw(auroraLease.Target, viewportArea, new Color(255, 255, 255, 0) * skyOpacity);
     }
 
-    private static void RenderIntoTargetLease()
+    private static void RenderIntoTargets()
     {
         using var _ = Main.spriteBatch.Scope();
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
@@ -141,8 +159,17 @@ public static class AuroraReplacement
     {
         if (SkyManager.Instance["Aurora"] is AuroraSky { _opacity: var opacity } && opacity > 0f)
         {
-            var colorTint = new Color(12, 232, 123);
-            var tintInterpolant = opacity * 0.037f;
+            var colorTint = new Color(53, 223, 76);
+            var profile = AtmosphereCloudRenderingSystem.Profile;
+            foreach (var influence in profile.Influences)
+            {
+                var localTint = influence.AuroraBackgroundTintColor;
+                var alpha = localTint.A / 255f;
+                var influenceIntensity = influence.InfluenceFunction(Main.LocalPlayer) * alpha;
+                colorTint = Color.Lerp(colorTint, localTint, influenceIntensity);
+            }
+
+            var tintInterpolant = opacity * 0.16f;
             tileColor = Color.Lerp(tileColor, colorTint, tintInterpolant);
             backgroundColor = Color.Lerp(backgroundColor, colorTint, tintInterpolant);
         }

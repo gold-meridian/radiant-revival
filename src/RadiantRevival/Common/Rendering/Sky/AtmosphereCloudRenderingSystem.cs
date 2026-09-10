@@ -253,16 +253,22 @@ public static class AtmosphereCloudRenderingSystem
             AtmosphereTintColor = new Vector3(2.4f, 0.82f, 0.38f),
             RainbowTintColor = new Color(85, 255, 174) * 0.75f,
             InfluencePriority = 0,
+
             RedTermAuroraTint = Vector3.UnitZ * 1.2f,
-            BlueTermAuroraTint = Vector3.UnitY * -0.95f
+            BlueTermAuroraTint = Vector3.UnitY * -0.95f,
+
+            AuroraBackgroundTintColor = new Color(156, 209, 74)
         };
         var crimsonBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.BloodTileCount / (float)SceneMetrics.CrimsonTileMax, 0f, 1f))
         {
             AtmosphereTintColor = new Vector3(1f, 0.6f, 0.4f),
             RainbowTintColor = new Color(255, 50, 50) * 0.75f,
             InfluencePriority = 0,
+
             GreenTermAuroraTint = new Vector3(0.4f, -1f, 0.2f),
-            RedTermAuroraTint = Vector3.UnitZ * 2.2f
+            RedTermAuroraTint = Vector3.UnitZ * 2.2f,
+
+            AuroraBackgroundTintColor = new Color(198, 12, 16)
         };
         var hallowBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.HolyTileCount / (float)SceneMetrics.HallowTileMax, 0f, 1f))
         {
@@ -274,6 +280,8 @@ public static class AtmosphereCloudRenderingSystem
             RedTermAuroraTint = new Vector3(0.8f, 0.2f, 0.8f),
             GreenTermAuroraTint = new Vector3(0.8f, -0.4f, -0.8f),
             BlueTermAuroraTint = new Vector3(0.2f, 0.2f, 0.8f),
+
+            AuroraBackgroundTintColor = new Color(211, 62, 196)
         };
         var graveyardBiome = new SkyProfileInfluence(p => Math.Clamp(Main.SceneMetrics.GraveyardTileCount / (float)SceneMetrics.GraveyardTileThreshold, 0f, 1f))
         {
