@@ -82,9 +82,9 @@ public static class Rain
                     DirectionalBlurShader = Assets.Weather.Rain.TileMaskBlur.CreateTileMaskBlurShader(),
                     DistortionShader = Assets.Weather.Rain.Distortion.CreateDistortionShader(),
                     BackgroundShader = Assets.Weather.Rain.Background.CreateBackgroundShader(),
-                    RainTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
-                    MaskTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
-                    MaskTargetSwap = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    RainTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device),
+                    MaskTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    MaskTargetSwap = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                 }
             ).GetAwaiter().GetResult();
 
@@ -212,7 +212,7 @@ public static class Rain
         var blurShader = Data.Instance.DirectionalBlurShader;
 
         var sb = Main.spriteBatch;
-        var device = Main.graphics.GraphicsDevice;
+        var device = Graphics.Device;
 
         var direction = Vector2.Normalize(Terraria.Rain.GetRainFallVelocity());
 

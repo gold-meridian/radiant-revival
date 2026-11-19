@@ -123,7 +123,7 @@ public static class MeteorShower
 
         const float screen_length_denom = 1101f;
 
-        var screenSize = Main.graphics.GraphicsDevice.Viewport.Bounds.Size();
+        var screenSize = Graphics.Device.Viewport.Bounds.Size();
 
         var center = screenSize * 0.5f;
 

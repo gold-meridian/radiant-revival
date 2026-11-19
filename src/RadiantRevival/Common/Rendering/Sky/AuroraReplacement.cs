@@ -31,19 +31,19 @@ public static class AuroraReplacement
 
     private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
     {
-        auroraLease ??= ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
-        depthLease ??= ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2), RenderTargetDescriptor.Default with
+        auroraLease ??= ScreenspaceTargetProvider.Shared.Create(Graphics.Device, (w, h) => (w / 2, h / 2));
+        depthLease ??= ScreenspaceTargetProvider.Shared.Create(Graphics.Device, (w, h) => (w / 2, h / 2), RenderTargetDescriptor.Default with
         {
-            Format = SurfaceFormat.Single
+            Format = SurfaceFormat.Single,
         });
 
         {
-            var gd = Main.instance.GraphicsDevice;
+            var gd = Graphics.Device;
             var previousBindings = gd.GetRenderTargets();
             gd.SetRenderTargets(
             [
                 auroraLease.Target,
-                depthLease.Target
+                depthLease.Target,
             ]);
 
             RenderIntoTargets();
@@ -52,7 +52,7 @@ public static class AuroraReplacement
         }
 
         using var _ = Main.spriteBatch.Scope();
-        var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+        var viewportArea = Graphics.Device.Viewport.Bounds;
         Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.BackgroundViewMatrix.EffectMatrix);
         Main.spriteBatch.Draw(auroraLease.Target, viewportArea, new Color(255, 255, 255, 0) * skyOpacity);
     }
@@ -72,7 +72,7 @@ public static class AuroraReplacement
         var hueMixingA = MathF.Sin(CloudWeatherVarianceSystem.WeatherTimer * 0.0151f) * 0.5f + 0.5f;
         var hueMixingB = MathF.Sin(CloudWeatherVarianceSystem.WeatherTimer * 0.0132f) * 0.5f + 0.5f;
 
-        var shader = AssetReferences.Assets.Sky.AuroraShader.CreateAutoloadPass();
+        var shader = Assets.Sky.AuroraShader.CreateAutoloadPass();
         shader.Parameters.time = Main.GlobalTimeWrappedHourly * 0.0425f;
 
         // Oxygen exists primarily within the 100-200km range
@@ -109,13 +109,13 @@ public static class AuroraReplacement
         shader.Parameters.raymarchStepDecay = 1.3f;
         shader.Parameters.noiseTexture = new HlslSampler2D
         {
-            Texture = AssetReferences.Assets.Noise.CloudyNoise.Asset.Value,
-            Sampler = SamplerState.LinearWrap
+            Texture = Assets.Noise.CloudyNoise.Asset.Value,
+            Sampler = SamplerState.LinearWrap,
         };
         shader.Apply();
 
         var pixel = TextureAssets.MagicPixel.Value;
-        var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+        var viewportArea = Graphics.Device.Viewport.Bounds;
         Main.spriteBatch.Draw(pixel, viewportArea, Color.White);
     }
 

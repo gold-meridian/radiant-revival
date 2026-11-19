@@ -386,7 +386,7 @@ public static class AtmosphereCloudRenderingSystem
 
         using (sb.Scope())
         {
-            atmosphereLease ??= ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
+            atmosphereLease ??= ScreenspaceTargetProvider.Shared.Create(Graphics.Device, (w, h) => (w / 2, h / 2));
             using (atmosphereLease.Scope(clearColor: Color.Transparent))
             {
                 using var _ = Main.spriteBatch.Scope();
@@ -398,7 +398,7 @@ public static class AtmosphereCloudRenderingSystem
                 var wavelengthNanometers = profile.ColorWavelengthsNanometers;
                 var wavelengthMeters = wavelengthNanometers * 1e-9f;
 
-                var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+                var viewportArea = new Rectangle(0, 0, Graphics.Device.Viewport.Width, Graphics.Device.Viewport.Height);
 
                 var s = 1f + profile.AtmosphereSaturationBoost;
                 var inverseS = 1f - s;
@@ -427,7 +427,7 @@ public static class AtmosphereCloudRenderingSystem
 
                 var depth = Main.gameMenu ? 1485f : 3000f;
 
-                var shader = AssetReferences.Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
+                var shader = Assets.Sky.RayleighScatteringShader.CreateAutoloadPass();
                 shader.Parameters.globalTime = Main.GlobalTimeWrappedHourly * 0.3f;
                 shader.Parameters.zoom = Vector2.One;
                 shader.Parameters.screenPosition = ScreenPosition;
@@ -445,7 +445,7 @@ public static class AtmosphereCloudRenderingSystem
             }
         }
 
-        Main.spriteBatch.Draw(atmosphereLease.Target, new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height), Color.White);
+        Main.spriteBatch.Draw(atmosphereLease.Target, Graphics.Device.Viewport.Bounds, Color.White);
     }
 
     /// <summary>
@@ -460,7 +460,7 @@ public static class AtmosphereCloudRenderingSystem
             return;
 
         var skyline = Main.maxTilesY * 16f * 0.133f;
-        var viewportSize = new Vector2(Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+        var viewportSize = Graphics.Device.Viewport.Bounds.Size();
         var cloudDrawPosition = viewportSize * new Vector2(0.5f, 0.22f);
         cloudDrawPosition.Y += (skyline - ScreenPosition.Y) * 0.12f;
 
@@ -500,7 +500,7 @@ public static class AtmosphereCloudRenderingSystem
 
         var sunMoonWorldPosition = CelestialBodyPosition + ScreenPosition;
 
-        var shader = AssetReferences.Assets.Sky.RealisticCloudShader.CreateAutoloadPass();
+        var shader = Assets.Sky.RealisticCloudShader.CreateAutoloadPass();
         shader.Parameters.densityPosterizationLevel = 15.4f;
         shader.Parameters.pixelationLevel = 3f;
         shader.Parameters.horizontalScroll = ScreenPosition.X / 30900f;
@@ -516,8 +516,8 @@ public static class AtmosphereCloudRenderingSystem
         shader.Parameters.fieldTargetSize2D = DensityFieldSystem.BaselineTargetSize.ToVector2();
         shader.Parameters.noiseTexture = new HlslSampler2D
         {
-            Texture = AssetReferences.Assets.Noise.CloudyNoise.Asset.Value,
-            Sampler = SamplerState.LinearWrap
+            Texture = Assets.Noise.CloudyNoise.Asset.Value,
+            Sampler = SamplerState.LinearWrap,
         };
         shader.Apply();
 

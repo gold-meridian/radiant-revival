@@ -22,8 +22,8 @@ partial class LightingEngine
             return Main.RunOnMainThread(
                 () => new Buffers
                 {
-                    TileSpaceBuffer = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetBufferSize),
-                    ScreenSpaceBuffer = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
+                    TileSpaceBuffer = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, GetBufferSize),
+                    ScreenSpaceBuffer = ScreenspaceTargetProvider.Shared.Create(Graphics.Device),
                 }
             ).GetAwaiter().GetResult();
 

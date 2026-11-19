@@ -46,7 +46,7 @@ public static class SmoothLightingRenderer
     {
         public ApplicationScope(Vector2 drawOffset, float drawZoom, bool flipScreen)
         {
-            var targets = GetNonNullTextures(Main.instance.GraphicsDevice.GetRenderTargets()).ToArray();
+            var targets = GetNonNullTextures(Graphics.Device.GetRenderTargets()).ToArray();
             var state = new ApplicationState(drawOffset, drawZoom, flipScreen, targets);
             currently_applied.Push(state);
         }
@@ -149,7 +149,7 @@ public static class SmoothLightingRenderer
             return false;
         }
 
-        var targets = GetNonNullTextures(Main.instance.GraphicsDevice.renderTargetBindings).ToArray();
+        var targets = GetNonNullTextures(Graphics.Device.renderTargetBindings).ToArray();
         if (!targets.SequenceEqual(state.Targets))
         {
             return false;

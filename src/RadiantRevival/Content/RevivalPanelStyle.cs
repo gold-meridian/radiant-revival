@@ -601,7 +601,7 @@ internal sealed class RevivalPanelStyle : ModPanelStyleExt
             element.LoadTextures();
         }
 
-        var device = sb.GraphicsDevice;
+        var device = Graphics.Device;
 
         var dims = element.Dimensions;
         var innerDims = element.InnerDimensions;

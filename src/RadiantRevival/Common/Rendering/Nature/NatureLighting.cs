@@ -192,7 +192,7 @@ public static class NatureLighting
 
     private static void ProcessTrees()
     {
-        var device = Main.graphics.GraphicsDevice;
+        var device = Graphics.Device;
         var sb = Main.spriteBatch;
 
         var maskShader = Data.Instance.NatureMaskShader;

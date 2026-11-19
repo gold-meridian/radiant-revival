@@ -72,8 +72,8 @@ public static class CustomSnow
         {
             return Main.RunOnMainThread(() =>
             {
-                var vertices = new DynamicVertexBuffer(Main.instance.GraphicsDevice, Vertex.VERTEX_DECLARATION, MAX_SNOWFLAKES * 4, BufferUsage.None);
-                var indices = new IndexBuffer(Main.instance.GraphicsDevice, IndexElementSize.ThirtyTwoBits, MAX_SNOWFLAKES * 6, BufferUsage.None);
+                var vertices = new DynamicVertexBuffer(Graphics.Device, Vertex.VERTEX_DECLARATION, MAX_SNOWFLAKES * 4, BufferUsage.None);
+                var indices = new IndexBuffer(Graphics.Device, IndexElementSize.ThirtyTwoBits, MAX_SNOWFLAKES * 6, BufferUsage.None);
                 var indicesSubmission = new int[MAX_SNOWFLAKES * 6];
                 for (var i = 0; i < MAX_SNOWFLAKES; i++)
                 {
@@ -92,12 +92,12 @@ public static class CustomSnow
                 {
                     Vertices = vertices,
                     Indices = indices,
-                    SnowflakeTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
-                    SnowflakeNormalTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
+                    SnowflakeTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device),
+                    SnowflakeNormalTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, RenderTargetDescriptor.Default with
                     {
                         Format = SurfaceFormat.Vector4,
                     }),
-                    SnowflakePositionTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
+                    SnowflakePositionTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, RenderTargetDescriptor.Default with
                     {
                         Format = SurfaceFormat.Vector4,
                     }),
@@ -355,7 +355,7 @@ public static class CustomSnow
 
     private static void PrepareTargets()
     {
-        var gd = Main.instance.GraphicsDevice;
+        var gd = Graphics.Device;
         var previousBindings = gd.GetRenderTargets();
         gd.SetRenderTargets(
         [
@@ -369,21 +369,21 @@ public static class CustomSnow
         var cameraPosition = new Vector3(Main.screenPosition + cameraSize * 0.5f, 0f);
         var zoom = Matrix.CreateScale(Main.GameViewMatrix.Zoom.X, Main.GameViewMatrix.Zoom.Y, 1f);
         var view = Matrix.CreateLookAt(cameraPosition - Vector3.UnitZ, cameraPosition, -Vector3.UnitY) * zoom;
-        var aspectRatio = Main.instance.GraphicsDevice.Viewport.AspectRatio;
+        var aspectRatio = Graphics.Device.Viewport.AspectRatio;
         var projection = Matrix.CreatePerspectiveFieldOfView(fov, aspectRatio, 0.1f, 5000f);
         ActiveViewProjection = view * projection;
 
-        var shader = AssetReferences.Assets.Weather.Snow.SnowflakeShader.CreateAutoloadPass();
+        var shader = Assets.Weather.Snow.SnowflakeShader.CreateAutoloadPass();
         shader.Parameters.viewProjectionMatrix = ActiveViewProjection;
         shader.Parameters.baseTexture = new HlslSampler2D
         {
             Texture = Assets.Weather.Snow.Snowflake.Asset.Value,
-            Sampler = SamplerState.LinearClamp
+            Sampler = SamplerState.LinearClamp,
         };
         shader.Parameters.normalTexture = new HlslSampler2D
         {
             Texture = Assets.Weather.Snow.SnowflakeNormal.Asset.Value,
-            Sampler = SamplerState.LinearClamp
+            Sampler = SamplerState.LinearClamp,
         };
         shader.Apply();
 
@@ -439,7 +439,7 @@ public static class CustomSnow
         shader.Parameters.zoom = Main.GameViewMatrix.Zoom;
         shader.Apply();
 
-        var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+        var viewportArea = Graphics.Device.Viewport.Bounds;
         Main.spriteBatch.Draw(Data.Instance.SnowflakeTarget.Target, viewportArea, Color.White);
 
         Main.spriteBatch.End();

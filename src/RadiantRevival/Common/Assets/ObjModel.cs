@@ -37,7 +37,7 @@ internal sealed class ObjModel : IDisposable
     {
         var model = new ObjModel();
 
-        var device = Main.graphics.GraphicsDevice;
+        var device = Graphics.Device;
 
         var meshes = new List<Mesh>();
 
@@ -247,7 +247,7 @@ internal sealed class ObjModel : IDisposable
 
         var mesh = meshes[i];
 
-        var device = Main.graphics.GraphicsDevice;
+        var device = Graphics.Device;
 
         device.Indices = mesh.Indices;
         device.SetVertexBuffer(Vertices);

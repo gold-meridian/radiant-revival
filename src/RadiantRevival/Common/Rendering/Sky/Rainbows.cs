@@ -131,7 +131,7 @@ public static class Rainbows
         if (RainbowIntensity <= 0f)
             return;
 
-        var shader = AssetReferences.Assets.Sky.RainbowShader.CreateAutoloadPass();
+        var shader = Assets.Sky.RainbowShader.CreateAutoloadPass();
         shader.Parameters.zoom = Vector2.One;
         shader.Parameters.screenPosition = Main.screenPosition;
         shader.Parameters.screenSize = Main.ScreenSize.ToVector2();
@@ -140,7 +140,7 @@ public static class Rainbows
         shader.Parameters.sunPosition = new Vector3(AtmosphereCloudRenderingSystem.CelestialBodyPosition + Main.screenPosition, 1000f);
         shader.Apply();
 
-        var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+        var viewportArea = Graphics.Device.Viewport.Bounds;
 
         var overallLight = MathF.Pow(1f - AtmosphereCloudRenderingSystem.LowSun, 0.15f);
         var opacity = RainbowIntensity * overallLight;

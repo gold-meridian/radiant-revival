@@ -165,7 +165,7 @@ public static class MoonStyles
 
                 return Draw(
                     Main.spriteBatch,
-                    Main.graphics.GraphicsDevice,
+                    Graphics.Device,
                     position,
                     color,
                     rotation,

@@ -143,8 +143,8 @@ public sealed class DensityFieldSystem : ModSystem
         };
 
         var scaledSize = new Point(BaselineTargetSize.X * SqrtDepth, BaselineTargetSize.Y * SqrtDepth);
-        swapField ??= RenderTargetPool.Shared.Rent(Main.instance.GraphicsDevice, scaledSize.X, scaledSize.Y, descriptor);
-        DensityField ??= RenderTargetPool.Shared.Rent(Main.instance.GraphicsDevice, scaledSize.X, scaledSize.Y, descriptor);
+        swapField ??= RenderTargetPool.Shared.Rent(Graphics.Device, scaledSize.X, scaledSize.Y, descriptor);
+        DensityField ??= RenderTargetPool.Shared.Rent(Graphics.Device, scaledSize.X, scaledSize.Y, descriptor);
 
         if (ShouldBeDisabled)
             return;
@@ -152,7 +152,7 @@ public sealed class DensityFieldSystem : ModSystem
         var targetSize2D = BaselineTargetSize.ToVector2();
         using (DensityField.Scope(clearColor: Color.Transparent))
         {
-            var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+            var viewportArea = Graphics.Device.Viewport.Bounds;
             Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
 
             var shader = Assets.Sky.DensityFieldEvolutionShader.CreateAutoloadPass();
@@ -198,7 +198,7 @@ public sealed class DensityFieldSystem : ModSystem
         }
         using (swapField.Scope(clearColor: Color.Transparent))
         {
-            var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
+            var viewportArea = Graphics.Device.Viewport.Bounds;
             Main.spriteBatch.Begin();
             Main.spriteBatch.Draw(DensityField.Target, viewportArea, Color.White);
             Main.spriteBatch.End();

@@ -28,7 +28,7 @@ public static class VanillaTargetRenderer
             return Main.RunOnMainThread(
                 () => new Data
                 {
-                    WorldSceneTargetSwap = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
+                    WorldSceneTargetSwap = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
                 }
             ).GetAwaiter().GetResult();
         }

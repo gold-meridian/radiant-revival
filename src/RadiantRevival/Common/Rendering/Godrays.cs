@@ -27,7 +27,7 @@ public static class Godrays
                 {
                     GodraysShader = Assets.Sky.Godrays.CreateGodraysShader(),
                     BlurShader = Assets.Sky.GodraysSampler.CreateRadialBlurShader(),
-                    CelestialBodyTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
+                    CelestialBodyTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -127,7 +127,7 @@ public static class Godrays
             return;
         }
 
-        Draw(Main.spriteBatch, Main.graphics.GraphicsDevice, Main.screenTarget);
+        Draw(Main.spriteBatch, Graphics.Device, Main.screenTarget);
 
         orig();
     }

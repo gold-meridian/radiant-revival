@@ -32,8 +32,8 @@ public static class AmbientOcclusion
                     HorizontalShader = Assets.SmoothLighting.TileBlur.CreateHorizontalShader(),
                     VerticalShader = Assets.SmoothLighting.TileBlur.CreateVerticalShader(),
                     MaskShader = Assets.SmoothLighting.AmbientOcclusionSampler.CreateMaskShader(),
-                    BlurTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
-                    BlurTargetSwap = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    BlurTarget = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    BlurTargetSwap = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                 }
             ).GetAwaiter().GetResult();
 
@@ -84,7 +84,7 @@ public static class AmbientOcclusion
         var vertShader = Data.Instance.VerticalShader;
 
         var sb = Main.spriteBatch;
-        var device = Main.graphics.GraphicsDevice;
+        var device = Graphics.Device;
 
         const int sample_count = 16;
 
