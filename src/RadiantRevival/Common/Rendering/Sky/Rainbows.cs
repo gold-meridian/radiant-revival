@@ -1,12 +1,10 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Mathematics;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using RadiantRevival.Core;
 using System;
 using Terraria;
 using Terraria.GameContent;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     A simple system responsible for the rendering
@@ -100,7 +98,7 @@ public static class Rainbows
     private static void InitializeRainbowVariables(float currentRainIntensity)
     {
         var rainbowDurationInterpolant = Math.Clamp(currentRainIntensity * 2.3f + Main.rand.NextFloat(0.2f), 0f, 1f);
-        RainbowExistenceDuration = (int)Interpolate.Lerp(MinRainbowExistenceDuration, MaxRainbowExistenceDuration, rainbowDurationInterpolant);
+        RainbowExistenceDuration = (int)MathHelper.Lerp(MinRainbowExistenceDuration, MaxRainbowExistenceDuration, rainbowDurationInterpolant);
 
         // Introduce a good chance for a rainbow to not appear at all.
         // This keeps it random and interesting when it does

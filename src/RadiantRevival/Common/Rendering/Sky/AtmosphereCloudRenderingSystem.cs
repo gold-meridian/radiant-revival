@@ -1,7 +1,4 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Mathematics;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
@@ -9,10 +6,9 @@ using System;
 using System.Reflection;
 using Terraria;
 using Terraria.GameContent;
-using Terraria.ID;
 using Terraria.ModLoader;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     The system responsible for the management of
@@ -117,7 +113,7 @@ public static class AtmosphereCloudRenderingSystem
             var phaseBump = MathF.Sin(MathF.PI * phaseCompletion);
             var fullness = 1f - phaseBump;
 
-            return Interpolate.Lerp(0.05f, 0.11f, fullness);
+            return MathHelper.Lerp(0.05f, 0.11f, fullness);
         }
     }
 
@@ -390,7 +386,7 @@ public static class AtmosphereCloudRenderingSystem
 
         using (sb.Scope())
         {
-            atmosphereLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
+            atmosphereLease ??= ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
             using (atmosphereLease.Scope(clearColor: Color.Transparent))
             {
                 using var _ = Main.spriteBatch.Scope();
@@ -484,7 +480,7 @@ public static class AtmosphereCloudRenderingSystem
 
         var darkeningFactor = MathF.Pow(1f - LowSun, 0.54f);
         tint = Vector3.Lerp(tint, Vector3.One, MathF.Sqrt(1f - darkeningFactor));
-        tint *= Interpolate.Lerp(nightBrightness, 1f, darkeningFactor);
+        tint *= MathHelper.Lerp(nightBrightness, 1f, darkeningFactor);
 
         if (!Main.dayTime)
         {
@@ -536,7 +532,7 @@ public static class AtmosphereCloudRenderingSystem
     {
         var darkeningBump = Utils.GetLerpValue(0f, 0.13f, DayProgress, true) * Utils.GetLerpValue(1f, 0.87f, DayProgress, true);
         var darkeningFactor = MathF.Pow(darkeningBump, 0.8f);
-        var eveningColorBias = LowSun * Interpolate.Lerp(1f, 0.2f, RainInterpolant) * 0.85f;
+        var eveningColorBias = LowSun * MathHelper.Lerp(1f, 0.2f, RainInterpolant) * 0.85f;
         var nightColor = Color.Lerp(Color.Black, Color.White, MoonlightGlowInterpolant);
 
         backgroundColor = Color.Lerp(backgroundColor, Profile.LowSunTintColor, eveningColorBias);

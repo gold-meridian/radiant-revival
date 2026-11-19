@@ -1,13 +1,8 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Mathematics;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using Terraria;
 using Terraria.DataStructures;

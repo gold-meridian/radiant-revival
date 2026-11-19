@@ -1,5 +1,4 @@
-﻿using Daybreak.Common.Features.Authorship;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using Terraria;

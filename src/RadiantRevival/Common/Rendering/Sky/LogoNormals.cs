@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Reflection;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
@@ -118,7 +116,7 @@ public class LogoNormals
 
         c.GotoNext(
             i => i.MatchNewobj<Rectangle?>(),
-            i => i.MatchLdarg(out _),
+            i => i.MatchLdarg(out int _),
             i => i.MatchLdarg(out logoRotationIndex)
         );
 

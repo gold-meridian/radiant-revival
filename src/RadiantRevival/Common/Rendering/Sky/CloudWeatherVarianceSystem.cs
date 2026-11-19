@@ -2,7 +2,7 @@
 using Terraria.ModLoader;
 using Terraria.ModLoader.IO;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     A simple system responsible for the handling of weather

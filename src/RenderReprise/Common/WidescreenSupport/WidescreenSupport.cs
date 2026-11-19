@@ -1,5 +1,4 @@
-﻿using Daybreak.Common.Features.Hooks;
-using MonoMod.Cil;
+﻿using MonoMod.Cil;
 using Terraria;
 
 namespace RenderReprise.Common;

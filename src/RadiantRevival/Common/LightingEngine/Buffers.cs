@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -25,8 +22,8 @@ partial class LightingEngine
             return Main.RunOnMainThread(
                 () => new Buffers
                 {
-                    TileSpaceBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBufferSize),
-                    ScreenSpaceBuffer = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
+                    TileSpaceBuffer = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetBufferSize),
+                    ScreenSpaceBuffer = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
                 }
             ).GetAwaiter().GetResult();
 

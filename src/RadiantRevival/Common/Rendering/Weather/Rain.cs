@@ -1,8 +1,4 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Mathematics;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
@@ -86,9 +82,9 @@ public static class Rain
                     DirectionalBlurShader = Assets.Weather.Rain.TileMaskBlur.CreateTileMaskBlurShader(),
                     DistortionShader = Assets.Weather.Rain.Distortion.CreateDistortionShader(),
                     BackgroundShader = Assets.Weather.Rain.Background.CreateBackgroundShader(),
-                    RainTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
-                    MaskTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
-                    MaskTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    RainTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
+                    MaskTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    MaskTargetSwap = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetMaskTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                 }
             ).GetAwaiter().GetResult();
 
@@ -108,16 +104,6 @@ public static class Rain
                     data.MaskTargetSwap.Dispose();
                 }
             );
-        }
-    }
-
-    public sealed class RainRenderer : IScreenFilterStep
-    {
-        public EffectPriority Priority => EffectPriority.Low;
-
-        public bool Apply(in ScreenFilterRendererContext ctx)
-        {
-            return ApplyShader(ctx.ScreenTarget, ctx.ScreenTargetSwap, ctx.Color);
         }
     }
 
@@ -671,7 +657,14 @@ public static class Rain
         );
     }
 
-    private static bool ApplyShader(RenderTarget2D screen, RenderTarget2D screenSwap, Color color)
+    [ScreenFilter(EffectPriority.Low)]
+    private static bool ApplyShader(
+        SpriteBatch sb,
+        GraphicsDevice device,
+        RenderTarget2D screen,
+        RenderTarget2D screenSwap,
+        Color color
+    )
     {
         if (activeParticles <= 0)
         {
@@ -681,9 +674,6 @@ public static class Rain
         var distortionShader = Data.Instance.DistortionShader;
 
         var intensity = Intensity;
-
-        var sb = Main.spriteBatch;
-        var device = Main.graphics.GraphicsDevice;
 
         device.SetRenderTarget(RainTarget.Target);
         device.Clear(Color.Transparent);

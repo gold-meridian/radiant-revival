@@ -3,7 +3,7 @@ using System;
 using System.Diagnostics;
 using Terraria;
 
-namespace RadiantRevival.Common.Rendering.Weather;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     Represents an instance of a snow particle.

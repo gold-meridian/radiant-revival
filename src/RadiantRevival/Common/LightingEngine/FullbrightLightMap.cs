@@ -1,5 +1,4 @@
 ﻿using System;
-using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using Terraria.Graphics.Light;
 

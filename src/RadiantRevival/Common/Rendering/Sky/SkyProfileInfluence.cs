@@ -1,8 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
-using Terraria;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     A profile that contains all relevant artistic dials

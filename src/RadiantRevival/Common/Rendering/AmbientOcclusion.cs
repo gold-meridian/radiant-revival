@@ -1,7 +1,4 @@
 ﻿using System.Collections.Generic;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
@@ -35,8 +32,8 @@ public static class AmbientOcclusion
                     HorizontalShader = Assets.SmoothLighting.TileBlur.CreateHorizontalShader(),
                     VerticalShader = Assets.SmoothLighting.TileBlur.CreateVerticalShader(),
                     MaskShader = Assets.SmoothLighting.AmbientOcclusionSampler.CreateMaskShader(),
-                    BlurTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
-                    BlurTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    BlurTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
+                    BlurTargetSwap = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, GetBlurTargetSize, RenderTargetDescriptor.Default with { Format = SurfaceFormat.Alpha8 }),
                 }
             ).GetAwaiter().GetResult();
 

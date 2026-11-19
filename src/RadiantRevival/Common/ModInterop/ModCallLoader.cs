@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Daybreak.Common.Features.Hooks;
 using Terraria.ModLoader;
 using Terraria.ModLoader.Core;
 

@@ -1,11 +1,4 @@
-﻿using Daybreak.Common.Features.Authorship;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Features.ModPanel;
-using Daybreak.Common.Mathematics;
-using Daybreak.Common.Rendering;
-using Daybreak.Common.UI;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Common;

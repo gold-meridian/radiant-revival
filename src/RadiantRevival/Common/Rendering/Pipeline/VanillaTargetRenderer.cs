@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Rendering;
-using RadiantRevival.Common.SmoothLighting;
 using Terraria;
 using Terraria.Graphics;
 using Terraria.ModLoader;
@@ -32,7 +28,7 @@ public static class VanillaTargetRenderer
             return Main.RunOnMainThread(
                 () => new Data
                 {
-                    WorldSceneTargetSwap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
+                    WorldSceneTargetSwap = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (_, _, targetWidth, targetHeight) => (targetWidth, targetHeight)),
                 }
             ).GetAwaiter().GetResult();
         }

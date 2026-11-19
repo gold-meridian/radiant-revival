@@ -1,5 +1,4 @@
 ﻿using System;
-using Daybreak.Common.Features.Hooks;
 using GoldMeridian.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;

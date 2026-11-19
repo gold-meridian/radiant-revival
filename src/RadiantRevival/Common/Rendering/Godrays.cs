@@ -1,11 +1,6 @@
-﻿using Daybreak.Common.CIL;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
-using RadiantRevival.Common.Rendering.Sky;
 using RadiantRevival.Core;
 using System;
 using Terraria;
@@ -32,7 +27,7 @@ public static class Godrays
                 {
                     GodraysShader = Assets.Sky.Godrays.CreateGodraysShader(),
                     BlurShader = Assets.Sky.GodraysSampler.CreateRadialBlurShader(),
-                    CelestialBodyTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
+                    CelestialBodyTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -172,7 +167,7 @@ public static class Godrays
             return;
         }
 
-        using var lease = ScreenspaceTargetPool.Shared.Rent(device, (int)screenSize.X / 4, (int)screenSize.Y / 4);
+        using var lease = ScreenspaceTargetProvider.Shared.Create(device, (w, h) => (w / 4, h / 4));
 
         using var _ = sb.Scope();
 

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using Daybreak.Common.Features.Hooks;
 using Microsoft.Xna.Framework;
 using MonoMod.Cil;
 using Terraria;
@@ -47,7 +46,7 @@ public static class CelestialBodyVelocity
 
         c.GotoNext(
             MoveType.After,
-            i => i.MatchCall(typeof(FocusHelper), $"get_{nameof(FocusHelper.AllowUIInputs)}"),
+            i => i.MatchLdsfld<Main>(nameof(Main.starGame)),
             i => i.MatchBrfalse(out jumpCelestialBodyGrabbingTarget)
         );
 

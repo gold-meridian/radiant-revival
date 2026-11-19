@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     A profile that contains all relevant artistic dials

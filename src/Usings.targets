@@ -1,0 +1,10 @@
+<Project>
+
+    <ItemGroup>
+        <Compile Include="$(MSBuildThisFileDirectory)\GlobalUsings.cs">
+            <Link>include/%(Filename)%(Extension)</Link>
+            <Visible>false</Visible>
+        </Compile>
+    </ItemGroup>
+
+</Project>

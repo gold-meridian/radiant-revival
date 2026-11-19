@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using Daybreak.Common.Features.Hooks;
 using MonoMod.Cil;
 using Terraria;
 using Terraria.GameContent;
@@ -38,7 +37,7 @@ public sealed class MidnightLighting
 
         c.GotoPrev(
             MoveType.Before,
-            i => i.MatchLdloc(out _),
+            i => i.MatchLdloc(out int _),
             i => i.MatchAnd()
         );
 

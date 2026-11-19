@@ -1,14 +1,11 @@
 ﻿using System;
-using Daybreak.Common.CIL;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using Terraria;
 using Terraria.GameContent;
 
-namespace RadiantRevival.Common.SmoothLighting;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     Rewrites background rendering to use smooth lighting through a shader.
@@ -68,7 +65,7 @@ internal static class SmoothBackgroundRendering
         c.GotoNext(
             MoveType.After,
             i => i.MatchCall<Vector2>("op_Multiply"),
-            i => i.MatchStloc(out _)
+            i => i.MatchStloc(out int _)
         );
 
         c.MoveAfterLabels();

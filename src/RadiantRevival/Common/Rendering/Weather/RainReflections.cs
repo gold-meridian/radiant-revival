@@ -1,9 +1,6 @@
-﻿using Daybreak.Common.Features.Models;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
-using System;
 using Terraria;
 using Terraria.Graphics.Effects;
 using Terraria.ModLoader;
@@ -31,7 +28,7 @@ public static class RainReflections
                     ReflectionsShader = Assets.Weather.Rain.Reflection.CreateReflectionShader(),
                     DistanceProcessorShader = Assets.Weather.Rain.DistanceMap.CreateDistanceMapProcessingShader(),
                     DistanceMapShader = Assets.Weather.Rain.DistanceMap.CreateDistanceMapShader(),
-                    DistanceMap = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with { Format = SurfaceFormat.HalfVector2 }),
+                    DistanceMap = ScreenspaceTargetProvider.Shared.Create(Graphics.Device, RenderTargetDescriptor.Default with { Format = SurfaceFormat.HalfVector2 }),
                 }
             ).GetAwaiter().GetResult();
         }
@@ -48,23 +45,20 @@ public static class RainReflections
         }
     }
 
-    public sealed class ReflectionRenderer : IScreenFilterStep
-    {
-        public EffectPriority Priority => EffectPriority.Medium;
-
-        public bool Apply(in ScreenFilterRendererContext ctx)
-        {
-            return ApplyShader(ctx.ScreenTarget, ctx.ScreenTargetSwap, ctx.Color);
-        }
-    }
-
     private static RenderTargetLease DistanceMap => Data.Instance.DistanceMap;
 
     private const int max_reflection_length = 16;
 
     private static Vector2 priorScreenPosition;
 
-    private static bool ApplyShader(RenderTarget2D screen, RenderTarget2D screenSwap, Color color)
+    [ScreenFilter(EffectPriority.Low)]
+    private static bool ApplyShader(
+        SpriteBatch sb,
+        GraphicsDevice device,
+        RenderTarget2D screen,
+        RenderTarget2D screenSwap,
+        Color color
+    )
     {
         if (!Rain.Active)
         {
@@ -82,9 +76,6 @@ public static class RainReflections
         var deltaTime = (float)Main.gameTimeCache.ElapsedGameTime.TotalSeconds * 60f;
 
         var fadeSpeed = 0.04f * deltaTime;
-
-        var sb = Main.spriteBatch;
-        var device = Main.graphics.GraphicsDevice;
 
         device.SetRenderTarget(screenSwap);
         device.Clear(Color.Transparent);

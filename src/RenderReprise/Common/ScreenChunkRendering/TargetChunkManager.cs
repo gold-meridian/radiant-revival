@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using Daybreak.Common.Rendering;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace RenderReprise.Common;

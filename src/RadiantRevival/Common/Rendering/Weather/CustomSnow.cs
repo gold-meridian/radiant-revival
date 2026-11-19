@@ -1,9 +1,5 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Features.Models;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using RadiantRevival.Common.Rendering.Sky;
 using RadiantRevival.Core;
 using System;
 using System.Runtime.InteropServices;
@@ -14,7 +10,7 @@ using Terraria.Graphics.Effects;
 using Terraria.ModLoader;
 using BitOperations = System.Numerics.BitOperations;
 
-namespace RadiantRevival.Common.Rendering.Weather;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     The system responsible for the creation and
@@ -96,14 +92,14 @@ public static class CustomSnow
                 {
                     Vertices = vertices,
                     Indices = indices,
-                    SnowflakeTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice),
-                    SnowflakeNormalTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
+                    SnowflakeTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice),
+                    SnowflakeNormalTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
                     {
-                        Format = SurfaceFormat.Vector4
+                        Format = SurfaceFormat.Vector4,
                     }),
-                    SnowflakePositionTarget = ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
+                    SnowflakePositionTarget = ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, RenderTargetDescriptor.Default with
                     {
-                        Format = SurfaceFormat.Vector4
+                        Format = SurfaceFormat.Vector4,
                     }),
                 };
             }).GetAwaiter().GetResult();

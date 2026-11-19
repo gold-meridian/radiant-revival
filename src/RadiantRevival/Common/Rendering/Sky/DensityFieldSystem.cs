@@ -1,13 +1,11 @@
-﻿using Daybreak.Common.Mathematics;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RadiantRevival.Core;
 using System;
 using Terraria;
 using Terraria.ModLoader;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     The system responsible for the updating of
@@ -83,13 +81,13 @@ public sealed class DensityFieldSystem : ModSystem
         var humidityFactor = 1f;
 
         var desertInterpolant = Utils.GetLerpValue(0f, 900f, Main.SceneMetrics.SandTileCount, true);
-        humidityFactor *= Interpolate.Lerp(1f, 0.3f, desertInterpolant);
+        humidityFactor *= MathHelper.Lerp(1f, 0.3f, desertInterpolant);
 
         var jungleInterpolant = Utils.GetLerpValue(0f, 900f, Main.SceneMetrics.JungleTileCount, true);
-        humidityFactor *= Interpolate.Lerp(1f, 1.54f, jungleInterpolant);
+        humidityFactor *= MathHelper.Lerp(1f, 1.54f, jungleInterpolant);
 
         var evilBiomeInterpolant = Utils.GetLerpValue(0f, 700f, Main.SceneMetrics.EvilTileCount, true);
-        humidityFactor *= Interpolate.Lerp(1f, 0.85f, evilBiomeInterpolant);
+        humidityFactor *= MathHelper.Lerp(1f, 0.85f, evilBiomeInterpolant);
 
         if (Main.LocalPlayer.ZoneBeach)
             humidityFactor *= 1.25f;
@@ -117,7 +115,7 @@ public sealed class DensityFieldSystem : ModSystem
             if (influence.OverridingSurfaceTemperature is float f)
             {
                 var influenceIntensity = influence.InfluenceFunction(Main.LocalPlayer);
-                baseTemperature = Interpolate.Lerp(baseTemperature, f, influenceIntensity);
+                baseTemperature = MathHelper.Lerp(baseTemperature, f, influenceIntensity);
             }
         }
 
@@ -157,16 +155,16 @@ public sealed class DensityFieldSystem : ModSystem
             var viewportArea = new Rectangle(0, 0, Main.instance.GraphicsDevice.Viewport.Width, Main.instance.GraphicsDevice.Viewport.Height);
             Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
 
-            var shader = AssetReferences.Assets.Sky.DensityFieldEvolutionShader.CreateAutoloadPass();
+            var shader = Assets.Sky.DensityFieldEvolutionShader.CreateAutoloadPass();
             shader.Parameters.depth = SqrtDepth * SqrtDepth;
             shader.Parameters.sqrtDepth = SqrtDepth;
             shader.Parameters.targetSize2D = targetSize2D;
 
             var condensationInterpolant = CloudWeatherVarianceSystem.Noise1D(CloudWeatherVarianceSystem.WeatherTimer * 0.0125f);
-            var condensationCoefficient = Interpolate.Lerp(0.01993f, 0.043f, condensationInterpolant);
+            var condensationCoefficient = MathHelper.Lerp(0.01993f, 0.043f, condensationInterpolant);
 
             var buoyancyInterpolant = CloudWeatherVarianceSystem.Noise1D(CloudWeatherVarianceSystem.WeatherTimer * 0.017f);
-            var buoyancyIntensity = Interpolate.Lerp(0.033f, 0.099f, buoyancyInterpolant);
+            var buoyancyIntensity = MathHelper.Lerp(0.033f, 0.099f, buoyancyInterpolant);
 
             var humidityBias = CloudWeatherVarianceSystem.Noise1D(CloudWeatherVarianceSystem.WeatherTimer * 0.018f) * 0.12f;
 
@@ -188,8 +186,8 @@ public sealed class DensityFieldSystem : ModSystem
 
             shader.Parameters.noiseTexture = new HlslSampler2D
             {
-                Texture = AssetReferences.Assets.Noise.PerlinNoise.Asset.Value,
-                Sampler = SamplerState.LinearWrap
+                Texture = Assets.Noise.PerlinNoise.Asset.Value,
+                Sampler = SamplerState.LinearWrap,
             };
 
             shader.Apply();

@@ -1,5 +1,4 @@
 ﻿using System;
-using Daybreak.Common.Features.Hooks;
 using Terraria.Graphics.Light;
 using VanillaEngine = Terraria.Graphics.Light.LightingEngine;
 

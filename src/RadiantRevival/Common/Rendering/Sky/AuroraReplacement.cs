@@ -1,7 +1,4 @@
-﻿using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Mathematics;
-using Daybreak.Common.Rendering;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using RadiantRevival.Core;
@@ -12,7 +9,7 @@ using Terraria.GameContent.Skies;
 using Terraria.Graphics;
 using Terraria.Graphics.Effects;
 
-namespace RadiantRevival.Common.Rendering.Sky;
+namespace RadiantRevival.Common;
 
 /// <summary>
 ///     The system responsible for the rendering of
@@ -34,8 +31,8 @@ public static class AuroraReplacement
 
     private static void ReplaceAurora(On_AuroraSky.orig_DrawAuroraSky orig, VertexStrip vertexStrip, float skyOpacity, ref Color lastSkyColor)
     {
-        auroraLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
-        depthLease ??= ScreenspaceTargetPool.Shared.Rent(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2), RenderTargetDescriptor.Default with
+        auroraLease ??= ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2));
+        depthLease ??= ScreenspaceTargetProvider.Shared.Create(Main.instance.GraphicsDevice, (w, h) => (w / 2, h / 2), RenderTargetDescriptor.Default with
         {
             Format = SurfaceFormat.Single
         });
@@ -66,11 +63,11 @@ public static class AuroraReplacement
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Matrix.Identity);
 
         var solarActivity = MathF.Cos(CloudWeatherVarianceSystem.WeatherTimer * 0.0019f) * 0.5f + 0.5f;
-        solarActivity = Interpolate.Lerp(solarActivity, 0f, 0.6f);
+        solarActivity = MathHelper.Lerp(solarActivity, 0f, 0.6f);
 
-        var redBandWidth = Interpolate.Lerp(24f, 40f, solarActivity);
-        var greenBandWidth = Interpolate.Lerp(18f, 26f, solarActivity);
-        var blueBandWidth = Interpolate.Lerp(20f, 35f, solarActivity);
+        var redBandWidth = MathHelper.Lerp(24f, 40f, solarActivity);
+        var greenBandWidth = MathHelper.Lerp(18f, 26f, solarActivity);
+        var blueBandWidth = MathHelper.Lerp(20f, 35f, solarActivity);
 
         var hueMixingA = MathF.Sin(CloudWeatherVarianceSystem.WeatherTimer * 0.0151f) * 0.5f + 0.5f;
         var hueMixingB = MathF.Sin(CloudWeatherVarianceSystem.WeatherTimer * 0.0132f) * 0.5f + 0.5f;

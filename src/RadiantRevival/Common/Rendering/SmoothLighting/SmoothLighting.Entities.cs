@@ -1,9 +1,7 @@
 ﻿using System;
-using Daybreak.Common.Features.Hooks;
-using Daybreak.Common.Rendering;
 using Terraria;
 
-namespace RadiantRevival.Common.SmoothLighting;
+namespace RadiantRevival.Common;
 
 internal static class CommonEntitySmoothLighting
 {
