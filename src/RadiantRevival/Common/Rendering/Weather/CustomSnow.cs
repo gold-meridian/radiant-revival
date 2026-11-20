@@ -356,13 +356,14 @@ public static class CustomSnow
     private static void PrepareTargets()
     {
         var gd = Graphics.Device;
-        var previousBindings = gd.GetRenderTargets();
-        gd.SetRenderTargets(
-        [
-            Data.Instance.SnowflakeTarget.Target,
-            Data.Instance.SnowflakeNormalTarget.Target,
-            Data.Instance.SnowflakePositionTarget.Target,
-        ]);
+
+        using var _ = new RenderTargetScope(
+            [
+                Data.Instance.SnowflakeTarget.Target,
+                Data.Instance.SnowflakeNormalTarget.Target,
+                Data.Instance.SnowflakePositionTarget.Target,
+            ]
+        );
 
         var fov = MathF.PI * 0.5f;
         var cameraSize = Main.ScreenSize.ToVector2();
@@ -393,8 +394,6 @@ public static class CustomSnow
         gd.SetVertexBuffer(Data.Instance.Vertices);
         gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, activeSnowflakeCount * 4, 0, activeSnowflakeCount * 2);
         gd.RasterizerState = previousRasterizer;
-
-        gd.SetRenderTargets(previousBindings);
     }
 
     private static void Render(bool foreground)
