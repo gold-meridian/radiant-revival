@@ -37,18 +37,12 @@ public static class AuroraReplacement
             Format = SurfaceFormat.Single,
         });
 
+        using (new RenderTargetScope([
+            auroraLease.Target,
+            depthLease.Target,
+        ]))
         {
-            var gd = Graphics.Device;
-            var previousBindings = gd.GetRenderTargets();
-            gd.SetRenderTargets(
-            [
-                auroraLease.Target,
-                depthLease.Target,
-            ]);
-
             RenderIntoTargets();
-
-            gd.SetRenderTargets(previousBindings);
         }
 
         using var _ = Main.spriteBatch.Scope();
