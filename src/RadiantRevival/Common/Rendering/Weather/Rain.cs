@@ -657,7 +657,7 @@ public static class Rain
         );
     }
 
-    [ScreenFilter(EffectPriority.Low)]
+    [ScreenFilter(EffectPriority.VeryLow)]
     private static bool ApplyShader(
         SpriteBatch sb,
         GraphicsDevice device,

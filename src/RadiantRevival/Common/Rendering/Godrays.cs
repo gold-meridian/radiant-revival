@@ -50,7 +50,7 @@ public static class Godrays
 
     private static RenderTargetLease CelestialBodyTarget => Data.Instance.CelestialBodyTarget;
 
-    [OnLoad]
+    [ModSystemHooks.PostSetupContent]
     private static void Load()
     {
         IL_Main.DrawSunAndMoon += DrawSunAndMoon_CaptureCelestialBodies;
@@ -68,7 +68,7 @@ public static class Godrays
         c.EmitDelegate(
             static (ref RenderTargetScope? scope) =>
             {
-                if (!Main.dayTime || !ShouldDraw || Main.screenTarget is null)
+                if (!Main.dayTime || !ShouldDraw)
                 {
                     return;
                 }
@@ -121,7 +121,10 @@ public static class Godrays
 
     private static void DrawLensFlare_Godrays(On_Main.orig_DrawLensFlare orig)
     {
-        if (!Main.dayTime || !ShouldDraw || Main.screenTarget is null)
+        if (!Main.dayTime
+         || !ShouldDraw
+         || SunLensFlare.ShouldDrawFlare
+        )
         {
             orig();
             return;

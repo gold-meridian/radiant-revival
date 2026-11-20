@@ -10,7 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Publicize Include="FNA;ReLogic" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false"/>
+        <Publicize Include="FNA;ReLogic" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false" />
     </ItemGroup>
 
     <!-- Daybreak -->
@@ -25,7 +25,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\RenderReprise\RenderReprise.csproj"/>
+        <ProjectReference Include="..\RenderReprise\RenderReprise.csproj" />
     </ItemGroup>
 
     <Import Project="..\RadiantRevival.SourceGen\AssetReferences.targets" />

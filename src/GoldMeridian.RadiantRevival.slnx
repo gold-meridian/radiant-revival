@@ -14,6 +14,7 @@
         <Project Path="daybreak-mod/src/Daybreak.Networking.V1/Daybreak.Networking.V1.csproj" />
         <Project Path="daybreak-mod/src/Daybreak.Rendering.Buffers.Entities.V1/Daybreak.Rendering.Buffers.Entities.V1.csproj" />
         <Project Path="daybreak-mod/src/Daybreak.Rendering.Buffers.V1/Daybreak.Rendering.Buffers.V1.csproj" />
+        <Project Path="daybreak-mod/src/Daybreak.Rendering.Filters.Owned.V1/Daybreak.Rendering.Filters.Owned.V1.csproj" />
         <Project Path="daybreak-mod/src/Daybreak.Rendering.V1/Daybreak.Rendering.V1.csproj" />
         <Project Path="daybreak-mod/src/Daybreak.Resources.V1/Daybreak.Resources.V1.csproj" />
         <Project Path="daybreak-mod/src/Daybreak.UI.Owned.V1/Daybreak.UI.Owned.V1.csproj" />
